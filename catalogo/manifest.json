@@ -2598,13 +2598,40 @@
         "valor": 3,
         "total": 3
       },
-      "status": "em_andamento",
+      "status": "concluido",
       "adicionado_fora_lista": true,
       "justificativa_inclusao": "ERP do cliente atual do usuário (gestão de resíduos e reciclagem); será o piloto de teste do executor com credencial real.",
       "hipoteses_a_validar": [
-        "documentação de API provavelmente não é pública",
-        "produto Sagi é a plataforma mais completa",
-        "app móvel é extensão do Sagi"
+        "REFUTADA (2026-09-17): a documentacao de API E publica — Swagger aberto em https://api.sagierp.com.br/api-explorer/ e spec OpenAPI 3.0.1 em https://api.sagierp.com.br/api/v1/spec, com 79 operacoes, sem login.",
+        "CONFIRMADA: Sagi e a plataforma mais completa; a API se chama 'API SAGI' e atende Sagi e SGR.",
+        "CONFIRMADA: o app movel e extensao do Sagi (App Sygecom, Google Play e App Store)."
+      ],
+      "resultado": {
+        "endpoints_detalhados": 16,
+        "endpoints_catalogados": 63,
+        "faq": 17,
+        "indice_integrabilidade": 39,
+        "bloqueio_para_o_piloto": "credencial: usuario de API criado dentro do ERP (e-mail + senha, sem bloqueio de acesso ao SAGI Mobile) e confirmacao do host/homologacao com a Sygecom",
+        "data": "2026-09-17"
+      },
+      "concluido_em": "2026-09-17",
+      "endpoints_detalhados": 16,
+      "endpoints_catalogados": 63,
+      "faq": 17,
+      "indice_integrabilidade": 39,
+      "validador": "0 erros, 2 avisos (e-mail institucional do fornecedor)",
+      "execucao": {
+        "completo_em": "2026-09-17",
+        "endpoints_executaveis": 14,
+        "endpoints_total": 16
+      },
+      "conferencia_orquestrador": "spec OpenAPI pública confirmada; fluxo de login testado no executor contra mock no formato do Sagi",
+      "pendencias": [
+        "URL de homologação não publicada: hoje todo teste seria em produção",
+        "confirmar host da instalação do cliente",
+        "sem termos de uso de API: uso em produto de terceiro precisa de posição escrita da Sygecom",
+        "sem rate limit publicado",
+        "sem webhooks: tudo por consulta periódica"
       ]
     }
   ],

@@ -187,15 +187,36 @@ def preparar_sessao(sistema, credenciais, ambiente):
         s.headers["Authorization"] = "Bearer " + token
         if tipo == "oauth2_refresh_token":
             print("  (token renovado; guarde o novo refresh_token se a API tiver rotacionado)")
-    elif tipo != "nenhum":
+    elif tipo != "login_credenciais" and tipo != "nenhum":
         raise SystemExit(f"Tipo de autenticação não suportado pelo executor: {tipo}")
 
     base = (auth.get("base_url_por_ambiente") or {}).get(ambiente)
     if not base:
         base = (sistema["api"]["base_urls"] or {}).get(ambiente)
+    if not base and credenciais.get("base_url"):  # padrões sem host fixo (Pix, ERP on-premise)
+        base = credenciais["base_url"]
     if not base:
         raise SystemExit(f"Sem base_url para o ambiente '{ambiente}' em {sistema['slug']}.")
-    return s, base.rstrip("/")
+    base = base.rstrip("/")
+
+    if tipo == "login_credenciais":
+        # ERPs que autenticam com usuário e senha e devolvem um token
+        log = auth.get("login") or {}
+        corpo = {k: re.sub(r"\{([a-z0-9_]+)\}", lambda m: str(credenciais.get(m.group(1), "")), str(v))
+                 if isinstance(v, str) else v
+                 for k, v in (log.get("corpo") or {}).items()}
+        caminho_login = log.get("caminho") or "/login"
+        url = caminho_login if caminho_login.startswith("http") else base + caminho_login
+        r = s.request(log.get("metodo", "POST"), url, json=corpo, timeout=TIMEOUT)
+        if r.status_code >= 400:
+            raise SystemExit(f"Login recusado (HTTP {r.status_code}): {r.text[:300]}")
+        token = caminho(r.json(), log.get("campo_token") or "token")
+        if not token:
+            raise SystemExit(f"A resposta do login não trouxe o campo '{log.get('campo_token')}'.")
+        s.headers["Authorization"] = (log.get("prefixo") or "Bearer ") + str(token)
+        print("  login efetuado; token obtido")
+
+    return s, base
 
 
 # ----------------------------------------------------------------- 3) puxar

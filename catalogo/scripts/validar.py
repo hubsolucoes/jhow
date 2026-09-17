@@ -41,7 +41,7 @@ CHAVES_ENDPOINT = [
     "idempotente", "pre_requisitos", "snippets", "execucao", "confianca", "fonte_url", "data_consulta",
 ]
 TIPOS_AUTH_EXEC = {"header_api_key", "bearer", "basic", "oauth2_client_credentials",
-                   "oauth2_refresh_token", "mtls_oauth2", "nenhum"}
+                   "oauth2_refresh_token", "mtls_oauth2", "login_credenciais", "nenhum"}
 TIPOS_PAGINACAO = {"offset", "page", "cursor", "versao", "nenhuma"}
 CHAVES_META_CHUNK = [
     "sistema", "categoria", "entidade_canonica", "acao_canonica", "metodo", "path", "id",
@@ -160,6 +160,19 @@ def validar_sistema(s, r: Relatorio):
                         r.erro(f"system.json: credencial '{c.get('nome')}' sem '{k}'")
             if "base_url_por_ambiente" not in ex:
                 r.erro("system.json: execucao_auth.base_url_por_ambiente ausente")
+            if ex.get("tipo") == "login_credenciais":
+                log = ex.get("login")
+                if not isinstance(log, dict):
+                    r.erro("system.json: execucao_auth.login ausente (necessário para login_credenciais)")
+                else:
+                    for k in ("metodo", "caminho", "corpo", "campo_token"):
+                        if not log.get(k):
+                            r.erro(f"system.json: execucao_auth.login.{k} ausente")
+                    nomes = {c.get("nome") for c in creds or []}
+                    marcadores = {m for val in (log.get("corpo") or {}).values()
+                                  for m in re.findall(r"\{([a-z0-9_]+)\}", str(val))}
+                    for m in sorted(marcadores - nomes):
+                        r.erro(f"system.json: login.corpo usa marcador '{m}' fora de credenciais_necessarias")
     fontes = s.get("fontes") or []
     if not fontes:
         r.erro("system.json: fontes[] vazio")

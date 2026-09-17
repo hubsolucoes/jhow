@@ -140,7 +140,7 @@ Regras:
     "expiracao_token": "", "renovacao": "", "ip_allowlist_obrigatorio": false
   },
   "execucao_auth": {
-    "tipo": "header_api_key | bearer | basic | oauth2_client_credentials | oauth2_refresh_token | mtls_oauth2 | nenhum",
+    "tipo": "header_api_key | bearer | basic | oauth2_client_credentials | oauth2_refresh_token | mtls_oauth2 | login_credenciais | nenhum",
     "header": "access_token",
     "prefixo": "",
     "usuario_basic_e_a_credencial": false,
@@ -150,6 +150,14 @@ Regras:
       { "nome": "api_key", "rotulo": "Chave de API", "segredo": true, "onde_obter": "Painel > Integrações > Chaves de API", "obrigatoria": true }
     ],
     "base_url_por_ambiente": { "sandbox": "", "producao": "" },
+    "login": {
+      "metodo": "POST",
+      "caminho": "/login",
+      "corpo": { "email": "{usuario_email}", "password": "{senha}", "origem": "API" },
+      "campo_token": "token",
+      "prefixo": "Bearer ",
+      "expira_em": null
+    },
     "observacao": ""
   },
   "ambiente_testes": { "sandbox": true, "como_obter": "", "custo": "", "dados_ficticios": true },
@@ -206,7 +214,9 @@ Regras:
 
 ### 6.1 `execucao_auth` — receita de autenticação legível por máquina
 
-O executor do produto monta a chamada a partir deste bloco, sem ler texto livre. `credenciais_necessarias` é exatamente o que o cliente cadastra no cofre do backend: use nomes estáveis (`api_key`, `token`, `client_id`, `client_secret`, `refresh_token`, `access_token`, `certificado_pem`, `chave_privada_pem`, `senha_certificado`). Em padrões de arranjo e sistemas on-premise, onde o host não é fixo, entram também como credenciais de configuração: `base_url`, `token_url` e `escopos`. Nenhum valor real entra aqui.
+O executor do produto monta a chamada a partir deste bloco, sem ler texto livre.
+
+`login_credenciais` é o fluxo de ERPs que autenticam com usuário e senha e devolvem um token: preencha o sub-bloco `login` com o método, o caminho (relativo à base URL ou absoluto), o corpo — usando `{nome_da_credencial}` como marcador, substituído pelo valor vindo do cofre — e `campo_token`, o caminho em notação de ponto até o token na resposta. Só use este tipo quando não houver OAuth; o usuário do ERP deve ser dedicado à integração e com o menor conjunto de permissões. `credenciais_necessarias` é exatamente o que o cliente cadastra no cofre do backend: use nomes estáveis (`api_key`, `token`, `client_id`, `client_secret`, `refresh_token`, `access_token`, `certificado_pem`, `chave_privada_pem`, `senha_certificado`). Em padrões de arranjo e sistemas on-premise, onde o host não é fixo, entram também como credenciais de configuração: `base_url`, `token_url` e `escopos`. Nenhum valor real entra aqui.
 
 ## 7. Endpoint (item de `endpoints[]`)
 

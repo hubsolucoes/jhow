@@ -1,5 +1,13 @@
 # Changelog do catálogo
 
+## 2026-09-17 — SyGeCom (ERP do cliente) e login por usuário e senha
+
+- **sygecom documentado** (índice 39): a hipótese de documentação fechada estava errada — a SyGeCom publica spec OpenAPI 3.0.1 aberta, com 79 operações. 16 endpoints detalhados (14 executáveis) e 63 catalogados.
+- Novo tipo de autenticação **`login_credenciais`** na especificação, no validador e no executor: ERPs que autenticam com usuário e senha e devolvem token, com corpo do login descrito por máquina.
+- Executor testado com o formato do Sagi: login, token, consulta e planilha; senha errada é recusada antes de qualquer consulta.
+- Executor passou a aceitar `base_url` vinda das credenciais, para padrões e instalações sem host fixo.
+- Catálogo publicado no GitHub (hubsolucoes/jhow), em `catalogo/`, sem tocar no projeto do Lovable. Script `catalogo/scripts/publicar.sh`.
+
 ## 2026-09-17 — Taxonomia v1.2 e início do Lote 3
 
 - `taxonomia.json` 1.2.0, aprovada pelo usuário: entidades `Relatorio`, `Contestacao`, `Cartao`, `Plano` e `LocationPagamento`; ação `desvincular`; descrição de `Endereco` ampliada para incluir endereço cadastrado de cliente.
