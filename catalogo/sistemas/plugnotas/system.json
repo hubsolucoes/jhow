@@ -174,7 +174,7 @@
     "exige_certificado_digital": true,
     "regulador": "SEFAZ estaduais, Receita Federal (Ambiente Nacional da NFS-e) e prefeituras municipais",
     "residencia_dados": null,
-    "termos_uso_url": "https://tecnospeed.com.br/politica-de-privacidade/",
+    "termos_uso_url": "https://tecnospeed.com.br/politica-privacidade/",
     "permite_uso_em_produto_terceiro": "sim"
   },
   "esforco_integracao": {
@@ -441,7 +441,7 @@
       "data_consulta": "2026-09-17"
     },
     {
-      "url": "https://tecnospeed.com.br/politica-de-privacidade/",
+      "url": "https://tecnospeed.com.br/politica-privacidade/",
       "titulo": "Política de privacidade da TecnoSpeed",
       "data_consulta": "2026-09-17"
     }
