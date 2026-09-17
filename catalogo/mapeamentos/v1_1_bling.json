@@ -1,0 +1,27 @@
+{
+  "sistema": "bling",
+  "detalhados": [
+    {"de": "bling.estoque.listar.depositos", "para": "bling.deposito.listar", "entidade": "Deposito", "acao": "listar"},
+    {"de": "bling.pagamento.criar.baixa_receber", "para": "bling.conta_receber.liquidar", "entidade": "ContaReceber", "acao": "liquidar"},
+    {"de": "bling.pagamento.criar.baixa_pagar", "para": "bling.conta_pagar.liquidar", "entidade": "ContaPagar", "acao": "liquidar"}
+  ],
+  "secundarios": [
+    {"metodo": "GET", "path": "/anuncios", "entidade": "Anuncio", "acao": "listar"},
+    {"metodo": "POST", "path": "/anuncios", "entidade": "Anuncio", "acao": "criar"},
+    {"metodo": "GET", "path": "/anuncios/{idAnuncio}", "entidade": "Anuncio", "acao": "obter"},
+    {"metodo": "PUT", "path": "/anuncios/{idAnuncio}", "entidade": "Anuncio", "acao": "substituir"},
+    {"metodo": "DELETE", "path": "/anuncios/{idAnuncio}", "entidade": "Anuncio", "acao": "excluir"},
+    {"metodo": "POST", "path": "/anuncios/{idAnuncio}/publicar", "entidade": "Anuncio", "acao": "atualizar"},
+    {"metodo": "POST", "path": "/anuncios/{idAnuncio}/pausar", "entidade": "Anuncio", "acao": "atualizar"},
+    {"metodo": "POST", "path": "/depositos", "entidade": "Deposito", "acao": "criar"},
+    {"metodo": "GET", "path": "/depositos/{idDeposito}", "entidade": "Deposito", "acao": "obter"},
+    {"metodo": "PUT", "path": "/depositos/{idDeposito}", "entidade": "Deposito", "acao": "substituir"},
+    {"metodo": "GET", "path": "/ordens-producao", "entidade": "OrdemProducao", "acao": "listar"},
+    {"metodo": "POST", "path": "/ordens-producao", "entidade": "OrdemProducao", "acao": "criar"},
+    {"metodo": "GET", "path": "/ordens-producao/{idOrdemProducao}", "entidade": "OrdemProducao", "acao": "obter"},
+    {"metodo": "PUT", "path": "/ordens-producao/{idOrdemProducao}", "entidade": "OrdemProducao", "acao": "substituir"},
+    {"metodo": "DELETE", "path": "/ordens-producao/{idOrdemProducao}", "entidade": "OrdemProducao", "acao": "excluir"},
+    {"metodo": "PUT", "path": "/ordens-producao/{idOrdemProducao}/situacoes", "entidade": "OrdemProducao", "acao": "atualizar"},
+    {"metodo": "POST", "path": "/ordens-producao/gerar-sob-demanda", "entidade": "OrdemProducao", "acao": "criar"}
+  ]
+}

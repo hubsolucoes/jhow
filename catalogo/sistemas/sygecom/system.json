@@ -1,0 +1,359 @@
+{
+  "slug": "sygecom",
+  "nome": "SyGeCom (Sagi, SGR, SGR+, Easy)",
+  "categoria": "erp_nacional",
+  "fornecedor": {
+    "razao_social": "SYGECOM INFORMATICA LTDA.",
+    "cnpj": "07.572.823/0001-30",
+    "pais": "BR",
+    "site": "https://sygecom.com.br",
+    "endereco": "Rua Artur Garcia, 271 - Bela Vista - Alvorada/RS - CEP 94810-090",
+    "fonte_url": "https://sygecom.com.br/compliance/politica-de-privacidade/",
+    "data_consulta": "2026-09-17"
+  },
+  "descricao_curta": "ERP vertical para gestão de resíduos e reciclagem (linha Easy, SGR, SGR+ e Sagi) com pesagem integrada a balança, compra e venda de material, estoque, fiscal, financeiro, logística de coletas e caçambas, contratos de exportação e MTR. Expõe a API REST 'API SAGI' em https://api.sagierp.com.br/api/v1, com Swagger UI e spec OpenAPI 3.0.1 acessíveis sem login, autenticação JWT Bearer obtida com usuário e senha do próprio ERP, e um endpoint de consulta SQL restrita a SELECT sobre o banco do tenant.",
+  "porte_alvo": ["pequena", "media", "grande"],
+  "verticais": ["residuos_reciclagem", "sucata_metais", "logistica_coleta", "industria"],
+  "status": "documentado",
+  "api": {
+    "estilo": "REST",
+    "base_urls": {
+      "producao": "https://api.sagierp.com.br/api/v1",
+      "sandbox": null
+    },
+    "versao_atual": "v1 (info.version 1.0.0; info.description carimba 18/03/2026)",
+    "politica_versionamento": "Versão no path (/api/v1). Não há changelog, política de depreciação nem canal de breaking changes publicados. A própria spec condiciona campos à versão do ERP instalado (ex.: CIDADE_IBGE exige sistema 9.4.0 ou superior), ou seja, a superfície real depende da versão do Sagi/SGR do cliente.",
+    "formatos": ["json"],
+    "formatos_observacao": "A spec é servida como YAML em text/yaml. Respostas da API são JSON; imagens de boleto/ordem vêm em base64 dentro do JSON.",
+    "spec_oficial_url": "https://api.sagierp.com.br/api/v1/spec",
+    "openapi_disponivel": true,
+    "openapi_versao_spec": "3.0.1",
+    "swagger_ui_url": "https://api.sagierp.com.br/api-explorer/",
+    "versao_doc": "info.version 1.0.0 — 'API para integracao com sistema SAGI - 18/03/2026'",
+    "hosts_equivalentes": ["https://api.sagierp.com.br", "https://api.sygecom.com.br"],
+    "hosts_equivalentes_observacao": "Em 2026-09-17 os dois hosts serviram a mesma aplicação ('SAGI app') e a mesma spec byte a byte (mesmo ETag W/\"6122d-slUe3mxQAVnMo43SEcyYY264dsc\", 397.869 bytes). Adotamos api.sagierp.com.br como canônico por ser o indicado pelo fornecedor ao cliente. Confirmar com a Sygecom qual host deve ser usado em contrato.",
+    "total_operacoes_spec": 79,
+    "total_paths_spec": 58,
+    "dicionario_dados_url": "https://sagierp.com.br/devel/uteis/sagi_dicionario_dados.pdf",
+    "fonte_url": "https://api.sagierp.com.br/api-explorer/",
+    "data_consulta": "2026-09-17"
+  },
+  "autenticacao": {
+    "tipos": ["jwt"],
+    "fluxo_resumido": "POST /api/v1/login (ou POST /api/v1/auth) com JSON {email, password} — as credenciais são as de um usuário cadastrado dentro do próprio SAGI/SGR, não de uma aplicação. A resposta traz um token JWT que é enviado nas demais rotas no header Authorization: Bearer <token>. A spec declara também os esquemas BasicAuth e XSecretAuth (header x-secret), este último usado apenas em rotas internas da Sygecom.",
+    "escopos_permissoes": [],
+    "escopos_observacao": "Não há escopos de API. O que o token enxerga é o que o usuário do ERP enxerga: GET /api/v1/dados-e-permissoes/{iduser} devolve as permissões e GET /api/v1/filiais devolve só as filiais liberadas para aquele usuário (controle na função PostgreSQL syg_retorna_filiais_user).",
+    "expiracao_token": null,
+    "expiracao_token_observacao": "A documentação não declara a validade do token. O JWT de exemplo em POST /auth tem iat e exp separados por 604800 segundos (7 dias), o que sugere essa janela, mas é leitura de um exemplo e não de uma regra publicada — registrado em lacunas.",
+    "renovacao": "Não há rota de refresh na spec. A renovação documentada é repetir o login.",
+    "ip_allowlist_obrigatorio": false,
+    "ip_allowlist_observacao": "Nada publicado sobre allowlist de IP.",
+    "fonte_url": "https://api.sagierp.com.br/api/v1/spec",
+    "data_consulta": "2026-09-17"
+  },
+  "execucao_auth": {
+    "tipo": "bearer",
+    "header": "Authorization",
+    "prefixo": "Bearer ",
+    "usuario_basic_e_a_credencial": false,
+    "headers_fixos": { "Content-Type": "application/json" },
+    "token_url": "https://api.sagierp.com.br/api/v1/login",
+    "credenciais_necessarias": [
+      {
+        "nome": "usuario_email",
+        "rotulo": "E-mail do usuário de API no SAGI/SGR",
+        "segredo": false,
+        "onde_obter": "É o e-mail cadastrado na aba E-mail do usuário criado dentro do ERP, em Menu Úteis > Controle de Usuários e Senhas > Cadastro de Usuários. Crie um usuário dedicado à integração, com o menor conjunto de permissões possível.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "senha",
+        "rotulo": "Senha desse usuário no SAGI/SGR",
+        "segredo": true,
+        "onde_obter": "Definida no mesmo cadastro de usuário do ERP. É preciso deixar desmarcada a opção 'Bloquear Acesso ao SAGI Mobile' para o usuário poder autenticar na API.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "base_url",
+        "rotulo": "URL base da API",
+        "segredo": false,
+        "onde_obter": "Use https://api.sagierp.com.br/api/v1 (host publicado no Swagger oficial). Confirme com o suporte da Sygecom se a sua instalação usa outro host — a linha Sagi/SGR também roda em instalações próprias do cliente.",
+        "obrigatoria": true,
+        "default": "https://api.sagierp.com.br/api/v1"
+      }
+    ],
+    "base_url_por_ambiente": {
+      "sandbox": null,
+      "producao": "https://api.sagierp.com.br/api/v1"
+    },
+    "observacao": "Fluxo em dois passos: (1) POST {base_url}/login com corpo JSON {\"email\": \"<<USUARIO_EMAIL>>\", \"password\": \"<<SENHA>>\", \"origem\": \"API\"}; (2) usar token da resposta em Authorization: Bearer <token> nas demais rotas. Não há client_id/client_secret nem refresh token: a renovação é repetir o login. Para gerar token de homologação, a spec manda acrescentar \"homol\": true ao corpo do login, e avisa que o token só funciona no ambiente em que foi gerado — mas não publica a URL base de homologação (ver lacunas). Erro 403 com code TENANT_FINANCIAL_BLOCK significa bloqueio financeiro do contrato do cliente, não problema de credencial. Somente leitura: o executor nunca usa esta credencial em POST/PUT/DELETE, exceto o POST /login e o POST /sql-query, que é declarado SELECT-only pela documentação.",
+    "confianca": "verificado",
+    "fonte_url": "https://api.sagierp.com.br/api/v1/spec",
+    "data_consulta": "2026-09-17"
+  },
+  "ambiente_testes": {
+    "sandbox": false,
+    "como_obter": "Não há sandbox self-service. A documentação de POST /login e POST /auth cita um ambiente de homologação acionado pela chave \"homol\": true no corpo do login, avisando que o token só vale no ambiente em que foi gerado, mas não publica a URL base desse ambiente nem como obter uma base de dados de teste. Para testar sem risco, a saída prática é usar um usuário de API com permissões mínimas e só chamar rotas GET, ou pedir à Sygecom uma base de homologação.",
+    "custo": null,
+    "dados_ficticios": false,
+    "fonte_url": "https://api.sagierp.com.br/api/v1/spec",
+    "data_consulta": "2026-09-17"
+  },
+  "limites": {
+    "rate_limit": null,
+    "janela": null,
+    "burst": null,
+    "paginacao": {
+      "estilo": "offset",
+      "tamanho_max": 500,
+      "observacao": "Não há um padrão único. Convivem três estilos: (a) limit + offset (GET /movimentos, GET /clientes/lista, GET /credores); (b) limit + page (GET /fornecedores); (c) limite_por_pagina + pagina (GET /mtr, /contrato, /container, /pedido-compra, /pedido-venda, /invoice, /cfop, /pais, /porto, /cotacao-moeda); (d) page + pageSize (GET /filiais, POST /sql-query). Tetos confirmados: pageSize máximo 500 em /filiais e em /sql-query, limite_por_pagina máximo 100 em /container. Os demais não declaram teto. Vários endpoints (GET /produtos, GET /ordems, GET /pagamentos/fornecedores, GET /cargas/fornecedores) não têm paginação nenhuma e devolvem tudo que casar com o filtro."
+    },
+    "tamanho_max_payload": null,
+    "timeout_recomendado": "30s para leituras comuns. A própria API responde 408 quando a consulta passa de 5 segundos em POST /sql-query e de 10 segundos em GET /filiais, e responde 503 ('Falha no servidor do cliente') quando o banco do tenant não responde.",
+    "politica_retry": "Nada publicado. Recomendação própria: repetir apenas 503 e 408, com backoff exponencial e no máximo 3 tentativas, e nunca repetir 4xx.",
+    "idempotencia": { "suportada": false, "header": null },
+    "volatil": true,
+    "fonte_url": "https://api.sagierp.com.br/api/v1/spec",
+    "data_consulta": "2026-09-17"
+  },
+  "webhooks": {
+    "suportados": false,
+    "eventos": [],
+    "verificacao_assinatura": null,
+    "politica_reentrega": null,
+    "requer_endpoint_publico": false,
+    "observacao": "Nenhuma rota de assinatura de webhook, nenhum evento e nenhuma menção a callback nos 79 endpoints da spec. Integração em tempo quase real precisa de polling por data (ex.: GET /movimentos com datainicial/datafinal).",
+    "fonte_url": "https://api.sagierp.com.br/api/v1/spec",
+    "data_consulta": "2026-09-17"
+  },
+  "erros": {
+    "formato": "Não é uniforme. Três formatos convivem: (1) {\"error\": [{\"path\", \"message\", \"errorCode\"}]} nas rotas validadas pelo middleware OpenAPI (errorCode do tipo 'required.openapi.validation', 'format.openapi.validation'); (2) {\"errors\": [{\"path\", \"message\", \"errorCode\"}]} nas rotas mais novas (/filiais, /sql-query), com errorCode 'ValidationError', 'AuthenticationError', 'TimeoutError', 'InternalError', 'ExecutionError'; (3) {\"error\": \"texto\"} nas rotas simples (/mtr, /contrato, /invoice). O 403 de bloqueio financeiro traz {error, code, data_limite, traceId}.",
+    "codigos_principais": [
+      { "status": 200, "quando": "Sucesso." },
+      { "status": 204, "quando": "Sem conteúdo — o filtro não retornou registros. Várias rotas usam 204 em vez de devolver lista vazia; trate 204 como resultado vazio e não como erro." },
+      { "status": 400, "quando": "Validação do corpo ou da query: campo obrigatório ausente, data fora do formato date (AAAA-MM-DD), pageSize acima do teto, CNPJ sem 14 dígitos, ou, em /sql-query, comando diferente de SELECT ou padrão de SQL injection." },
+      { "status": 401, "quando": "Token ausente/inválido ('Token not provided', 'Usuário não autenticado') ou usuário inexistente no login ('User not found')." },
+      { "status": 403, "quando": "Acesso proibido. Inclui o bloqueio financeiro do contrato com code TENANT_FINANCIAL_BLOCK e a data_limite vencida." },
+      { "status": 404, "quando": "Registro não encontrado na rota por identificador." },
+      { "status": 408, "quando": "Timeout do lado do servidor: mais de 5 segundos em /sql-query, mais de 10 segundos em /filiais." },
+      { "status": 500, "quando": "Erro interno; em /sql-query devolve a mensagem do banco (ex.: relation não existe)." },
+      { "status": 503, "quando": "'Falha no servidor do cliente' — o banco/serviço do tenant não respondeu. É o erro típico de instalação do cliente fora do ar." }
+    ],
+    "fonte_url": "https://api.sagierp.com.br/api/v1/spec",
+    "data_consulta": "2026-09-17"
+  },
+  "sdks_oficiais": [],
+  "sdks_observacao": "Nenhum SDK oficial, nenhuma coleção Postman/Insomnia publicada e nenhum pacote de comunidade encontrado. A página oficial de liberação de acesso apenas recomenda o cliente HTTP Insomnia para os primeiros testes manuais.",
+  "comercial": {
+    "modelo_acesso": "sob_contrato",
+    "custo_api": null,
+    "custo_api_observacao": "A Sygecom não publica preço de licença nem preço de API. A spec e o Swagger são públicos, mas o uso depende de ser cliente com Sagi/SGR contratado e com um usuário criado dentro do ERP. Há bloqueio financeiro por contrato vencido no próprio login (TENANT_FINANCIAL_BLOCK).",
+    "exige_homologacao": false,
+    "tempo_medio_aprovacao": null,
+    "volatil": true,
+    "fonte_url": "https://sagierp.com.br/doc_api/",
+    "data_consulta": "2026-09-17"
+  },
+  "conformidade": {
+    "trafega_dado_pessoal": true,
+    "dado_sensivel": false,
+    "base_legal_tipica": "Execução de contrato e cumprimento de obrigação legal/regulatória (LGPD art. 7º, V e II). A API trafega CPF/CNPJ, nome, endereço, telefone e e-mail de fornecedores, clientes, credores e motoristas, e ainda dados de funcionários (CPF, RG, PIS, data de nascimento, admissão/demissão) nas rotas de /funcionarios — nesse recorte o cuidado é de dado de trabalhador. A política de privacidade do fornecedor cita expressamente os artigos 2º, 7º, 8º, 9º, 10º, 11º, 12º, 13º, 14º, 18º, 37º e 41º da Lei 13.709/18.",
+    "exige_certificado_digital": false,
+    "regulador": null,
+    "regulador_observacao": "A API não é regulada em si, mas o dado trafegado tem lastro ambiental: MTR (Manifesto de Transporte de Resíduos) e cadastro FEPAM aparecem nos schemas, e o MTR é instrumento do SINIR/órgãos estaduais.",
+    "residencia_dados": null,
+    "termos_uso_url": "https://sygecom.com.br/compliance/politica-de-privacidade/",
+    "permite_uso_em_produto_terceiro": "indefinido",
+    "permite_uso_em_produto_terceiro_observacao": "Não há termos de uso de API publicados. Existiu um passo formal de 'Contrato de Consentimento para Compartilhamento de Dados' (Menu Úteis > Integração com outros sistemas) na página oficial de liberação da API, hoje comentado no HTML e portanto não mais apresentado como exigência — mas isso é leitura de código-fonte, não uma revogação declarada. Antes de expor dados do cliente a um produto de terceiro, confirmar por escrito com a Sygecom.",
+    "encarregado_dpo": "compliance@sygecom.com.br",
+    "fonte_url": "https://sygecom.com.br/compliance/politica-de-privacidade/",
+    "data_consulta": "2026-09-17"
+  },
+  "esforco_integracao": {
+    "complexidade": "media",
+    "horas_estimadas_mvp": 24,
+    "premissa_estimativa": "MVP de leitura: login, renovação de token, paginação dos três estilos, extração de /movimentos, /produtos, /fornecedores e /pedido-venda por período, normalização e carga em planilha/BI. Não inclui escrita, nem conciliação fiscal, nem tratamento de múltiplas instalações do ERP.",
+    "principais_armadilhas": [
+      "Três (na prática quatro) convenções de paginação diferentes na mesma API: limit/offset, limit/page, limite_por_pagina/pagina e page/pageSize. Escrever um paginador genérico único quebra.",
+      "Em GET /movimentos o offset começa em 1, não em 0: offset=1 com limit=10 devolve os 10 primeiros registros.",
+      "Várias rotas respondem 204 sem corpo quando não há resultado, em vez de lista vazia. Cliente HTTP que faz response.json() direto quebra.",
+      "Endpoints sem paginação nenhuma (GET /produtos, GET /ordems, GET /pagamentos/fornecedores, GET /cargas/fornecedores) podem devolver a base inteira; sempre filtre por período ou por código.",
+      "Parâmetros marcados como obrigatórios mas com valor neutro: em GET /ordems, codforcli, codmot, sr_recno e ordem são required com default 0, que significa 'todos'. Precisa enviar 0 explicitamente.",
+      "O token é de um usuário do ERP, não de uma aplicação. O que a API devolve é limitado pelas permissões e pelas filiais daquele usuário (GET /filiais). Dois tokens diferentes podem devolver resultados diferentes para a mesma consulta.",
+      "Erro 403 com code TENANT_FINANCIAL_BLOCK é bloqueio comercial do contrato, não erro de integração — a correção é com o financeiro da Sygecom.",
+      "Erro 503 ('Falha no servidor do cliente') indica que a instalação/banco do cliente está fora do ar, não que a API está com defeito.",
+      "Campos condicionados à versão do ERP instalado (ex.: CIDADE_IBGE exige versão 9.4.0 ou superior). A superfície real varia por cliente.",
+      "Não há webhook nenhum: qualquer necessidade de tempo real vira polling por janela de data.",
+      "Muitos schemas de resposta na spec são apenas um bloco example, sem tipagem — o contrato real de campo precisa ser conferido contra a resposta viva e contra o dicionário de dados em PDF.",
+      "Datas exigem formato date (AAAA-MM-DD); enviar AAAA/MM/DD devolve 400 com errorCode format.openapi.validation."
+    ]
+  },
+  "casos_uso_negocio": [
+    {
+      "titulo": "Painel de pesagem e margem por material",
+      "dor_resolvida": "O gestor da recicladora sabe quanto entrou e quanto saiu, mas só descobre a margem por material no fechamento do mês, catando boleto de balança em planilha.",
+      "endpoints_envolvidos": ["sygecom.estoque.listar.movimentos", "sygecom.produto.listar"],
+      "valor_percebido": "Entrada e saída por produto, categoria, filial, comprador e fornecedor, com peso bruto/tara/líquido, impureza, preço e valor total, atualizados por período — a margem por material deixa de ser estimativa."
+    },
+    {
+      "titulo": "Extrato e saldo de fornecedor para o financeiro",
+      "dor_resolvida": "Conferir o que foi pago a cada sucateiro e qual saldo ainda está aberto exige abrir o ERP fornecedor por fornecedor.",
+      "endpoints_envolvidos": ["sygecom.conta_pagar.listar.pagamentos_fornecedor", "sygecom.fornecedor.obter.saldo", "sygecom.estoque.listar.cargas_fornecedor"],
+      "valor_percebido": "Cargas entregues, pagamentos realizados (com vale, desconto, acréscimo e condição) e saldo final por fornecedor, tudo em uma planilha só."
+    },
+    {
+      "titulo": "Prestação de contas ambiental (MTR)",
+      "dor_resolvida": "Auditoria ou cliente gerador pede a relação de manifestos de transporte de resíduo de um período e ninguém quer exportar manifesto a manifesto.",
+      "endpoints_envolvidos": ["sygecom.documento.listar.mtr"],
+      "valor_percebido": "Lista de MTRs por período e por CNPJ gerador/receptor, com tipo de resíduo, acondicionamento, estado físico e quantidade em kg/ton/m³/litro."
+    },
+    {
+      "titulo": "Carteira de pedidos e contratos de exportação",
+      "dor_resolvida": "Comercial e logística não enxergam juntos o que está vendido, o que está comprado e o que está comprometido em contrato de exportação.",
+      "endpoints_envolvidos": ["sygecom.pedido.listar.venda", "sygecom.pedido.listar.compra", "sygecom.contrato.listar"],
+      "valor_percebido": "Pedidos abertos e fechados com itens, mais contratos por cliente com produto, peso e porto de destino."
+    },
+    {
+      "titulo": "Programação de coletas e produtividade da frota",
+      "dor_resolvida": "A programação de coleta vive em quadro branco e em WhatsApp; ninguém mede atraso nem ordem parada.",
+      "endpoints_envolvidos": ["sygecom.envio.listar.ordens_coleta"],
+      "valor_percebido": "Ordens de coleta e embarque por período, com status, placa, motorista, tipo de caminhão e produto, prontas para medir atraso e ocupação."
+    },
+    {
+      "titulo": "Consulta ad hoc para análise, sem esperar endpoint novo",
+      "dor_resolvida": "O analista precisa de um cruzamento que nenhum endpoint entrega e o time de TI não tem janela para desenvolver.",
+      "endpoints_envolvidos": ["sygecom.tabela_auxiliar.listar.sql"],
+      "valor_percebido": "SELECT direto sobre o banco do tenant, limitado a 1000 registros e 5 segundos, sem abrir acesso de escrita — resolve o caso pontual sem projeto."
+    }
+  ],
+  "indice_integrabilidade": {
+    "score": 39,
+    "componentes": {
+      "documentacao": {
+        "peso": 20,
+        "pontos": 12,
+        "justificativa": "Existe spec OpenAPI 3.0.1 pública com 79 operações e Swagger UI aberto, o que é muito acima do normal neste nicho. Mas metade das operações não tem summary, muitos schemas de resposta são só um bloco example sem tipagem, não há guia de conceitos, changelog nem página de erros; o dicionário de dados é um PDF de 8 MB à parte."
+      },
+      "sandbox": {
+        "peso": 15,
+        "pontos": 6,
+        "justificativa": "Há homologação documentada (chave \"homol\": true no login) e o aviso de que o token só vale no ambiente gerado, mas a URL base de homologação não é publicada, não há self-service, nem base de dados fictícia."
+      },
+      "autenticacao": {
+        "peso": 15,
+        "pontos": 7,
+        "justificativa": "JWT Bearer moderno no transporte, porém a credencial é o e-mail e a senha de um usuário humano do ERP, sem client_id/secret, sem escopos de API, sem refresh e sem validade de token publicada. Rotacionar significa mexer no cadastro de usuário do ERP."
+      },
+      "webhooks": {
+        "peso": 15,
+        "pontos": 0,
+        "justificativa": "Nenhum webhook, nenhum evento e nenhuma menção a callback nos 79 endpoints. Qualquer sincronização é polling."
+      },
+      "limites_paginacao": {
+        "peso": 10,
+        "pontos": 5,
+        "justificativa": "Há paginação na maioria das listagens e tetos declarados em alguns pontos (pageSize 500, limite_por_pagina 100), mas quatro convenções diferentes convivem, vários endpoints não paginam e nenhum rate limit é publicado."
+      },
+      "sdks_comunidade": {
+        "peso": 10,
+        "pontos": 1,
+        "justificativa": "Nenhum SDK oficial, nenhuma coleção pronta, nenhum pacote de comunidade. A orientação oficial é testar manualmente no Insomnia."
+      },
+      "acesso_sem_barreira": {
+        "peso": 10,
+        "pontos": 6,
+        "justificativa": "A spec e o Swagger são legíveis sem login e o passo a passo de liberação é público e curto (criar usuário no ERP com e-mail e liberar o acesso mobile). A barreira é ser cliente contratado, com bloqueio financeiro aplicado no próprio login."
+      },
+      "versionamento": {
+        "peso": 5,
+        "pontos": 2,
+        "justificativa": "Versão no path (/api/v1) e info.version 1.0.0, mas sem política de depreciação, sem changelog e com campos condicionados à versão do ERP instalado em cada cliente."
+      }
+    }
+  },
+  "qualidade_doc": {
+    "nota": 5,
+    "observacoes": "Surpreendentemente boa para um ERP vertical de nicho: OpenAPI 3.0.1 completo, público, sem login, com Swagger UI. Perde pontos por inconsistência interna (quatro padrões de paginação, três formatos de erro, respostas 204 no lugar de lista vazia), por metade das operações sem descrição, por schemas de resposta representados apenas como example e por ausência total de material conceitual, changelog e guia de erros. O único guia narrativo público é a página de liberação de acesso em sagierp.com.br/doc_api/, que tem dois passos e termina em prints de uso do Insomnia."
+  },
+  "monitoramento": {
+    "changelog_url": null,
+    "canal_breaking_changes": null,
+    "canal_breaking_changes_observacao": "Não há canal público. Na prática, o canal é o suporte da Sygecom: suporte pelo site, telefone/WhatsApp (51) 3442-2345 e formulário em https://sygecom.com.br/contato-suporte/. Recomenda-se baixar periodicamente https://api.sagierp.com.br/api/v1/spec e comparar (o campo info.description carimba uma data e o header Last-Modified muda).",
+    "frequencia_revisao_sugerida": "trimestral"
+  },
+  "lacunas": [
+    {
+      "campo": "api.base_urls.sandbox / ambiente_testes",
+      "descricao": "A spec manda enviar \"homol\": true no login para gerar token de homologação e avisa que o token só funciona no ambiente em que foi gerado, mas não publica a URL base do ambiente de homologação nem como obter uma base de teste. Sem isso, qualquer teste é contra produção.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "limites.rate_limit",
+      "descricao": "Nenhum limite de requisições, janela ou burst é publicado, e não há código 429 documentado. Não dá para dimensionar uma carga inicial com segurança.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "autenticacao.expiracao_token",
+      "descricao": "A validade do JWT não é declarada. O exemplo de token em POST /auth sugere 7 dias (diferença entre iat e exp), mas é inferência sobre um exemplo. Implementar re-login ao receber 401 em vez de confiar em prazo.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "api.base_urls.producao",
+      "descricao": "https://api.sagierp.com.br/api/v1 é o host do Swagger oficial e é o que a spec implica (servers: /api/v1, relativo). Não está publicado se toda instalação Sagi/SGR atende por esse mesmo host ou se clientes com instalação própria têm host distinto. Precisa ser confirmado com a Sygecom antes de fixar a base no cofre.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "security da spec",
+      "descricao": "Onze operações da spec (entre elas GET /mtr, GET /pedido-compra, GET /pedido-venda, GET /clientes/lista, GET /invoice, GET /cfop, GET /pais, GET /condicoes, GET /modulos) não declaram bloco security, o que na leitura literal do OpenAPI significaria rota sem autenticação. Como a spec também não define security global, o mais provável é omissão na escrita da spec e não rota aberta. Documentamos como exigindo Bearer, com confianca inferido nesses casos, e não testamos sem credencial.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "webhooks",
+      "descricao": "Não existem. Registrado para que ninguém prometa sincronização em tempo real.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "taxonomia — entidade de pesagem/movimentação",
+      "descricao": "O núcleo do negócio deste ERP é a pesagem (boleto de balança com peso bruto, tara, líquido, impureza, classificador, preço e valor). Mapeamos em Estoque (que cobre 'movimentação de quantidade de produto') com qualificador, mas a taxonomia ganharia com uma entidade própria, ex.: 'Pesagem' ou 'MovimentoEstoque'. Sugestão de extensão registrada, sem criar entidade nova por conta própria.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "taxonomia — entidade de manifesto ambiental",
+      "descricao": "O MTR (Manifesto de Transporte de Resíduos) foi mapeado em Documento por falta de entidade melhor. Sugestão de extensão: 'ManifestoResiduo', com campos de tipo de resíduo, acondicionamento, estado físico, CNPJ gerador e receptor. Relevante porque MTR/SINIR aparece em todo o setor de resíduos.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "endpoints.json — schemas de resposta",
+      "descricao": "Em GET /produtos, GET /fornecedores, GET /clientes e GET /ordems a spec descreve a resposta apenas com um bloco example, sem schema tipado. Os campos listados são reais (vieram do exemplo oficial) mas tipo, obrigatoriedade e nulabilidade não estão contratados. Conferir contra a resposta viva no piloto.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "conformidade.permite_uso_em_produto_terceiro",
+      "descricao": "Não há termos de uso de API publicados. A página oficial de liberação já teve um passo de 'Contrato de Consentimento para Compartilhamento de Dados' que hoje está comentado no HTML. Antes de expor dados do cliente num produto de terceiro, obter posição por escrito da Sygecom.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "POST /sql-query — esquema do banco",
+      "descricao": "O endpoint aceita SELECT sobre o banco do tenant (PostgreSQL, pelas pistas de função e mensagens de erro), mas o dicionário de tabelas não é público em formato consultável: é um PDF de ~8 MB em https://sagierp.com.br/devel/uteis/sagi_dicionario_dados.pdf. Sem mapear tabela e coluna, o endpoint mais poderoso da API fica subaproveitado.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "limites.paginacao — tetos",
+      "descricao": "Só /filiais, /sql-query e /container declaram teto de página. Os demais não dizem o máximo aceito nem o que acontece ao pedir um limite alto demais.",
+      "impacto": "baixo"
+    }
+  ],
+  "fontes": [
+    { "url": "https://api.sagierp.com.br/api/v1/spec", "titulo": "Spec OpenAPI 3.0.1 oficial da API SAGI (info.title 'API SAGI', 79 operações)", "data_consulta": "2026-09-17" },
+    { "url": "https://api.sagierp.com.br/api-explorer/", "titulo": "Swagger UI oficial da API SAGI", "data_consulta": "2026-09-17" },
+    { "url": "https://sagierp.com.br/doc_api/", "titulo": "API SAGI | SYGECOM — passo a passo oficial para liberar o acesso externo à API", "data_consulta": "2026-09-17" },
+    { "url": "https://sagierp.com.br/devel/uteis/sagi_dicionario_dados.pdf", "titulo": "Dicionário de Dados SAGI/SGR (externalDocs da spec; PDF de ~8 MB)", "data_consulta": "2026-09-17" },
+    { "url": "https://sygecom.com.br/solucoes/", "titulo": "Soluções SyGeCom — Easy, SGR, SGR Plus, Sagi, Cloud, SRM, Portal do Contador, LogVerde, Integração WhatsApp, UniSyGe, SyGe.ai", "data_consulta": "2026-09-17" },
+    { "url": "https://sygecom.com.br/llms.txt", "titulo": "llms.txt oficial da SyGeCom (índice de produtos e políticas)", "data_consulta": "2026-09-17" },
+    { "url": "https://sygecom.com.br/contato-suporte/", "titulo": "Contato e suporte SyGeCom (endereço, telefone/WhatsApp, horário)", "data_consulta": "2026-09-17" },
+    { "url": "https://sygecom.com.br/compliance/politica-de-privacidade/", "titulo": "Política de Privacidade SYGECOM INFORMATICA LTDA (CNPJ, DPO, LGPD)", "data_consulta": "2026-09-17" },
+    { "url": "https://sygecom.com.br/compliance/politica-de-sla/", "titulo": "Política de SLA SyGeCom", "data_consulta": "2026-09-17" },
+    { "url": "https://play.google.com/store/apps/details?id=com.sygecom", "titulo": "App Sygecom no Google Play (extensão do Sagi)", "data_consulta": "2026-09-17" },
+    { "url": "https://apps.apple.com/br/app/app-sygecom/id6633436754", "titulo": "App Sygecom na App Store", "data_consulta": "2026-09-17" }
+  ]
+}

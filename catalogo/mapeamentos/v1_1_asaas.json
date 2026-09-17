@@ -1,0 +1,21 @@
+{
+  "sistema": "asaas",
+  "detalhados": [],
+  "secundarios": [
+    {"metodo": "POST", "path": "/v3/customers/{id}/restore", "entidade": "Cliente", "acao": "restaurar"},
+    {"metodo": "POST", "path": "/v3/payments/{id}/restore", "entidade": "Cobranca", "acao": "restaurar"},
+    {"metodo": "POST", "path": "/v3/lean/payments/{id}/restore", "entidade": "Cobranca", "acao": "restaurar"},
+    {"metodo": "POST", "path": "/v3/paymentLinks/{id}/restore", "entidade": "Cobranca", "acao": "restaurar"},
+    {"metodo": "POST", "path": "/v3/anticipations", "entidade": "Recebivel", "acao": "criar"},
+    {"metodo": "GET", "path": "/v3/anticipations", "entidade": "Recebivel", "acao": "listar"},
+    {"metodo": "POST", "path": "/v3/anticipations/simulate", "entidade": "Recebivel", "acao": "calcular"},
+    {"metodo": "GET", "path": "/v3/anticipations/{id}", "entidade": "Recebivel", "acao": "obter"},
+    {"metodo": "PUT", "path": "/v3/anticipations/configurations", "entidade": "Recebivel", "acao": "atualizar"},
+    {"metodo": "GET", "path": "/v3/anticipations/configurations", "entidade": "Recebivel", "acao": "obter"},
+    {"metodo": "GET", "path": "/v3/anticipations/limits", "entidade": "Recebivel", "acao": "obter"},
+    {"metodo": "POST", "path": "/v3/anticipations/{id}/cancel", "entidade": "Recebivel", "acao": "cancelar"},
+    {"metodo": "GET", "path": "/v3/payments/{id}/contractualEffectRestrictions", "entidade": "Recebivel", "acao": "obter"},
+    {"metodo": "POST", "path": "/v3/escrow/{id}/finish", "entidade": "Cobranca", "acao": "encerrar"},
+    {"metodo": "DELETE", "path": "/v3/accounts/{id}", "entidade": "Empresa", "acao": "encerrar"}
+  ]
+}

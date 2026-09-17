@@ -1,0 +1,804 @@
+{
+  "slug": "asaas",
+  "nome": "Asaas",
+  "categoria": "pagamentos_psp",
+  "fornecedor": {
+    "razao_social": "Asaas Gestão Financeira Instituição de Pagamento S.A.",
+    "pais": "BR",
+    "site": "https://www.asaas.com"
+  },
+  "descricao_curta": "Instituição de pagamento que oferece via API REST v3 cobranças por boleto, Pix e cartão, assinaturas recorrentes, parcelamentos, split, transferências Pix/TED, pagamento de contas, NFS-e, subcontas (BaaS) e webhooks, com sandbox gratuito.",
+  "porte_alvo": [
+    "pequena",
+    "media",
+    "grande"
+  ],
+  "verticais": [
+    "saas",
+    "ecommerce",
+    "marketplace",
+    "educacao",
+    "servicos",
+    "software_house"
+  ],
+  "status": "documentado",
+  "api": {
+    "estilo": "REST",
+    "base_urls": {
+      "producao": "https://api.asaas.com/v3",
+      "sandbox": "https://api-sandbox.asaas.com/v3"
+    },
+    "versao_atual": "v3 (spec OpenAPI info.version 3.0.0)",
+    "politica_versionamento": "Versão no path (/v3). Mudanças incompatíveis são anunciadas na página de Breaking changes com data de obrigatoriedade e por e-mail aos clientes afetados; changelog público.",
+    "formatos": [
+      "json"
+    ],
+    "formatos_observacao": "Alguns endpoints retornam PDF (ex.: carnês).",
+    "spec_oficial_url": "https://www.asaas.com/openApi/document?version=3&languageCode=pt-BR",
+    "openapi_disponivel": true,
+    "total_operacoes_spec": 213,
+    "tls": "TLS 1.2 e 1.3 (1.3 recomendado)",
+    "fonte_url": "https://docs.asaas.com/docs/autentica%C3%A7%C3%A3o-1",
+    "data_consulta": "2026-09-17"
+  },
+  "autenticacao": {
+    "tipos": [
+      "api_key"
+    ],
+    "fluxo_resumido": "Um administrador gera a chave em Integrações > Chaves de API no painel web (não pelo app); ela é exibida uma única vez. Toda requisição envia os headers access_token (a chave), User-Agent (obrigatório para contas raiz criadas desde 13/06/2024) e Content-Type: application/json. Chaves de produção começam com $aact_prod_ e de sandbox com $aact_hmlg_; não há Authorization: Bearer.",
+    "escopos_permissoes": [],
+    "escopos_observacao": "Nenhum modelo de escopos por chave foi confirmado na documentação lida.",
+    "expiracao_token": "Data de expiração opcional definida na criação. Sem uso: desabilitada após 3 meses (exceto subcontas BaaS) e expirada definitivamente após 6 meses; eventos ACCESS_TOKEN_DISABLED, ACCESS_TOKEN_EXPIRING_SOON, ACCESS_TOKEN_EXPIRED.",
+    "renovacao": "Criar nova chave no painel (conta principal) ou via POST /v3/accounts/{id}/accessTokens para subcontas. Até 10 chaves por conta; chave excluída não pode ser restaurada.",
+    "ip_allowlist_obrigatorio": false,
+    "ip_allowlist_observacao": "Whitelist de IPs opcional (IP único ou faixas de até 50 endereços); IP não autorizado recebe 403. Transferências e outras saídas exigem token SMS/app, whitelist com evento crítico desativado ou webhook de validação de saque.",
+    "fonte_url": "https://docs.asaas.com/docs/chaves-de-api",
+    "data_consulta": "2026-09-17"
+  },
+  "execucao_auth": {
+    "tipo": "header_api_key",
+    "header": "access_token",
+    "prefixo": "",
+    "usuario_basic_e_a_credencial": false,
+    "headers_fixos": {
+      "User-Agent": "catalogo-assistente/1.0",
+      "Content-Type": "application/json"
+    },
+    "token_url": null,
+    "credenciais_necessarias": [
+      {
+        "nome": "api_key",
+        "rotulo": "Chave de API do Asaas",
+        "segredo": true,
+        "onde_obter": "Painel web do Asaas > menu do perfil > Integracoes > Chaves de API > Gerar nova chave. Só um administrador gera, só pelo navegador (não pelo aplicativo) e a chave aparece uma única vez: copie na hora. A chave de produção começa com $aact_prod_ e a de sandbox (gerada da mesma forma em https://sandbox.asaas.com) com $aact_hmlg_.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "ambiente",
+        "rotulo": "Ambiente (sandbox ou producao)",
+        "segredo": false,
+        "onde_obter": "Escolhido pelo cliente no cadastro: define a base URL e precisa casar com o prefixo da chave ($aact_hmlg_ = sandbox, $aact_prod_ = producao).",
+        "obrigatoria": true,
+        "enum": [
+          "sandbox",
+          "producao"
+        ],
+        "default": "producao"
+      }
+    ],
+    "base_url_por_ambiente": {
+      "sandbox": "https://api-sandbox.asaas.com",
+      "producao": "https://api.asaas.com"
+    },
+    "observacao": "Os paths dos endpoints já incluem o prefixo /v3, então a base URL vai sem ele. A chave viaja no header access_token puro, sem 'Bearer' e sem Authorization. O header User-Agent é obrigatório para contas raiz criadas a partir de 13/06/2024 (sem ele a chamada é recusada) — qualquer identificador estável serve. Não há OAuth, refresh token nem troca de token: a mesma chave é usada em todas as chamadas. A chave fica desabilitada após 3 meses sem uso e expira em 6 meses; pode ter data de expiração definida na criação e a conta pode ter whitelist de IPs (IP fora da lista recebe 403). Para operar uma subconta (white label), use a chave da própria subconta. Somente leitura: o executor nunca usa esta credencial em POST/PUT/DELETE.",
+    "confianca": "verificado",
+    "fonte_url": "https://docs.asaas.com/docs/chaves-de-api",
+    "data_consulta": "2026-09-17"
+  },
+  "ambiente_testes": {
+    "sandbox": true,
+    "como_obter": "Criar conta separada em https://sandbox.asaas.com (fluxo normal de cadastro, aprovação automática com dados válidos) e gerar uma chave de API de sandbox. O console da API Reference executa chamadas no sandbox.",
+    "custo": "Gratuito",
+    "dados_ficticios": true,
+    "recursos_de_teste": [
+      "POST /v3/sandbox/payment/{id}/confirm (confirmar pagamento)",
+      "POST /v3/sandbox/payment/{id}/overdue (forçar vencimento)",
+      "POST /v3/sandbox/myAccount/approve (aprovar conta)",
+      "cartões de teste",
+      "adição de saldo para testes"
+    ],
+    "observacoes": "Notificações por e-mail/SMS podem ser enviadas de verdade no sandbox; limite de 20 subcontas por dia; webhooks do sandbox podem vir de IPs adicionais aos de produção.",
+    "fonte_url": "https://docs.asaas.com/docs/sandbox",
+    "data_consulta": "2026-09-17"
+  },
+  "limites": {
+    "rate_limit": "Cota de 25.000 requisições por conta a cada 12 horas; até 50 requisições GET concorrentes; alguns endpoints têm rate limit próprio informado nos headers RateLimit-Limit, RateLimit-Remaining e RateLimit-Reset.",
+    "janela": "12 horas contadas a partir da primeira requisição (cota); RateLimit-Reset em segundos (rate limit por endpoint).",
+    "burst": "50 GETs simultâneos",
+    "paginacao": {
+      "estilo": "offset",
+      "tamanho_max": 100,
+      "parametros": [
+        "offset",
+        "limit"
+      ],
+      "padrao": 10,
+      "indicador_fim": "hasMore",
+      "total": "totalCount"
+    },
+    "tamanho_max_payload": null,
+    "timeout_recomendado": null,
+    "politica_retry": "Em 429, aguardar RateLimit-Reset (rate limit) ou a renovação da cota; não repetir imediatamente. A cota pode ser ampliada quando o volume for legítimo, mas não para contas que fazem polling.",
+    "idempotencia": {
+      "suportada": false,
+      "header": null,
+      "observacao": "Nenhum header de idempotência documentado para a API; o guia de Pague Contas cita boas práticas de idempotência do lado do cliente. Use externalReference e consulta prévia antes de repetir escritas."
+    },
+    "outros": [
+      "Até 10 chaves de API por conta",
+      "Até 10 webhooks por conta",
+      "Sandbox: 20 subcontas por dia",
+      "Descrição de cobrança/assinatura até 500 caracteres"
+    ],
+    "volatil": true,
+    "fonte_url": "https://docs.asaas.com/reference/rate-e-quota-limit",
+    "data_consulta": "2026-09-17"
+  },
+  "webhooks": {
+    "suportados": true,
+    "eventos": [
+      "PAYMENT_AUTHORIZED",
+      "PAYMENT_AWAITING_RISK_ANALYSIS",
+      "PAYMENT_APPROVED_BY_RISK_ANALYSIS",
+      "PAYMENT_REPROVED_BY_RISK_ANALYSIS",
+      "PAYMENT_CREATED",
+      "PAYMENT_UPDATED",
+      "PAYMENT_CONFIRMED",
+      "PAYMENT_RECEIVED",
+      "PAYMENT_ANTICIPATED",
+      "PAYMENT_OVERDUE",
+      "PAYMENT_DELETED",
+      "PAYMENT_RESTORED",
+      "PAYMENT_REFUNDED",
+      "PAYMENT_REFUND_IN_PROGRESS",
+      "PAYMENT_REFUND_DENIED",
+      "PAYMENT_RECEIVED_IN_CASH_UNDONE",
+      "PAYMENT_CHARGEBACK_REQUESTED",
+      "PAYMENT_CHARGEBACK_DISPUTE",
+      "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
+      "PAYMENT_DUNNING_RECEIVED",
+      "PAYMENT_DUNNING_REQUESTED",
+      "PAYMENT_BANK_SLIP_CANCELLED",
+      "PAYMENT_BANK_SLIP_VIEWED",
+      "PAYMENT_CHECKOUT_VIEWED",
+      "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED",
+      "PAYMENT_PARTIALLY_REFUNDED",
+      "PAYMENT_SPLIT_CANCELLED",
+      "PAYMENT_SPLIT_DIVERGENCE_BLOCK",
+      "PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED",
+      "PAYMENT_SPLIT_DONE",
+      "INVOICE_CREATED",
+      "INVOICE_UPDATED",
+      "INVOICE_SYNCHRONIZED",
+      "INVOICE_AUTHORIZED",
+      "INVOICE_PROCESSING_CANCELLATION",
+      "INVOICE_CANCELED",
+      "INVOICE_CANCELLATION_DENIED",
+      "INVOICE_ERROR",
+      "TRANSFER_CREATED",
+      "TRANSFER_PENDING",
+      "TRANSFER_IN_BANK_PROCESSING",
+      "TRANSFER_BLOCKED",
+      "TRANSFER_DONE",
+      "TRANSFER_FAILED",
+      "TRANSFER_CANCELLED",
+      "BILL_CREATED",
+      "BILL_PENDING",
+      "BILL_BANK_PROCESSING",
+      "BILL_PAID",
+      "BILL_CANCELLED",
+      "BILL_FAILED",
+      "BILL_REFUNDED",
+      "RECEIVABLE_ANTICIPATION_CANCELLED",
+      "RECEIVABLE_ANTICIPATION_SCHEDULED",
+      "RECEIVABLE_ANTICIPATION_PENDING",
+      "RECEIVABLE_ANTICIPATION_CREDITED",
+      "RECEIVABLE_ANTICIPATION_DEBITED",
+      "RECEIVABLE_ANTICIPATION_DENIED",
+      "RECEIVABLE_ANTICIPATION_OVERDUE",
+      "MOBILE_PHONE_RECHARGE_PENDING",
+      "MOBILE_PHONE_RECHARGE_CANCELLED",
+      "MOBILE_PHONE_RECHARGE_CONFIRMED",
+      "MOBILE_PHONE_RECHARGE_REFUNDED",
+      "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_APPROVED",
+      "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_AWAITING_APPROVAL",
+      "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_PENDING",
+      "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_REJECTED",
+      "ACCOUNT_STATUS_COMMERCIAL_INFO_APPROVED",
+      "ACCOUNT_STATUS_COMMERCIAL_INFO_AWAITING_APPROVAL",
+      "ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRED",
+      "ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRING_SOON",
+      "ACCOUNT_STATUS_COMMERCIAL_INFO_PENDING",
+      "ACCOUNT_STATUS_COMMERCIAL_INFO_REJECTED",
+      "ACCOUNT_STATUS_DOCUMENT_APPROVED",
+      "ACCOUNT_STATUS_DOCUMENT_AWAITING_APPROVAL",
+      "ACCOUNT_STATUS_DOCUMENT_PENDING",
+      "ACCOUNT_STATUS_DOCUMENT_REJECTED",
+      "ACCOUNT_STATUS_GENERAL_APPROVAL_APPROVED",
+      "ACCOUNT_STATUS_GENERAL_APPROVAL_AWAITING_APPROVAL",
+      "ACCOUNT_STATUS_GENERAL_APPROVAL_PENDING",
+      "ACCOUNT_STATUS_GENERAL_APPROVAL_REJECTED",
+      "SUBSCRIPTION_CREATED",
+      "SUBSCRIPTION_UPDATED",
+      "SUBSCRIPTION_INACTIVATED",
+      "SUBSCRIPTION_DELETED",
+      "SUBSCRIPTION_SPLIT_DISABLED",
+      "SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK",
+      "SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK_FINISHED",
+      "CHECKOUT_CREATED",
+      "CHECKOUT_CANCELED",
+      "CHECKOUT_EXPIRED",
+      "CHECKOUT_PAID",
+      "BALANCE_VALUE_BLOCKED",
+      "BALANCE_VALUE_UNBLOCKED",
+      "INTERNAL_TRANSFER_CREDIT",
+      "INTERNAL_TRANSFER_DEBIT",
+      "ACCESS_TOKEN_CREATED",
+      "ACCESS_TOKEN_DELETED",
+      "ACCESS_TOKEN_DISABLED",
+      "ACCESS_TOKEN_ENABLED",
+      "ACCESS_TOKEN_EXPIRED",
+      "ACCESS_TOKEN_EXPIRING_SOON",
+      "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CREATED",
+      "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED",
+      "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CANCELLED",
+      "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_EXPIRED",
+      "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_REFUSED",
+      "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CREATED",
+      "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_SCHEDULED",
+      "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_REFUSED",
+      "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CANCELLED",
+      "PIX_AUTOMATIC_RECURRING_ELIGIBILITY_UPDATED"
+    ],
+    "verificacao_assinatura": "Sem HMAC. Token estático (authToken, 32–255 caracteres, sem espaços, não pode ser API Key) enviado no header asaas-access-token em todas as notificações; opcionalmente restringir por IPs de origem (produção: 52.67.12.206, 18.230.8.159, 54.94.136.112, 54.94.183.101).",
+    "politica_reentrega": "Somente HTTP 200 confirma a entrega. Falhas (outros códigos, redirecionamentos, timeouts) seguem 15 tentativas com intervalo crescente (0 s, 30 s, 1 min, 3,5 min, 5 min, 15 min, 25 min, 1 h ×5, 2 h ×2, 3 h), com e-mails de alerta; na 15ª falha consecutiva a fila daquela configuração é interrompida. Eventos ficam guardados por 14 dias e depois são apagados. Reativação via PUT /v3/webhooks/{id} com interrupted=false; POST /v3/webhooks/{id}/removeBackoff antecipa o reenvio de itens penalizados.",
+    "modelo_entrega": "at least once; deduplicar pelo campo id do evento",
+    "modos_envio": [
+      "SEQUENTIALLY (preserva ordem; um evento com falha segura os seguintes)",
+      "NON_SEQUENTIALLY (paralelo, sem ordem)"
+    ],
+    "estrutura_payload": "{id, event, dateCreated, <objeto do recurso: payment|transfer|subscription|invoice|...>}",
+    "requer_endpoint_publico": true,
+    "limite_configuracoes": 10,
+    "observacoes": "Webhooks de cobrança referem-se às cobranças: ao remover uma assinatura/parcelamento chegam PAYMENT_DELETED das cobranças. Configurações de sandbox e produção são independentes; subcontas têm seus próprios webhooks (podem ser criados no POST /v3/accounts).",
+    "fonte_url": "https://docs.asaas.com/docs/sobre-os-webhooks",
+    "data_consulta": "2026-09-17"
+  },
+  "erros": {
+    "formato": "JSON {\"errors\": [{\"code\": \"<codigo>\", \"description\": \"<mensagem>\"}]}; validações podem trazer vários itens. 403/404 podem vir sem corpo.",
+    "codigos_principais": [
+      {
+        "http": 400,
+        "codigo": "invalid_customer",
+        "descricao": "Cliente inválido ou não informado"
+      },
+      {
+        "http": 400,
+        "codigo": "invalid_value",
+        "descricao": "Valor ausente/inválido"
+      },
+      {
+        "http": 400,
+        "codigo": "invalid_dueDate",
+        "descricao": "Vencimento anterior a hoje"
+      },
+      {
+        "http": 400,
+        "codigo": "invalid_object",
+        "descricao": "Objeto incompleto (ex.: parcelamento sem número de parcelas)"
+      },
+      {
+        "http": 400,
+        "codigo": "invalid_action",
+        "descricao": "Ação bloqueada, ex.: autorização crítica pendente em transferências"
+      },
+      {
+        "http": 401,
+        "codigo": "access_token_not_found",
+        "descricao": "Header access_token ausente"
+      },
+      {
+        "http": 401,
+        "codigo": "invalid_access_token_format",
+        "descricao": "Valor não tem formato de chave Asaas"
+      },
+      {
+        "http": 401,
+        "codigo": "invalid_access_token",
+        "descricao": "Chave inválida, desabilitada, expirada ou excluída"
+      },
+      {
+        "http": 401,
+        "codigo": "invalid_environment",
+        "descricao": "Chave de outro ambiente"
+      },
+      {
+        "http": 403,
+        "codigo": null,
+        "descricao": "IP fora da whitelist ('Acesso negado. Code: ...') ou GET com body"
+      },
+      {
+        "http": 404,
+        "codigo": null,
+        "descricao": "Recurso inexistente ou de outra conta"
+      },
+      {
+        "http": 429,
+        "codigo": null,
+        "descricao": "Rate limit, cota de 12 h ou concorrência"
+      },
+      {
+        "http": 500,
+        "codigo": null,
+        "descricao": "Falha interna do Asaas"
+      }
+    ],
+    "fonte_url": "https://docs.asaas.com/reference/codigos-http-das-respostas",
+    "data_consulta": "2026-09-17"
+  },
+  "sdks_oficiais": [
+    {
+      "linguagem": "Java/Kotlin",
+      "pacote": "com.asaas:api-sdk",
+      "versao": "1.0.3",
+      "repositorio": "https://github.com/asaasdev/asaas-api-sdk-java",
+      "fonte_url": "https://docs.asaas.com/docs/java",
+      "data_consulta": "2026-09-17"
+    }
+  ],
+  "ferramentas_complementares": [
+    {
+      "nome": "MCP Server da documentação",
+      "url": "https://docs.asaas.com/mcp",
+      "fonte_url": "https://docs.asaas.com/docs/mcp-1"
+    },
+    {
+      "nome": "llms.txt",
+      "url": "https://docs.asaas.com/llms.txt"
+    },
+    {
+      "nome": "Kit do catálogo (Power Query com tbConfig, Python, TypeScript) e planilha saida/Asaas.xlsx",
+      "url": "sistemas/asaas/kit/README.md"
+    },
+    {
+      "nome": "Coleção Postman / importação Insomnia",
+      "fonte_url": "https://docs.asaas.com/docs/insomnia"
+    },
+    {
+      "nome": "Nó oficial n8n, plugins WooCommerce/Magento/Nuvemshop/Shopify, Pluga, Make",
+      "fonte_url": "https://docs.asaas.com/docs/pluginsm%C3%B3dulos"
+    }
+  ],
+  "comercial": {
+    "modelo_acesso": "aberto",
+    "custo_api": "Uso da API sem mensalidade nem taxa de adesão; paga-se por transação/serviço. Tabela padrão publicada (consulta 2026-09-17, sujeita a contrato e promoções): Pix recebido R$ 1,99 (R$ 0,99 promocional por 3 meses); boleto recebido R$ 1,99 (R$ 0,99 promocional por 3 meses); cartão de crédito à vista R$ 0,49 + 2,99%, 2–6x R$ 0,49 + 3,49%, 7–12x R$ 0,49 + 3,99%, 13–21x R$ 0,49 + 4,29%; débito R$ 0,35 + 1,89%; NFS-e R$ 0,49 por nota; Pix de saída PJ: 30 grátis/mês e depois R$ 2,00; TED R$ 5,00; notificação WhatsApp R$ 0,55; e-mail+SMS R$ 0,99 por pacote; negativação Serasa R$ 9,90; consulta Serasa R$ 16,99; antecipação de boleto a partir de 5,79% a.m. Criação de subcontas pode ter taxa específica (ver painel).",
+    "exige_homologacao": false,
+    "tempo_medio_aprovacao": "Sandbox imediato. Conta de produção depende da análise cadastral/documental (prazo não publicado). Subcontas via API passam por período de avaliação regulatória com limites.",
+    "volatil": true,
+    "fonte_url": "https://www.asaas.com/precos-e-taxas",
+    "data_consulta": "2026-09-17"
+  },
+  "conformidade": {
+    "trafega_dado_pessoal": true,
+    "dado_sensivel": false,
+    "dado_sensivel_observacao": "Trafega dados financeiros e de cartão (PCI-DSS), não dados sensíveis no sentido do art. 5º, II da LGPD.",
+    "base_legal_tipica": "Execução de contrato (art. 7º, V) e cumprimento de obrigação legal/regulatória (art. 7º, II) — inferido.",
+    "exige_certificado_digital": false,
+    "certificado_observacao": "A API não usa certificado cliente. Para NFS-e, a configuração fiscal da conta pode exigir certificado conforme o município (não detalhado neste catálogo).",
+    "regulador": "Banco Central do Brasil (instituição de pagamento e SCD autorizada, segundo o próprio Asaas); PCI-DSS para cartões.",
+    "residencia_dados": null,
+    "termos_uso_url": "https://central.ajuda.asaas.com/hc/pt-br/articles/32096847160859-Termos-e-Condi%C3%A7%C3%B5es-de-Uso",
+    "politica_privacidade_url": "https://central.ajuda.asaas.com/hc/pt-br/articles/32098003163035-Pol%C3%ADtica-de-Privacidade",
+    "permite_uso_em_produto_terceiro": "indefinido",
+    "permite_uso_observacao": "O modelo de subcontas/BaaS e o ecossistema de plugins indicam uso por plataformas de terceiros, mas as condições contratuais não foram analisadas.",
+    "fonte_url": "https://docs.asaas.com/docs/visao-geral",
+    "data_consulta": "2026-09-17"
+  },
+  "esforco_integracao": {
+    "complexidade": "baixa",
+    "horas_estimadas_mvp": 40,
+    "premissa_horas": "Julgamento do arquiteto: MVP de cliente + cobrança boleto/Pix + webhook idempotente + baixa no ERP, com dev pleno já familiarizado com REST, incluindo homologação no sandbox. Split, subcontas BaaS, cartão transparente (PCI) ou NFS-e somam de 20 a 80 h cada.",
+    "principais_armadilhas": [
+      "Sem idempotência na API: timeouts em POST podem duplicar cobranças/transferências — usar externalReference e consultar antes de repetir.",
+      "Webhook só é confirmado com HTTP 200 exato (201/204 contam como falha); 15 falhas interrompem a fila e eventos somem após 14 dias.",
+      "Token de webhook é estático (sem HMAC): validar asaas-access-token e, se possível, IPs de origem.",
+      "Chave com '$' no início quebra em PHP com aspas duplas e em shells sem aspas simples.",
+      "Chaves sem uso são desabilitadas em 3 meses e expiram em 6 — monitorar eventos ACCESS_TOKEN_*.",
+      "Transferências/pagamentos exigem autorização crítica (token) a menos que se configure whitelist de IPs ou webhook de validação de saque.",
+      "QR Code Pix sem chave cadastrada vale só até 23:59 do dia (recurso com descontinuação anunciada).",
+      "Cota de 25.000 requisições por 12 h: polling e refresh frequente de Power BI consomem a cota.",
+      "User-Agent obrigatório para contas novas (desde 13/06/2024)."
+    ]
+  },
+  "casos_uso_negocio": [
+    {
+      "titulo": "Cobrança automática do ERP com baixa por webhook",
+      "dor_resolvida": "Emissão manual de boletos/Pix e baixa manual de recebimentos.",
+      "endpoints_envolvidos": [
+        "asaas.cliente.criar",
+        "asaas.cobranca.criar",
+        "asaas.cobranca.obter.pix_qrcode",
+        "asaas.cobranca.obter.linha_digitavel",
+        "asaas.webhook.assinar_webhook"
+      ],
+      "valor_percebido": "Reduz inadimplência e tempo de conciliação; baixa em tempo real."
+    },
+    {
+      "titulo": "Recorrência de SaaS/mensalidades",
+      "dor_resolvida": "Controle manual de mensalidades e cobranças atrasadas.",
+      "endpoints_envolvidos": [
+        "asaas.assinatura.criar",
+        "asaas.assinatura.atualizar",
+        "asaas.cobranca.listar.assinatura",
+        "asaas.assinatura.cancelar"
+      ],
+      "valor_percebido": "Receita recorrente previsível com geração automática de cobranças."
+    },
+    {
+      "titulo": "Marketplace com subcontas e split",
+      "dor_resolvida": "Repasse manual a sellers/parceiros.",
+      "endpoints_envolvidos": [
+        "asaas.empresa.criar.subconta",
+        "asaas.cobranca.criar",
+        "asaas.pagamento.criar.transferencia_asaas",
+        "asaas.autenticacao.autenticar.chave_subconta"
+      ],
+      "valor_percebido": "Divisão automática de valores e saldo segregado por parceiro."
+    },
+    {
+      "titulo": "Contas a pagar via Pix a partir do saldo",
+      "dor_resolvida": "Pagamentos a fornecedores feitos um a um no internet banking.",
+      "endpoints_envolvidos": [
+        "asaas.pagamento.validar.pix_qrcode",
+        "asaas.pagamento.criar.pix_qrcode",
+        "asaas.pagamento.criar.transferencia",
+        "asaas.pagamento.listar.transferencia"
+      ],
+      "valor_percebido": "Automação de saídas com trilha de auditoria (E2E, comprovantes)."
+    },
+    {
+      "titulo": "Painel financeiro em Excel/Power BI",
+      "dor_resolvida": "Relatórios de recebíveis e extrato montados à mão.",
+      "endpoints_envolvidos": [
+        "asaas.cobranca.listar",
+        "asaas.transacao.listar",
+        "asaas.empresa.obter.saldo",
+        "asaas.assinatura.listar"
+      ],
+      "valor_percebido": "Visão diária de recebido, a receber, inadimplência e MRR sem digitação."
+    },
+    {
+      "titulo": "NFS-e automática dos serviços cobrados",
+      "dor_resolvida": "Emissão de nota separada do faturamento.",
+      "endpoints_envolvidos": [
+        "asaas.nota_fiscal.criar.nfse",
+        "asaas.nota_fiscal.emitir.nfse",
+        "asaas.nota_fiscal.obter.nfse"
+      ],
+      "valor_percebido": "Nota vinculada à cobrança, sem segundo fornecedor fiscal."
+    }
+  ],
+  "indice_integrabilidade": {
+    "score": 78,
+    "componentes": {
+      "documentacao": {
+        "peso": 20,
+        "pontos": 18,
+        "justificativa": "Portal oficial com guias e referência completos, spec OpenAPI 3 pública (213 operações), llms.txt, versão .md de cada página e MCP Server de documentação. Perde pontos por pequenas inconsistências (apiKey x accessToken na criação de subconta; paths com barra final para variantes de cartão; paginação omitida em algumas rotas) e por não haver catálogo completo de códigos de erro."
+      },
+      "sandbox": {
+        "peso": 15,
+        "pontos": 15,
+        "justificativa": "Sandbox gratuito e self-service (sandbox.asaas.com), com aprovação automática de conta, cartões de teste e endpoints exclusivos para confirmar pagamento e forçar vencimento."
+      },
+      "autenticacao": {
+        "peso": 15,
+        "pontos": 7,
+        "justificativa": "Chave de API estática no header access_token, sem OAuth2 nem escopos documentados para a conta principal; compensa parcialmente com expiração configurável, desativação por inatividade, whitelist de IPs e gestão de chaves de subcontas via API."
+      },
+      "webhooks": {
+        "peso": 15,
+        "pontos": 12,
+        "justificativa": "Mais de 100 eventos, token no header asaas-access-token, entrega at least once, 15 retentativas com backoff progressivo, retenção de 14 dias, envio sequencial opcional, reativação de fila e remoção de penalização por API. Não há assinatura HMAC do payload."
+      },
+      "limites_paginacao": {
+        "peso": 10,
+        "pontos": 8,
+        "justificativa": "Limites publicados (cota de 25.000 req/12h por conta, 50 GETs concorrentes, rate limit por endpoint com headers RateLimit-*) e paginação offset/limit até 100 com hasMore. A cota fixa pode apertar cargas históricas grandes."
+      },
+      "sdks_comunidade": {
+        "peso": 10,
+        "pontos": 5,
+        "justificativa": "SDK oficial apenas para Java/Kotlin (com.asaas:api-sdk 1.0.3); nó oficial n8n, plugins (WooCommerce, Magento, Nuvemshop, Shopify), comunidade no Discord e MCP Server de documentação."
+      },
+      "acesso_sem_barreira": {
+        "peso": 10,
+        "pontos": 9,
+        "justificativa": "Conta gratuita e chave gerada pelo próprio painel, sem contrato. Subcontas exigem conta-pai PJ e passam por período de avaliação regulatória."
+      },
+      "versionamento": {
+        "peso": 5,
+        "pontos": 4,
+        "justificativa": "API v3 estável no path, changelog público e página de breaking changes com data de obrigatoriedade e aviso por e-mail/Discord; não há política formal de suporte a versões antigas."
+      }
+    }
+  },
+  "qualidade_doc": {
+    "nota": 9,
+    "observacoes": "Documentação bilíngue, muito didática (fluxos, erros comuns, boas práticas de webhook), spec OpenAPI pública e llms.txt. Pontos fracos: códigos de erro de negócio não catalogados, divergências pontuais entre guia e spec, e schemas de resposta de algumas listagens incompletos."
+  },
+  "monitoramento": {
+    "changelog_url": "https://docs.asaas.com/changelog",
+    "canal_breaking_changes": "https://docs.asaas.com/page/breaking-changes (e-mail aos clientes afetados e Discord https://discord.gg/invite/X2kgZm69HV); status: https://status.asaas.com/",
+    "frequencia_revisao_sugerida": "mensal"
+  },
+  "lacunas": [
+    {
+      "campo": "endpoints.erros",
+      "descricao": "Não há catálogo público completo de códigos de erro de negócio; só alguns códigos aparecem em exemplos (invalid_customer, invalid_value, invalid_dueDate, invalid_object, invalid_action). O código invalid_cpfCnpj em asaas.cliente.criar é inferência.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "limites.idempotencia",
+      "descricao": "Nenhum mecanismo de idempotência (header ou campo) documentado para POSTs de cobrança/transferência/pagamento.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "autenticacao.escopos_permissoes",
+      "descricao": "Não foi confirmada a existência de permissões por chave (ex.: PAYMENT:WRITE aparece apenas em resumo de busca, não lido na página oficial).",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "limites.rate_limit",
+      "descricao": "Valores de rate limit por endpoint não são publicados (apenas os headers). O endpoint removeBackoff tem limite 'mais restrito' sem número.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "limites.tamanho_max_payload / timeout_recomendado",
+      "descricao": "Não documentados.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "asaas.cobranca.criar.cartao_credito",
+      "descricao": "Comportamento em recusa do cartão (cobrança criada ou não, código de erro) não confirmado; a spec usa path '/v3/payments/' com barra final como variante documental do mesmo POST.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "asaas.empresa.criar.subconta",
+      "descricao": "Guia chama a chave retornada de apiKey; a spec a nomeia accessToken. Confirmar no sandbox.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "asaas.assinatura.atualizar",
+      "descricao": "O campo value não aparece no schema de atualização da spec (endpoint marcado como inferido quanto a alteração de valor).",
+      "impacto": "medio"
+    },
+    {
+      "campo": "paginacao",
+      "descricao": "GET /v3/subscriptions/{id}/payments e GET /v3/transfers não listam offset/limit na spec; a paginação padrão foi assumida.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "taxonomia",
+      "descricao": "Pix Automático (autorizações/instruções de pagamento) foi catalogado como Assinatura por falta de entidade específica; antecipações como ContaReceber; negativação/Serasa como Cobranca/Pessoa. Sugestão: entidade 'Recebivel' ou 'Antecipacao' e ação 'restaurar'.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "conformidade.residencia_dados",
+      "descricao": "Local de hospedagem dos dados não informado na documentação consultada.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "conformidade.permite_uso_em_produto_terceiro",
+      "descricao": "A página de Termos e Condições (central.ajuda.asaas.com, URL localizada via busca no domínio oficial) respondeu 403 ao acesso automatizado em 2026-09-17; cláusulas sobre uso por plataformas terceiras não foram lidas.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "comercial.tempo_medio_aprovacao",
+      "descricao": "Prazo de aprovação da conta de produção não publicado.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "kit/powerquery",
+      "descricao": "Planilha gerada (saida/Asaas.xlsx) testada em 2026-09-17 apenas com chave inválida: as 7 consultas chegam à API e exibem o erro de credencial (o Excel intercepta o 401). O refresh com chave de sandbox válida e o formato real das colunas não foram testados por falta de credencial; a lógica de paginação foi validada com páginas simuladas.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "cnpj_alfanumerico",
+      "descricao": "Suporte do Asaas ao CNPJ alfanumérico não encontrado na documentação.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "execucao.colunas_sugeridas",
+      "descricao": "Quatro endpoints de leitura devolvem menos de 5 campos documentados e por isso ficam abaixo do minimo de 5 colunas da secao 7.1, sem que se invente campo: asaas.cobranca.consultar_status (so status), asaas.empresa.obter.saldo (so balance), asaas.cobranca.obter.pix_qrcode (payload e expirationDate; encodedImage existe mas e um PNG em base64 inutil em planilha) e asaas.cobranca.obter.linha_digitavel (3 campos). asaas.pagamento.validar.pix_qrcode fica no limite com 5 colunas porque o exemplo oficial so traz receiver.name, sem o detalhamento completo do recebedor.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "execucao.campo_total",
+      "descricao": "GET /v3/pix/addressKeys é o único endpoint de lista cujo exemplo oficial traz apenas 'data', sem hasMore/totalCount/limit/offset. campo_total ficou null e o fim da paginação segue o padrão hasMore=false da página de Listagem e paginação, não confirmado nesse exemplo.",
+      "impacto": "baixo"
+    }
+  ],
+  "fontes": [
+    {
+      "url": "https://docs.asaas.com/llms.txt",
+      "titulo": "Índice da documentação (llms.txt)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.asaas.com/openApi/document?version=3&languageCode=pt-BR",
+      "titulo": "Especificação OpenAPI oficial v3",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/autentica%C3%A7%C3%A3o-1",
+      "titulo": "Autenticação",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/chaves-de-api",
+      "titulo": "Chaves de API",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/padr%C3%A3o-de-chave-com-e-clientes-php",
+      "titulo": "Padrão de chave com $ e clientes PHP",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/whitelist-de-ips",
+      "titulo": "Whitelist de IPs",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/security",
+      "titulo": "FAQ Security (autorização crítica)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/reference/comece-por-aqui",
+      "titulo": "Comece por aqui (ambientes)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/reference/rate-e-quota-limit",
+      "titulo": "Limites da API",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/reference/listagem-e-paginacao",
+      "titulo": "Listagem e paginação",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/reference/codigos-http-das-respostas",
+      "titulo": "Códigos HTTP das respostas",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/sandbox",
+      "titulo": "Sandbox",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/sobre-os-webhooks",
+      "titulo": "Introdução - Webhooks",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/criar-novo-webhook-pela-api",
+      "titulo": "Criar novo Webhook pela API",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/receba-eventos-do-asaas-no-seu-endpoint-de-webhook",
+      "titulo": "Receber eventos no endpoint",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/penaliza%C3%A7%C3%A3o-de-filas",
+      "titulo": "Penalização de filas",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/fila-pausada",
+      "titulo": "Fila pausada",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/como-reativar-fila-interrompida",
+      "titulo": "Como reativar fila interrompida",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/tipos-de-envio",
+      "titulo": "Tipos de envio",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/como-implementar-idempotencia-em-webhooks",
+      "titulo": "Idempotência em webhooks",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/ips-oficiais-do-asaas",
+      "titulo": "IPs oficiais do Asaas",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/webhook-para-cobrancas",
+      "titulo": "Eventos para cobranças",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/cobrancas-via-pix",
+      "titulo": "Cobranças via Pix",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/o-que-e-qr-code-estatico",
+      "titulo": "QR Code estático",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/estornos",
+      "titulo": "Estornos",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/criacao-de-subcontas",
+      "titulo": "Criação de subcontas",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/sdks",
+      "titulo": "SDK",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/java",
+      "titulo": "SDK Java",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/mcp-1",
+      "titulo": "MCP Server (IA)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/docs/visao-geral",
+      "titulo": "Introdução (visão geral)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/changelog",
+      "titulo": "Changelog",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.asaas.com/page/breaking-changes",
+      "titulo": "Breaking changes",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.asaas.com/precos-e-taxas",
+      "titulo": "Preços e taxas",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://central.ajuda.asaas.com/hc/pt-br/articles/32096847160859-Termos-e-Condi%C3%A7%C3%B5es-de-Uso",
+      "titulo": "Termos e Condições de Uso",
+      "data_consulta": "2026-09-17"
+    }
+  ]
+}

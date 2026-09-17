@@ -1,0 +1,891 @@
+{
+  "slug": "pagarme",
+  "nome": "Pagar.me",
+  "categoria": "pagamentos_psp",
+  "fornecedor": {
+    "razao_social": "Stone Instituição de Pagamento S.A.",
+    "cnpj": "16501555000157",
+    "pais": "BR",
+    "site": "https://www.pagar.me",
+    "grupo": "Stone (StoneCo). O site oficial pagar.me anuncia 'Pagar.me agora é Stone', traz no rodapé a razão social Stone Instituição de Pagamento S.A. (CNPJ 16.501.555/0001-57), redireciona a página institucional para stone.com.br e a API de Disputas roda no host api.stone.com.br. A documentação garante que contrato e integração existentes continuam funcionando.",
+    "fonte_url": "https://www.pagar.me/",
+    "data_consulta": "2026-09-17"
+  },
+  "descricao_curta": "Provedor de serviços de pagamento e gateway do grupo Stone. A Core API v5 (REST/JSON) cobre pedidos e cobranças por cartão de crédito e débito, boleto, Pix, voucher e dinheiro, tokenização de cartões, carteira de clientes, planos e assinaturas com faturas, link de pagamento/checkout hospedado, recebedores com split, agenda de recebíveis, antecipação, liquidações, transferências e webhooks.",
+  "porte_alvo": [
+    "media",
+    "grande"
+  ],
+  "verticais": [
+    "ecommerce",
+    "marketplace",
+    "saas",
+    "servicos",
+    "educacao",
+    "software_house",
+    "tiqueteiras"
+  ],
+  "status": "documentado",
+  "api": {
+    "estilo": "REST",
+    "base_urls": {
+      "producao": "https://api.pagar.me/core/v5",
+      "sandbox": "https://api.pagar.me/core/v5"
+    },
+    "base_urls_observacao": "Não existe host de sandbox. Teste e produção usam exatamente o mesmo endpoint; o que decide se a transação vai para o simulador ou para o fluxo produtivo é o prefixo da chave secreta enviada (sk_test_ x sk_). Há ainda o host https://sdx-api.pagar.me, usado apenas para validar as mudanças de contrato de 2026 com o header X-Use-Mocks: true.",
+    "versao_atual": "v5 (Core API; o caminho começa com /core/v5)",
+    "politica_versionamento": "Versão no path. Mudanças incompatíveis são publicadas na página 'Visão Geral das mudanças da API', com cronograma, janela de adequação (45 dias no ciclo de 2026), ambiente de mocks e aviso por e-mail. Versões anteriores da API (v4 e a API Stone antiga) foram descontinuadas com prazo comunicado.",
+    "formatos": [
+      "json"
+    ],
+    "formatos_observacao": "O envio de evidências de chargeback na API de Disputas usa multipart/form-data com PDFs.",
+    "spec_oficial_url": null,
+    "openapi_disponivel": false,
+    "openapi_observacao": "A referência é montada sobre uma definição OpenAPI 3.1 (title pagarme-api, version 5, server https://api.pagar.me/core/v5) embutida nas páginas do portal, mas o download da spec está desabilitado no portal (show_openapi_download: disabled) e não foi encontrada URL pública de arquivo .json/.yaml. O openapi.yaml deste catálogo é uma reconstrução.",
+    "total_operacoes_referencia": 127,
+    "tls": "TLS 1.2 e 1.3 (o Pagar.me recomenda 1.3); hashes SHA256/384/512 e cifras de 128 bits ou mais. Certificados do domínio são renovados a cada 90 dias — não faça pinning.",
+    "fonte_url": "https://docs.pagar.me/reference/autentica%C3%A7%C3%A3o-2",
+    "data_consulta": "2026-09-17"
+  },
+  "autenticacao": {
+    "tipos": [
+      "basic"
+    ],
+    "fluxo_resumido": "Duas chaves por ambiente, obtidas no Dash (id.pagar.me > Desenvolvimento > Chaves). A Chave Secreta (sk_test_ em teste, sk_ em produção) autentica as rotas de servidor via HTTP Basic, com a chave no lugar do usuário e senha vazia: Authorization: Basic base64(\"sk_...:\"). A Chave Pública (pk_test_ / pk_) representa a loja no front-end e é usada na tokenização de cartão (POST /core/v5/tokens?appId=pk_...) e no checkout. Não há OAuth2; o Access Token por customer foi descontinuado em 13/11/2023.",
+    "escopos_permissoes": [
+      "Transacional (escopo citado na API de Disputas, com permissão de somente leitura)"
+    ],
+    "escopos_observacao": "A documentação menciona escopo e permissão de chave ao descrever a API de Disputas, mas não publica o catálogo completo de escopos nem como configurá-los por chave.",
+    "expiracao_token": "Não há token de sessão: a chave é estática e vale até ser revogada no Dash. Nenhuma política de expiração automática foi encontrada na documentação.",
+    "renovacao": "Gerar nova chave no Dash (id.pagar.me > Desenvolvimento > Chaves). Não há rota de API para criar ou rotacionar chaves.",
+    "ip_allowlist_obrigatorio": false,
+    "ip_allowlist_observacao": "IP Allowlist opcional, configurada no Dash por Account e por Merchant, com IP único, faixa, CIDR ou intervalo, em IPv4 e IPv6. Depois de configurada, qualquer origem fora da lista é recusada. Para a rota de tokenização também é possível liberar domínios. No sentido inverso, a Pagar.me pede que o cliente libere o domínio api.pagar.me (ou a lista de IPs publicada na página de Segurança) na saída da própria rede.",
+    "fonte_url": "https://docs.pagar.me/docs/chaves-de-acesso",
+    "data_consulta": "2026-09-17"
+  },
+  "execucao_auth": {
+    "tipo": "basic",
+    "header": "Authorization",
+    "prefixo": "Basic ",
+    "usuario_basic_e_a_credencial": true,
+    "senha_basic": "",
+    "headers_fixos": {},
+    "token_url": null,
+    "credenciais_necessarias": [
+      {
+        "nome": "secret_key",
+        "rotulo": "Chave secreta do Pagar.me (sk_)",
+        "segredo": true,
+        "onde_obter": "Dash do Pagar.me em https://id.pagar.me > menu Desenvolvimento > Chaves. Use a chave de teste (sk_test_) para validar e a de produção (sk_) para dados reais.",
+        "formato_esperado": "sk_test_... (teste). Em producao a doc usa duas grafias: sk_... (pagina 'Chaves de acesso') e sk_live_... (paginas do Checkout).",
+        "validacao_regex": "^sk_(test_|live_)?[A-Za-z0-9_]+$",
+        "obrigatoria": true
+      }
+    ],
+    "base_url_por_ambiente": {
+      "producao": "https://api.pagar.me/core/v5",
+      "sandbox": "https://api.pagar.me/core/v5"
+    },
+    "credenciais_opcionais": [
+      {
+        "nome": "public_key",
+        "rotulo": "Chave pública do Pagar.me (pk_)",
+        "segredo": false,
+        "obrigatorio": false,
+        "onde_obter": "Mesma tela do Dash. Só é necessária para tokenizar cartão no front-end (POST /core/v5/tokens), que é uma operação de escrita e não é executada pelo assistente."
+      }
+    ],
+    "ambiente_definido_por": "prefixo_da_chave",
+    "montagem_do_header": "Authorization: Basic base64(secret_key + \":\") — a senha é vazia, e os dois-pontos finais são obrigatórios.",
+    "headers_adicionais": {},
+    "teste_de_credencial": {
+      "metodo": "GET",
+      "path": "/core/v5/customers",
+      "query": {
+        "size": "1"
+      },
+      "sucesso": "HTTP 200 com objeto contendo data[]",
+      "falha": "HTTP 401 com {\"message\": \"Authorization has been denied for this request.\"} e header X-Payments-Auth: Unauthorized"
+    },
+    "observacao": "Confirmado em 2026-09-17 com duas chamadas de checagem contra a API real usando credencial inválida e sem credencial: ambas devolveram 401 com esse corpo exato.",
+    "fonte_url": "https://docs.pagar.me/reference/autentica%C3%A7%C3%A3o-2",
+    "data_consulta": "2026-09-17",
+    "base_url_excecoes": [
+      {
+        "rotas": [
+          "/core/v5/paymentlinks",
+          "/core/v5/paymentlinks/*"
+        ],
+        "sandbox": "https://sdx-api.pagar.me/core/v5",
+        "motivo": "As paginas de referencia de link de pagamento (criar, obter, listar, ativar e cancelar) mandam usar o host sdx-api quando a conta e de teste; o restante da Core API continua em api.pagar.me com a chave sk_test_.",
+        "fonte_url": "https://docs.pagar.me/reference/cancelar-um-link-de-pagamento",
+        "data_consulta": "2026-09-17"
+      }
+    ],
+    "base_url_observacao": "Para as rotas de leitura que o assistente executa, teste e producao usam o MESMO host (https://api.pagar.me/core/v5) e quem decide o ambiente e o prefixo da chave. Checado em 2026-09-17: uma chamada sem credencial a https://sdx-api.pagar.me/core/v5/customers devolve 404, ou seja, o sdx-api NAO e um sandbox geral da Core API — ele serve o Checkout/links de pagamento, o Apple Pay e o ambiente de mocks das mudancas de contrato (header X-Use-Mocks: true)."
+  },
+  "ambiente_testes": {
+    "sandbox": true,
+    "como_obter": "As chaves de teste (sk_test_ / pk_test_) são disponibilizadas junto com a conta no Dash; as de produção só são entregues após o fechamento do contrato comercial. Não há autocadastro público de sandbox documentado.",
+    "custo": "Não publicado; as chaves de teste acompanham a conta.",
+    "dados_ficticios": true,
+    "simuladores": [
+      "Simulador PSP (antifraude, split e demais funções de PSP)",
+      "Simulador de cartão de crédito (números de cartão por cenário: 4000000000000010 aprova, 4000000000000028 recusa, 4000000000000036 processa e depois aprova, 4000000000000044 processa e depois falha)",
+      "Simulador de cartão de débito",
+      "Simulador de voucher",
+      "Simulador de boleto (o cenário vem do CEP do comprador: 01046010 pagamento a menor, 57400000 pagamento a maior, 70070300 sem conciliação, demais CEPs pagamento integral)",
+      "Simulador de Pix"
+    ],
+    "observacoes": "O simulador em uso é escolhido no Dash (Configurações > Meios de pagamento) e depende do tipo de conta: contas Gateway veem 'Simulator' e contas PSP veem 'PSP'. Operações com chave de teste não geram recebíveis reais. A idempotência no ambiente de teste dura 5 minutos, contra 24 horas em produção.",
+    "fonte_url": "https://docs.pagar.me/docs/o-que-%C3%A9-um-simulador",
+    "data_consulta": "2026-09-17"
+  },
+  "limites": {
+    "rate_limit": "Limite por rota e por minuto, publicado em tabela: 200 em GET /charges, /charges/*, /orders, /orders/*, /subscriptions, /subscriptions/*, /invoices, /invoices/*, /customers e /customers/*; 150 em GET /recipients/*; 100 em GET /recipients; 50 em GET /hooks e /hooks/*; 700 em GET /payables; 300 em GET /balance/operations. Contas de teste têm limite único de 10 requisições por segundo. O cancelamento de cobrança Pix tem regra própria: a partir da 11ª tentativa de cancelar a MESMA cobrança, só é permitida uma nova a cada 15 minutos.",
+    "janela": "1 minuto nas rotas de produção; 1 segundo nas contas de teste.",
+    "burst": "Não publicado.",
+    "paginacao": {
+      "estilo": "page",
+      "tamanho_max": null,
+      "parametros": [
+        "page",
+        "size"
+      ],
+      "modelos": [
+        {
+          "nome": "Página",
+          "parametros": [
+            "page",
+            "size"
+          ],
+          "onde": "modelo padrão da API (clientes, pedidos, cobranças, assinaturas, faturas, planos, recebedores, webhooks)",
+          "resposta": "data[] + paging.total e, em algumas rotas, paging.next"
+        },
+        {
+          "nome": "Forward cursor",
+          "parametros": [
+            "forward_cursor",
+            "size"
+          ],
+          "onde": "GET /core/v5/payables (desde 28/08/2026 é o único modelo aceito nessa rota)",
+          "resposta": "data[] + paging.forward_cursor; a listagem acaba quando o cursor volta nulo, e não é possível voltar páginas"
+        },
+        {
+          "nome": "Cursor por header",
+          "parametros": [
+            "cursor",
+            "count"
+          ],
+          "onde": "GET /core/v5/transfers",
+          "resposta": "array na raiz; os cursores vêm nos headers x-cursor-nextpage e x-cursor-previouspage"
+        }
+      ],
+      "tamanhos_maximos_conhecidos": {
+        "/core/v5/payables": 1000,
+        "/core/v5/settlements": 2000,
+        "/core/v5/transfers": 1000,
+        "/core/v5/recipients/{recipient_id}/bulk_anticipations": 1000,
+        "/core/v5/paymentlinks": 30
+      },
+      "observacao": "O valor máximo de size no modelo por página não é publicado para a maioria das rotas."
+    },
+    "tamanho_max_payload": "Não publicado para a Core API. Na API de Disputas, o envio de evidências aceita até 2 MB por arquivo, 10 páginas por disputa e 11 MB por requisição.",
+    "timeout_recomendado": null,
+    "politica_retry": "Em 429, reduza a concorrência e aplique backoff antes de repetir; em 5xx, repita com backoff reenviando a MESMA Idempotency-Key. Em erros 4xx de validação e em erros 500 a chave de idempotência não é gravada, então a requisição corrigida pode ser reenviada com a mesma chave.",
+    "idempotencia": {
+      "suportada": true,
+      "header": "Idempotency-key",
+      "ttl": "24 horas em produção e 5 minutos no ambiente de teste, contados da primeira requisição com aquela chave.",
+      "conflito": "HTTP 409 quando chega uma segunda requisição com a mesma chave enquanto a primeira ainda está em processamento.",
+      "observacao": "A chave é gerada pelo cliente, é case-sensitive e não tem tamanho máximo imposto (a documentação recomenda chaves curtas). Duas requisições com a mesma chave e corpos diferentes ainda geram um único pedido. O header aparece declarado na referência da rota POST /core/v5/transfers; o guia de Idempotência descreve o comportamento para a criação de pedidos e afirma que a chave pode ser usada em métodos e endpoints diferentes.",
+      "fonte_url": "https://docs.pagar.me/docs/o-que-%C3%A9"
+    },
+    "outros": [
+      "Token de cartão: validade de 60 segundos e uso único.",
+      "statement_descriptor: 22 caracteres no modelo Gateway e 13 no modelo PSP.",
+      "Instruções do boleto: até 256 caracteres.",
+      "Link de pagamento: no máximo 30 registros por página na listagem.",
+      "Recebíveis pagos: histórico limitado a 24 meses desde 28/08/2026."
+    ],
+    "volatil": true,
+    "fonte_url": "https://docs.pagar.me/reference/rate-limit",
+    "data_consulta": "2026-09-17"
+  },
+  "webhooks": {
+    "suportados": true,
+    "eventos": [
+      "customer.created",
+      "customer.updated",
+      "card.created",
+      "card.updated",
+      "card.deleted",
+      "card.expired",
+      "address.created",
+      "address.updated",
+      "address.deleted",
+      "plan.created",
+      "plan.updated",
+      "plan.deleted",
+      "plan_item.created",
+      "plan_item.updated",
+      "plan_item.deleted",
+      "subscription.created",
+      "subscription.canceled",
+      "subscription_item.created",
+      "subscription_item.updated",
+      "subscription_item.deleted",
+      "discount.created",
+      "discount.deleted",
+      "increment.created",
+      "increment.deleted",
+      "order.created",
+      "order.paid",
+      "order.payment_failed",
+      "order.canceled",
+      "order.closed",
+      "order.updated",
+      "order_item.created",
+      "order_item.updated",
+      "order_item.deleted",
+      "invoice.created",
+      "invoice.updated",
+      "invoice.paid",
+      "invoice.payment_failed",
+      "invoice.canceled",
+      "charge.created",
+      "charge.updated",
+      "charge.paid",
+      "charge.payment_failed",
+      "charge.refunded",
+      "charge.pending",
+      "charge.processing",
+      "charge.underpaid",
+      "charge.overpaid",
+      "charge.partial_canceled",
+      "charge.chargedback",
+      "chargeback.received",
+      "charge.antifraud_approved",
+      "charge.antifraud_reproved",
+      "charge.antifraud_manual",
+      "charge.antifraud_pending",
+      "usage.created",
+      "usage.deleted",
+      "recipient.created",
+      "recipient.updated",
+      "recipient.deleted",
+      "bank_account.created",
+      "bank_account.updated",
+      "bank_account.deleted",
+      "checkout.created",
+      "checkout.canceled",
+      "checkout.closed"
+    ],
+    "verificacao_assinatura": "NÃO DOCUMENTADA. A documentação consultada não descreve assinatura HMAC, header de token nem lista de IPs de origem dos webhooks. O objeto webhook traz id, url, event, status, attempts, last_attempt, response_status, response_raw, account{id,name} e data{} com o recurso. Na prática, trate o payload como não confiável: use o id do evento só para deduplicar e confirme o estado chamando GET /core/v5/charges/{charge_id} ou /orders/{order_id} antes de liberar mercadoria.",
+    "politica_reentrega": "Há retentativas automáticas — o campo attempts vem no formato 'n/N' (ex.: 3/3 nos exemplos oficiais) — e é possível forçar o reenvio por POST /core/v5/hooks/{hook_id}/retry. O número exato de tentativas, os intervalos e o prazo de retenção dos eventos não são publicados.",
+    "requer_endpoint_publico": true,
+    "portas": "http na porta 80 e https na porta 443; ao usar porta específica, respeite o protocolo.",
+    "configuracao": "Os endpoints e os eventos assinados são configurados no Dash. A API v5 expõe apenas listagem, consulta e reenvio de webhooks (GET /core/v5/hooks, GET /core/v5/hooks/{hook_id}, POST /core/v5/hooks/{hook_id}/retry); não há rota pública documentada para criar ou excluir a configuração de webhook.",
+    "avisos": [
+      "charge.chargedback será descontinuado e deve ser substituído por chargeback.received (migração até 30/09/2026).",
+      "Cobranças reprocessadas após falha de antifraude recebem novo charge_id desde 28/08/2026: vincule pelo order_id e mantenha as duas cobranças consultáveis."
+    ],
+    "fonte_url": "https://docs.pagar.me/reference/eventos-de-webhook-1",
+    "data_consulta": "2026-09-17"
+  },
+  "erros": {
+    "formato": "JSON. Em erro de validação: {\"message\": \"The request is invalid.\", \"errors\": {\"<caminho.do.campo>\": [\"<mensagem>\"]}, \"request\": {<eco do corpo recebido>}}. Em falha de autenticação: {\"message\": \"Authorization has been denied for this request.\"}. Em recurso inexistente, algumas rotas devolvem {\"message\": \"Order not found.\"} com status 400 em vez de 404.",
+    "codigos_principais": [
+      {
+        "http": 400,
+        "codigo": null,
+        "descricao": "Requisição inválida ou recurso não encontrado (a API usa 400 em vários casos em que se esperaria 404)"
+      },
+      {
+        "http": 401,
+        "codigo": null,
+        "descricao": "Authorization has been denied for this request — chave ausente, inválida, de outro ambiente ou Basic mal montado. A resposta traz o header X-Payments-Auth: Unauthorized"
+      },
+      {
+        "http": 403,
+        "codigo": null,
+        "descricao": "Origem fora da IP Allowlist ou chave sem o escopo/permissão da rota"
+      },
+      {
+        "http": 409,
+        "codigo": null,
+        "descricao": "Conflito de idempotência: já existe uma requisição em andamento com a mesma Idempotency-key"
+      },
+      {
+        "http": 412,
+        "codigo": null,
+        "descricao": "Pré-condição não atendida (ex.: editar cartão de cobrança já autorizada, cancelar fatura já paga)"
+      },
+      {
+        "http": 422,
+        "codigo": null,
+        "descricao": "Falha de validação, com o mapa errors{} apontando cada campo recusado"
+      },
+      {
+        "http": 429,
+        "codigo": null,
+        "descricao": "Rate limit da rota excedido"
+      },
+      {
+        "http": 500,
+        "codigo": null,
+        "descricao": "Falha interna; repetir com a mesma Idempotency-key"
+      }
+    ],
+    "erros_de_negocio": "A recusa de cartão NÃO vira erro HTTP: o pedido volta 200 com status failed e o motivo em charges[].last_transaction.acquirer_return_code. Desde 28/08/2026 esse código segue o padrão ABECS, cuja tabela de-para é publicada em https://docs.pagar.me/docs/c%C3%B3digos-de-retorno-padr%C3%A3o-abecs.",
+    "fonte_url": "https://docs.pagar.me/reference/criar-cliente-1",
+    "data_consulta": "2026-09-17"
+  },
+  "sdks_oficiais": [
+    {
+      "linguagem": "Java",
+      "repositorio": "https://github.com/pagarme/pagarme-java-sdk",
+      "fonte_url": "https://docs.pagar.me/docs/bibliotecas-1",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "linguagem": "C# (.NET Standard 2.0)",
+      "pacote": "PagarmeCoreApi",
+      "repositorio": "https://github.com/pagarme/pagarme-net-standard-sdk",
+      "fonte_url": "https://docs.pagar.me/docs/bibliotecas-1",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "linguagem": "Node.js",
+      "pacote": "pagarmecore-nodejs",
+      "repositorio": "https://github.com/pagarme/pagarme-nodejs-sdk",
+      "fonte_url": "https://docs.pagar.me/docs/bibliotecas-1",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "linguagem": "PHP",
+      "pacote": "PagarmeCoreApi",
+      "repositorio": "https://github.com/pagarme/pagarme-php-sdk",
+      "fonte_url": "https://docs.pagar.me/docs/bibliotecas-1",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "linguagem": "Python",
+      "pacote": "pagarmecoreapi",
+      "repositorio": "https://github.com/pagarme/pagarme-python-sdk",
+      "fonte_url": "https://docs.pagar.me/docs/bibliotecas-1",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "linguagem": "Ruby",
+      "repositorio": "https://github.com/pagarme/pagarme-ruby-sdk",
+      "fonte_url": "https://docs.pagar.me/docs/bibliotecas-1",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "linguagem": "Go (beta)",
+      "repositorio": "https://github.com/pagarme/pagarme-golang-sdk",
+      "fonte_url": "https://docs.pagar.me/docs/bibliotecas-1",
+      "data_consulta": "2026-09-17"
+    }
+  ],
+  "sdks_observacao": "A versão 7 das SDKs foi publicada para acompanhar as mudanças de API de 28/08/2026 e NÃO é retrocompatível: as consultas de balance operations e a consulta de recebível por id foram removidas, e a paginação de recebíveis passou a ser exclusivamente por cursor.",
+  "ferramentas_complementares": [
+    {
+      "nome": "tokenizecard.js (tokenização de cartão no navegador, para não trafegar PAN no seu servidor)",
+      "fonte_url": "https://docs.pagar.me/docs/tokenizecard"
+    },
+    {
+      "nome": "llms.txt com o índice completo da documentação e versão .md de cada página",
+      "url": "https://docs.pagar.me/llms.txt"
+    },
+    {
+      "nome": "Checkout hospedado e link de pagamento",
+      "fonte_url": "https://docs.pagar.me/reference/checkout-link"
+    },
+    {
+      "nome": "Plugins e integrações de plataforma: Magento 2, Shopify, VTEX, Nuvemshop, WooCommerce",
+      "fonte_url": "https://docs.pagar.me/page/plataformas-de-e-commerce-parceiras"
+    },
+    {
+      "nome": "Página de status do serviço",
+      "url": "https://status.pagar.me/"
+    }
+  ],
+  "comercial": {
+    "modelo_acesso": "sob_contrato",
+    "custo_api": "Não publicado. A documentação não divulga tabela de taxas e o site oficial não mantém página de preços aberta: as condições (MDR de crédito/débito, tarifa de boleto e Pix, custo de antecipação e de transferência) são definidas na proposta comercial. Contato comercial: comercial@pagar.me; atendimento: relacionamento@pagar.me e 4004-1330.",
+    "exige_homologacao": false,
+    "tempo_medio_aprovacao": "Não publicado. As chaves de produção são entregues 'após o fechamento do contrato'; recebedores de marketplace ainda passam por análise cadastral e, quando exigido, prova de vida (KYC).",
+    "volatil": true,
+    "fonte_url": "https://docs.pagar.me/reference/autentica%C3%A7%C3%A3o-2",
+    "data_consulta": "2026-09-17"
+  },
+  "conformidade": {
+    "trafega_dado_pessoal": true,
+    "dado_sensivel": false,
+    "dado_sensivel_observacao": "Trafega dados pessoais (nome, CPF/CNPJ, endereço, telefone, data de nascimento, nome da mãe e renda declarada no cadastro de recebedores) e dados de cartão sob PCI-DSS. Não são dados sensíveis no sentido do art. 5º, II da LGPD.",
+    "base_legal_tipica": "Execução de contrato (art. 7º, V) e cumprimento de obrigação legal e regulatória (art. 7º, II), incluindo prevenção à lavagem de dinheiro e regras do Banco Central para arranjos de pagamento — inferido.",
+    "exige_certificado_digital": false,
+    "certificado_observacao": "A API não usa certificado cliente (mTLS). O Pagar.me provisiona automaticamente os certificados TLS do próprio domínio, com validade de 90 dias, e desaconselha pinning de certificado ou de chave pública.",
+    "regulador": "Banco Central do Brasil (a razão social no site oficial é Stone Instituição de Pagamento S.A.); PCI-DSS para dados de cartão; Res. BCB 264/349 para registro de recebíveis; arranjo Pix do Bacen.",
+    "residencia_dados": null,
+    "termos_uso_url": "https://www.pagar.me/documentos/termos-de-uso.pdf",
+    "politica_privacidade_url": "https://docs.stone.com.br/aviso-de-privacidade/",
+    "permite_uso_em_produto_terceiro": "indefinido",
+    "permite_uso_observacao": "O produto tem modelo explícito de marketplace e de facilitador de pagamento (recebedores, split, dados de subadquirente, Stone Partner Program), o que indica uso por plataformas de terceiros; as cláusulas do PDF de termos de uso não foram analisadas nesta sessão.",
+    "requisitos_regulatorios": [
+      "Facilitadores de pagamento precisam enviar dados do subcredenciado em cada requisição transacional, por determinação do Banco Central e das bandeiras.",
+      "Cadastro de sublojista exige razão social (legal_name), MCC e endereço do submerchant.",
+      "Devolução de Pix só é possível em até 90 dias da conciliação, conforme o arranjo.",
+      "Dados de cartão abertos só podem trafegar em ambiente PCI-DSS; caso contrário, use tokenizecard.js ou POST /core/v5/tokens."
+    ],
+    "fonte_url": "https://docs.pagar.me/reference/facilitadores-de-pagamento-dados-de-subadquirente",
+    "data_consulta": "2026-09-17"
+  },
+  "esforco_integracao": {
+    "complexidade": "media",
+    "horas_estimadas_mvp": 60,
+    "premissa_horas": "Julgamento do arquiteto: MVP de pedido com Pix e boleto, consulta de cobrança, tratamento de webhook idempotente e baixa no ERP, com desenvolvedor pleno já familiarizado com REST, usando chave de teste e os simuladores. Cartão com tokenização soma de 20 a 40 h (tokenizecard.js, 3DS e tratamento de códigos ABECS); recebedores com split e KYC somam de 40 a 80 h; conciliação por recebíveis e liquidações soma de 20 a 40 h. O esforço sobe se a integração precisar absorver as mudanças de contrato de 28/08/2026.",
+    "principais_armadilhas": [
+      "Valores são SEMPRE inteiros em centavos (R$ 149,90 = 14990). Enviar 149.90 cobra R$ 1,49.",
+      "Cartão recusado não é erro HTTP: vem 200 com status failed e o motivo em last_transaction.acquirer_return_code (padrão ABECS desde 28/08/2026).",
+      "Teste e produção compartilham a MESMA URL; o ambiente vem do prefixo da chave. Trocar sk_test_ por sk_ em produção é a única mudança — e um erro aqui cobra de verdade.",
+      "Webhook sem assinatura documentada: não confie no payload; deduplique pelo id e confirme o estado por GET antes de liberar mercadoria.",
+      "Idempotency-key vale 24 h em produção e apenas 5 minutos em teste; duas requisições com a mesma chave e corpos diferentes criam um único pedido.",
+      "Cancelar cobrança e estornar são a mesma rota (DELETE /core/v5/charges/{charge_id}); o efeito depende de a cobrança já ter sido capturada.",
+      "Cancelamento de cobrança Pix tem limite próprio: após 10 tentativas na mesma cobrança, só uma a cada 15 minutos.",
+      "Mudanças em vigor desde 28/08/2026: /core/v5/balance/operations e /core/v5/payables/{payable_id} foram descontinuados, recebíveis paginam só por cursor, o histórico de recebíveis pagos caiu para 24 meses e ids de payables, settlements e recipients mudaram de formato.",
+      "gateway_id pode ser alfanumérico: colunas INTEGER no banco quebram.",
+      "A referência tem caminhos artificiais do portal (/charges., /subscriptions2, /recipients1, /odersMF) que não existem na API; use sempre o caminho canônico.",
+      "Split exige conta no modelo PSP e recebedores previamente cadastrados; em percentage as regras têm de somar 100.",
+      "IP Allowlist, depois de ligada, recusa qualquer origem fora da lista — inclusive o servidor novo que entrou no cluster."
+    ]
+  },
+  "casos_uso_negocio": [
+    {
+      "titulo": "Checkout de e-commerce com cartão, Pix e boleto",
+      "dor_resolvida": "Cada meio de pagamento integrado separadamente, com conciliação manual e baixa atrasada.",
+      "endpoints_envolvidos": [
+        "pagarme.cliente.criar",
+        "pagarme.pedido.criar",
+        "pagarme.pedido.obter",
+        "pagarme.cobranca.obter",
+        "pagarme.webhook.listar"
+      ],
+      "valor_percebido": "Um único contrato de pedido para todos os meios, com QR code do Pix e boleto na mesma resposta e baixa automática por webhook."
+    },
+    {
+      "titulo": "Recorrência de SaaS com régua antichurn",
+      "dor_resolvida": "Controle manual de mensalidades, cartões que expiram e cobranças que falham sem tratamento.",
+      "endpoints_envolvidos": [
+        "pagarme.plano.criar",
+        "pagarme.assinatura.criar",
+        "pagarme.assinatura.listar",
+        "pagarme.cobranca.listar.fatura",
+        "pagarme.assinatura.atualizar.cartao",
+        "pagarme.cobranca.autorizar.retentativa"
+      ],
+      "valor_percebido": "Cobrança automática por ciclo, troca de cartão sem recriar a assinatura e retentativa manual antes de suspender o cliente."
+    },
+    {
+      "titulo": "Marketplace com split e repasse a sellers",
+      "dor_resolvida": "Repasse manual a parceiros, sem trilha de quem recebeu o quê e sem controle de responsabilidade por chargeback.",
+      "endpoints_envolvidos": [
+        "pagarme.empresa.criar.recebedor",
+        "pagarme.pedido.criar",
+        "pagarme.empresa.obter.saldo",
+        "pagarme.pagamento.criar.saque",
+        "pagarme.recebivel.listar"
+      ],
+      "valor_percebido": "Divisão automática por regra, saldo segregado por seller e apuração de comissão direto da agenda de recebíveis."
+    },
+    {
+      "titulo": "Conciliação financeira e fluxo de caixa futuro",
+      "dor_resolvida": "Planilha manual para saber quanto e quando o dinheiro cai, e por que o líquido difere do bruto.",
+      "endpoints_envolvidos": [
+        "pagarme.recebivel.listar",
+        "pagarme.pagamento.listar.liquidacao",
+        "pagarme.empresa.obter.saldo",
+        "pagarme.pagamento.listar.transferencia"
+      ],
+      "valor_percebido": "Agenda de recebíveis com taxa por parcela, amarrada à liquidação e ao crédito na conta, sem digitação."
+    },
+    {
+      "titulo": "Venda por link sem desenvolver checkout",
+      "dor_resolvida": "Time comercial sem meio de cobrar fora do site, e cobranças avulsas feitas por boleto manual.",
+      "endpoints_envolvidos": [
+        "pagarme.cobranca.criar.link_pagamento",
+        "pagarme.cobranca.listar.link_pagamento",
+        "pagarme.cobranca.cancelar.link_pagamento",
+        "pagarme.pedido.listar"
+      ],
+      "valor_percebido": "Link pronto com carrinho, prazo e limite de uso, gerando pedidos rastreáveis no mesmo painel."
+    },
+    {
+      "titulo": "Antecipação de recebíveis sob demanda",
+      "dor_resolvida": "Necessidade de caixa antes do prazo de liquidação do cartão, resolvida fora do PSP e com custo opaco.",
+      "endpoints_envolvidos": [
+        "pagarme.recebivel.calcular.antecipacao",
+        "pagarme.recebivel.criar.antecipacao",
+        "pagarme.recebivel.listar.antecipacao",
+        "pagarme.empresa.obter.saldo"
+      ],
+      "valor_percebido": "Simulação do custo antes de contratar e histórico das antecipações para medir o custo financeiro real."
+    }
+  ],
+  "indice_integrabilidade": {
+    "score": 66,
+    "componentes": {
+      "documentacao": {
+        "peso": 20,
+        "pontos": 14,
+        "justificativa": "Portal completo com guias, referência de 127 operações, llms.txt, versão .md de cada página, simuladores documentados e uma página dedicada às mudanças de contrato. Perde pontos porque a spec OpenAPI não é publicada para download (o portal desabilita a opção), vários exemplos de resposta vêm vazios ou incompletos (links de pagamento, settlements), a referência expõe caminhos artificiais do portal (/charges., /subscriptions2, /recipients1, /odersMF) e não há catálogo de códigos de erro de negócio além da tabela ABECS."
+      },
+      "sandbox": {
+        "peso": 15,
+        "pontos": 11,
+        "justificativa": "Ambiente de teste completo com chaves sk_test_/pk_test_ e simuladores por meio de pagamento (cartão por número, boleto por CEP, Pix, voucher e PSP), sem custo e com os mesmos endpoints da produção. Não é self-service público: as chaves vêm com a conta e as de produção só saem após contrato."
+      },
+      "autenticacao": {
+        "peso": 15,
+        "pontos": 8,
+        "justificativa": "HTTP Basic com chave estática, sem OAuth2, sem expiração e sem rotação por API — a revogação é manual no Dash. Compensa parcialmente com separação entre chave secreta e pública, tokenização no navegador, allowlist de IPs e de domínios e menção a escopo/permissão por chave (embora o catálogo de escopos não seja publicado)."
+      },
+      "webhooks": {
+        "peso": 15,
+        "pontos": 8,
+        "justificativa": "66 eventos cobrindo pedido, cobrança, fatura, assinatura, recebedor, conta bancária, checkout e antifraude, com histórico consultável, campo attempts e reenvio por API. Perde pontos porque não há assinatura HMAC, token de verificação nem lista de IPs de origem documentados, o número de tentativas e a retenção não são publicados e a configuração do endpoint só existe no Dash."
+      },
+      "limites_paginacao": {
+        "peso": 10,
+        "pontos": 7,
+        "justificativa": "Rate limit publicado rota a rota e por minuto, o que é raro no mercado, e paginação adequada a carga alta em recebíveis (cursor, até 1000) e liquidações (até 2000). Perde pontos por conviver com três modelos de paginação (page/size, forward_cursor no corpo e cursor em header) e por não publicar o size máximo do modelo padrão."
+      },
+      "sdks_comunidade": {
+        "peso": 10,
+        "pontos": 9,
+        "justificativa": "SDKs oficiais em sete linguagens (Java, .NET, Node, PHP, Python, Ruby e Go em beta) mantidas no GitHub, mais tokenizecard.js, checkout hospedado e plugins para Magento 2, Shopify, VTEX, Nuvemshop e WooCommerce. Ponto descontado pela quebra de compatibilidade da versão 7 das SDKs."
+      },
+      "acesso_sem_barreira": {
+        "peso": 10,
+        "pontos": 5,
+        "justificativa": "Não há autocadastro com chave de produção: o acesso passa por contrato comercial, e recursos centrais como split e antifraude dependem de a conta estar no modelo PSP. Recebedores de marketplace ainda passam por análise cadastral e prova de vida."
+      },
+      "versionamento": {
+        "peso": 5,
+        "pontos": 4,
+        "justificativa": "Versão fixa no path (/core/v5), página de mudanças com cronograma, janela de 45 dias, ambiente de mocks (sdx-api.pagar.me com X-Use-Mocks) e aviso por e-mail. Perde ponto porque não há changelog incremental navegável e as descontinuações recentes foram profundas (balance operations, recebível por id, paginação por offset)."
+      }
+    }
+  },
+  "qualidade_doc": {
+    "nota": 7,
+    "observacoes": "Documentação rica em guias e completa nos campos de request, com llms.txt e markdown por página — ótimo para consumo por IA. Cai de nota pela ausência de spec baixável, por exemplos de resposta vazios em rotas importantes (links de pagamento, settlements), por caminhos artificiais do portal que confundem quem lê só a referência, por divergências de nomenclatura (objeto Pix com P maiúsculo, campos com grafia errada como mininum_price e additiona_information) e por não documentar a verificação de autenticidade dos webhooks."
+  },
+  "monitoramento": {
+    "changelog_url": null,
+    "canal_breaking_changes": "https://docs.pagar.me/docs/mudan%C3%A7as-de-apis (visão geral das mudanças da API, com páginas por área: Pagamentos, Financeiro, Antecipações, Liquidação e Recebedores). As datas oficiais também são comunicadas por e-mail aos clientes e, para parceiros, pelo Stone Partner Program.",
+    "status_url": "https://status.pagar.me/",
+    "frequencia_revisao_sugerida": "mensal"
+  },
+  "lacunas": [
+    {
+      "campo": "api.spec_oficial_url",
+      "descricao": "Não há spec OpenAPI oficial para download: o portal tem a definição embutida nas páginas de referência, mas com a opção de download desabilitada (show_openapi_download: disabled) e nenhuma URL pública de arquivo .json/.yaml foi encontrada. O openapi.yaml deste catálogo é reconstrução própria.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "webhooks.verificacao_assinatura",
+      "descricao": "A documentação não descreve assinatura HMAC, header de token nem IPs de origem para validar a autenticidade das notificações. Sem isso, qualquer um que descubra a URL pode forjar um evento. Recomendação registrada: deduplicar pelo id e reconsultar o recurso por GET antes de agir.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "webhooks.politica_reentrega",
+      "descricao": "O número exato de tentativas, os intervalos entre elas e o prazo de retenção dos eventos não são publicados; o formato 'n/N' do campo attempts sugere 3 tentativas nos exemplos, mas isso não é afirmado na documentação.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "webhooks.configuracao",
+      "descricao": "Não foi encontrada rota pública para criar, editar ou excluir a configuração de webhook (a API v5 só lista, consulta e reenvia). A configuração aparece descrita apenas como feita no Dash.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "limites.paginacao.tamanho_max",
+      "descricao": "O valor máximo de size no modelo page/size não é publicado para clientes, pedidos, cobranças, assinaturas, faturas, planos, recebedores e webhooks. Os máximos conhecidos valem só para payables (1000), settlements (2000), transfers (1000), bulk_anticipations (1000) e paymentlinks (30).",
+      "impacto": "medio"
+    },
+    {
+      "campo": "pagarme.pagamento.listar.liquidacao",
+      "descricao": "O envelope da resposta de GET /core/v5/settlements não aparece preenchido no exemplo oficial, então não foi possível confirmar se os registros vêm em data[] ou em array na raiz; execucao.lista_em ficou nulo e a confiança do endpoint é 'inferido'. Os campos do objeto vêm da página 'Objeto Settlements'.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "pagarme.cobranca.listar.link_pagamento",
+      "descricao": "O exemplo de resposta de GET /core/v5/paymentlinks vem vazio na referência; a estrutura data[]/paging foi assumida pelo padrão das demais listagens, e o endpoint está marcado como 'inferido'.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "pagarme.recebivel.calcular.antecipacao",
+      "descricao": "A referência publica a simulação de antecipação como GET com payment_date obrigatório, mas a página de mudanças informa que desde 28/08/2026 a rota passou a POST e deixou de aceitar payment_date. Como as duas versões da documentação convivem, o endpoint está marcado como 'inferido'.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "limites.timeout_recomendado",
+      "descricao": "Nenhum timeout recomendado é publicado.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "limites.tamanho_max_payload",
+      "descricao": "Não publicado para a Core API; só há limites explícitos no envio de evidências da API de Disputas.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "comercial.custo_api",
+      "descricao": "Nenhuma tabela de taxas pública foi encontrada no site nem na documentação: MDR, tarifa de boleto/Pix, custo de antecipação e de transferência dependem da proposta comercial. Isso impede estimativa de custo na ficha.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "comercial.tempo_medio_aprovacao",
+      "descricao": "Prazo entre a proposta comercial e a entrega das chaves de produção não é publicado.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "autenticacao.escopos_permissoes",
+      "descricao": "A existência de escopo ('Transacional') e permissão ('somente leitura') aparece só na página da API de Disputas. Não há catálogo de escopos nem instruções de como restringir uma chave no Dash.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "conformidade.residencia_dados",
+      "descricao": "Local de hospedagem e residência dos dados não informados na documentação consultada.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "conformidade.permite_uso_em_produto_terceiro",
+      "descricao": "O PDF de Termos de Uso não foi analisado nesta sessão; as cláusulas sobre revenda e uso por plataformas de terceiros não foram lidas.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "monitoramento.changelog_url",
+      "descricao": "Não há changelog incremental navegável: https://docs.pagar.me/changelog responde 404 e as notas ficam espalhadas em páginas avulsas da seção Pages.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "endpoints_secundarios",
+      "descricao": "A operação 'Criação de pedido MF' aparece na referência com o caminho artificial /odersMF, sem caminho real publicado; foi omitida do catálogo em vez de ser inventada. O mesmo vale para as duplicatas de portal /charges., /paymentlinks., /subscriptions2 e /charges/{charge_id} com espaço, que foram consolidadas nos endpoints canônicos.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "taxonomia",
+      "descricao": "Três encaixes ficaram aproximados por falta de entidade específica na taxonomia v1.1: cartões e tokens de cartão foram mapeados em Cliente (sugestão de extensão: 'MeioPagamento' ou 'Cartao'); planos de recorrência foram mapeados em Produto (sugestão: 'Plano'); e os endereços da carteira do cliente usam a entidade Endereco, cuja descrição na taxonomia fala de consulta por CEP e não de cadastro vinculado a cliente (sugestão: ampliar a descrição de Endereco).",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "erros.codigos_principais",
+      "descricao": "A API não publica um catálogo de códigos de erro de negócio: as mensagens conhecidas vêm de exemplos das páginas de referência. Só os códigos de retorno da adquirente têm tabela própria (padrão ABECS).",
+      "impacto": "medio"
+    },
+    {
+      "campo": "autenticacao.formato_da_chave_de_producao",
+      "descricao": "A documentacao oficial usa duas grafias para a chave secreta de producao: a pagina 'Chaves de acesso' mostra sk_qrezZl4TrZFRb1Vx (sem infixo) e as paginas do Checkout trazem sk_live_... numa tabela de ambientes. Nao ha pagina que concilie as duas. O executor deve aceitar as duas formas e nunca inferir o ambiente pela ausencia de 'test'.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "api.base_urls.sandbox",
+      "descricao": "Nao ha declaracao unica de host de teste. As paginas de link de pagamento e de Apple Pay mandam usar https://sdx-api.pagar.me/core/v5 em contas de teste, e a pagina de mudancas de contrato usa o mesmo host como ambiente de mocks; o resto da referencia nao cita host alternativo. Checagem propria em 2026-09-17: sdx-api responde 404 em /core/v5/customers, entao nao e sandbox geral. Confirmar com o suporte antes de apontar um cliente de teste para la.",
+      "impacto": "medio"
+    }
+  ],
+  "fontes": [
+    {
+      "url": "https://docs.pagar.me/llms.txt",
+      "titulo": "Índice completo da documentação (llms.txt)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/introdu%C3%A7%C3%A3o-1",
+      "titulo": "API Reference — Introdução",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/autentica%C3%A7%C3%A3o-2",
+      "titulo": "Autenticação (Basic Auth, chaves de teste e produção)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/chaves-de-acesso",
+      "titulo": "Chaves de acesso (secreta e pública)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/seguran%C3%A7a-1",
+      "titulo": "Segurança (PCI, TLS, IPs de saída)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/ip-allowlist",
+      "titulo": "IP Allowlist",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/rate-limit",
+      "titulo": "Rate Limit por endpoint",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/pagina%C3%A7%C3%A3o-1",
+      "titulo": "Paginação (página e forward cursor)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/o-que-%C3%A9",
+      "titulo": "Idempotência",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/mudan%C3%A7as-de-apis",
+      "titulo": "Visão Geral das mudanças da API (vigentes desde 28/08/2026)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/financeiro",
+      "titulo": "Mudanças no Financeiro (recebíveis e operações de saldo)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/liquida%C3%A7%C3%A3o-transfer%C3%AAncias-e-recebedores",
+      "titulo": "Mudanças em Liquidação, Transferências e Recebedores",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/receb%C3%ADveis",
+      "titulo": "Recebíveis (objeto payable)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/objeto-settlements",
+      "titulo": "Objeto Settlements",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/objeto-antecipa%C3%A7%C3%A3o",
+      "titulo": "Objeto antecipação",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/eventos-de-webhook-1",
+      "titulo": "Eventos de webhook",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/vis%C3%A3o-geral-sobre-webhooks",
+      "titulo": "Visão geral sobre Webhooks",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/cobran%C3%A7a",
+      "titulo": "Cobrança (status e funcionalidades)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/split-1",
+      "titulo": "Split de pagamentos",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/recebedores-1",
+      "titulo": "Recebedores",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/pix-1",
+      "titulo": "Pix no Pagar.me",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/meios-de-pagamento",
+      "titulo": "Meios de pagamento",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/tokenizecard",
+      "titulo": "tokenizecard.js",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/tokeniza%C3%A7%C3%A3o-1",
+      "titulo": "Tokenização de cartão",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/page/descontinua%C3%A7%C3%A3o-do-access-token",
+      "titulo": "Descontinuação do Access Token",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/o-que-%C3%A9-um-simulador",
+      "titulo": "O que é um simulador (ambiente de testes)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/simulador-de-cart%C3%A3o-de-cr%C3%A9dito",
+      "titulo": "Simulador de cartão de crédito",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/simulador-de-boleto",
+      "titulo": "Simulador de boleto",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/c%C3%B3digos-de-retorno-padr%C3%A3o-abecs",
+      "titulo": "Códigos de retorno padrão ABECS",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/bibliotecas-1",
+      "titulo": "Bibliotecas (SDKs oficiais)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/facilitadores-de-pagamento-dados-de-subadquirente",
+      "titulo": "Facilitadores de pagamento (dados de subadquirente)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/reference/disputas",
+      "titulo": "API de Disputas (chargeback)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/page/migra%C3%A7%C3%A3o-obrigat%C3%B3ria-da-api-stone",
+      "titulo": "Migração obrigatória da API Stone",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.pagar.me/docs/overview-principal",
+      "titulo": "Visão geral do Pagar.me (gateway e PSP)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.pagar.me/",
+      "titulo": "Site oficial Pagar.me (razão social, grupo Stone, termos de uso)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.pagar.me/documentos/termos-de-uso.pdf",
+      "titulo": "Termos de Uso (PDF)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.stone.com.br/aviso-de-privacidade/",
+      "titulo": "Aviso de Privacidade (Stone)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://status.pagar.me/",
+      "titulo": "Status do serviço",
+      "data_consulta": "2026-09-17"
+    }
+  ]
+}

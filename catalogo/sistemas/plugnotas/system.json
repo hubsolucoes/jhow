@@ -1,0 +1,449 @@
+{
+  "slug": "plugnotas",
+  "nome": "PlugNotas (Tecnospeed)",
+  "categoria": "fiscal_gateway",
+  "fornecedor": {
+    "razao_social": "TecnoSpeed S/A",
+    "pais": "BR",
+    "site": "https://tecnospeed.com.br/plugdfe/plugnotas/"
+  },
+  "descricao_curta": "Gateway REST/JSON da TecnoSpeed que emite, consulta, cancela e baixa NFS-e (municipal e Ambiente Nacional), NF-e, NFC-e, NFCom e MDF-e, além de importar as NF-e emitidas contra o CNPJ do cliente (Notas Destinadas/DF-e). Não emite CT-e.",
+  "porte_alvo": [
+    "media",
+    "grande"
+  ],
+  "verticais": [
+    "software_house",
+    "servicos",
+    "varejo",
+    "industria",
+    "transporte_logistica",
+    "telecomunicacoes",
+    "contabilidade",
+    "saas_multiempresa"
+  ],
+  "status": "documentado",
+  "api": {
+    "estilo": "REST",
+    "base_urls": {
+      "producao": "https://api.plugnotas.com.br",
+      "sandbox": "https://api.sandbox.plugnotas.com.br"
+    },
+    "versao_atual": "2.4.2 (campo info.version da especificação OpenAPI publicada em 2026-09-17)",
+    "politica_versionamento": "Não há versão no caminho das rotas nem cabeçalho de versão. A especificação traz um número de versão em info.version, mas não foi encontrada política pública de depreciação/sunset nem changelog de API aberto.",
+    "formatos": [
+      "json",
+      "multipart/form-data (certificado, logotipo, importação de XML, AIDF)",
+      "xml (download)",
+      "pdf (download)",
+      "zip (histórico de NFS-e)"
+    ],
+    "spec_oficial_url": "https://docs.plugnotas.com.br/api.json",
+    "openapi_disponivel": true
+  },
+  "autenticacao": {
+    "tipos": [
+      "api_key"
+    ],
+    "fluxo_resumido": "Chave estática enviada no cabeçalho x-api-key em toda requisição. Não há endpoint de login, troca ou refresh. O token de produção é gerado pelo cliente no painel https://app2.plugnotas.com.br/. O ambiente Sandbox usa um token fixo divulgado na própria documentação oficial, igual para todo mundo. O token representa a organização (software house), e as empresas emitentes são identificadas pelo CNPJ dentro do payload ou do caminho.",
+    "escopos_permissoes": [],
+    "expiracao_token": "Não informado na documentação; o token é estático.",
+    "renovacao": "Não há fluxo de renovação por API; a chave é gerida no painel app2.plugnotas.com.br.",
+    "ip_allowlist_obrigatorio": false
+  },
+  "execucao_auth": {
+    "tipo": "header_api_key",
+    "header": "x-api-key",
+    "prefixo": "",
+    "usuario_basic_e_a_credencial": false,
+    "headers_fixos": {},
+    "token_url": null,
+    "credenciais_necessarias": [
+      {
+        "nome": "api_key",
+        "rotulo": "Token X-API-KEY do PlugNotas (do ambiente escolhido)",
+        "segredo": true,
+        "onde_obter": "Produção: painel https://app2.plugnotas.com.br/, na tela de geração de token da organização. Sandbox: token fixo publicado na introdução da documentação oficial (https://docs.plugnotas.com.br/), sem necessidade de cadastro.",
+        "obrigatoria": true
+      }
+    ],
+    "base_url_por_ambiente": {
+      "sandbox": "https://api.sandbox.plugnotas.com.br",
+      "producao": "https://api.plugnotas.com.br"
+    },
+    "observacao": "Autenticação simples: um único cabeçalho x-api-key com o token puro, sem prefixo. Um token é da organização inteira e enxerga todas as empresas vinculadas a ela; por isso quase toda consulta de leitura pede o CNPJ do emitente como filtro (parâmetro cpfCnpj). Atenção: 'produção' e 'homologação fiscal' não são bases diferentes — as duas rodam em https://api.plugnotas.com.br e o que troca é a flag {documento}.config.producao no cadastro da empresa. A base de Sandbox é um ambiente MOCK separado, com dados compartilhados entre todos os testadores. Observado em chamada real em 2026-09-17: a rota GET /nfse/cidades/{codigoIbge} respondeu 200 mesmo com token inválido, e GET /cep/{cep} sem cabeçalho devolveu 401 — a exigência de token varia por rota."
+  },
+  "ambiente_testes": {
+    "sandbox": true,
+    "como_obter": "Apontar para https://api.sandbox.plugnotas.com.br e usar o token de Sandbox divulgado na introdução da documentação oficial. Não exige cadastro, contrato nem certificado digital. As respostas são simuladas: nada chega à SEFAZ ou à prefeitura. Para homologação fiscal de verdade (com certificado e retorno real da SEFAZ) usa-se a base de produção com {documento}.config.producao = false no cadastro da empresa.",
+    "custo": "Gratuito e sem cadastro (volátil).",
+    "dados_ficticios": true
+  },
+  "limites": {
+    "rate_limit": "Não publicado. Não foram encontrados limite de requisições por minuto nem cabeçalhos de rate limit na documentação; em chamadas reais de leitura ao Sandbox e à produção em 2026-09-17 não vieram cabeçalhos Rate-Limit-* nem Retry-After. Limites de volume que a documentação publica, por rota: até 500 NFS-e em um único JSON de emissão; 25 registros por página nas consultas por período e em /nfe/destinada; 150 empresas por página em GET /empresa; 100 itens por página (perPage) nos relatórios; janela máxima de 31 dias nas consultas por período e nos relatórios; até 18 envios da mesma chave por hora em POST /nfe/sincronizarDestinada/{cnpj}; 3 regerações de PDF por documento de NFS-e (HTTP 429); logotipo de no máximo 200 kB; importação de XML de NF-e autorizada há no máximo 90 dias.",
+    "janela": "Não publicada para rate limit. Janela de consulta por período e de relatórios: 31 dias.",
+    "burst": null,
+    "paginacao": {
+      "estilo": "cursor",
+      "tamanho_max": 25
+    },
+    "tamanho_max_payload": "Não publicado para o corpo JSON; o limite prático documentado é de 500 documentos por requisição de NFS-e. Logotipo: 200 kB.",
+    "timeout_recomendado": null,
+    "politica_retry": "As rotas de emissão são assíncronas e protegidas por idIntegracao: reenviar o mesmo idIntegracao devolve HTTP 409 com o documento já existente, em vez de duplicar a nota. Em downloads de PDF/XML, HTTP 202 significa 'arquivo ainda em geração' — aguardar e repetir, não tratar como erro. Não repita chamadas após 401: o token é estático e não vai mudar sozinho.",
+    "idempotencia": {
+      "suportada": true,
+      "header": null
+    },
+    "volatil": true
+  },
+  "webhooks": {
+    "suportados": true,
+    "eventos": [
+      "documento atingiu situação final CONCLUIDO",
+      "documento atingiu situação final REJEITADO",
+      "documento atingiu situação final CANCELADO",
+      "documento atingiu situação final DENEGADO",
+      "conclusão de eventos (cancelamento, CC-e, manifestação, encerramento de MDF-e, eventos da NFS-e Nacional)",
+      "importação de nota destinada (DF-e)"
+    ],
+    "verificacao_assinatura": "Não há assinatura HMAC. A verificação de origem é feita por cabeçalhos fixos que você mesmo configura no cadastro do webhook (objeto headers, por exemplo Authorization com um Basic ou um token seu) e, opcionalmente, por parâmetros de query string. A documentação também publica os IPs de origem das notificações (54.144.48.129 e 3.210.19.145) para quem precisa liberar em firewall.",
+    "politica_reentrega": "Reenvio em intervalos regulares por aproximadamente 6 horas, até a sua API responder um status 2xx ou o limite de tentativas se esgotar. Uma notificação por documento (um lote de 50 notas gera 50 chamadas). Documentos em situação PROCESSANDO não disparam webhook. Não há rota de reenvio manual de uma notificação específica; existe POST /webhook/verify e POST /empresa/{cnpj}/webhook/verify, que disparam um exemplo para testar o endpoint.",
+    "requer_endpoint_publico": true
+  },
+  "erros": {
+    "formato": "JSON com envelope de erro: {\"error\": {\"message\": \"<texto>\", \"data\": { ... campos que falharam ... }}}. Em validação de schema, error.data.fields traz um objeto campo->motivo, com o caminho do campo na notação do payload (ex.: \"documento[0].itens[0].ncm\": \"Preenchimento obrigatório\"). Algumas rotas devolvem apenas {\"message\": \"...\"} sem o envelope error. Rejeições da SEFAZ/prefeitura NÃO viram erro HTTP: a requisição responde 200/202 e a rejeição aparece na consulta, no campo situacao/status igual a REJEITADO com mensagem e, nos documentos da SEFAZ, cStat.",
+    "codigos_principais": [
+      "400 - Falha na validação do JSON de <documento> (error.data.fields)",
+      "400 - Operação interrompida pela ausência de parâmetros obrigatórios",
+      "400 - A ação de Cancelar NFSe é permitida apenas para notas com status CONCLUIDO",
+      "400 - A cidade vinculada ao código IBGE utilizado ainda não foi homologada",
+      "400 - A data final deve ser informada (relatórios e consultas por período)",
+      "401 - O token informado é inválido",
+      "404 - Não localizamos qualquer <recurso> com os parâmetros informados",
+      "406 - Nota emitida há mais de 90 dias (importação de XML)",
+      "409 - Já existe um(a) <recurso> com os parâmetros informados (idIntegracao/CNPJ duplicado)",
+      "429 - Limite de 3 tentativas de regerar PDF atingido",
+      "429 - Já existe uma importação em processamento (AIDF Governa)",
+      "202 - documento/pdf/xml em processamento (não é erro: aguarde e repita)",
+      "500 - Ocorreu um erro interno, nossa equipe já foi notificada do problema"
+    ]
+  },
+  "sdks_oficiais": [
+    {
+      "linguagem": "php",
+      "nome": "tecnospeed/plugnotas-php",
+      "url": "https://github.com/tecnospeed/plugnotas-php",
+      "observacao": "Pacote de integração citado na própria documentação. Último push em 2023-05 (consulta à API do GitHub em 2026-09-17)."
+    },
+    {
+      "linguagem": "csharp",
+      "nome": "tecnospeed/Plugnotas-CSharp",
+      "url": "https://github.com/tecnospeed/Plugnotas-CSharp",
+      "observacao": "Demonstração de uso citada na documentação. Último push em 2020-09."
+    },
+    {
+      "linguagem": "delphi",
+      "nome": "tecnospeedti/plugnotas-delphi",
+      "url": "https://github.com/tecnospeedti/plugnotas-delphi",
+      "observacao": "Demonstração em Delphi citada na introdução da documentação oficial."
+    },
+    {
+      "linguagem": "json",
+      "nome": "tecnospeed/plugnotas-json-completo",
+      "url": "https://github.com/tecnospeed/plugnotas-json-completo",
+      "observacao": "Repositório oficial com JSONs completos de exemplo por documento; último push em 2026-08."
+    },
+    {
+      "linguagem": "postman",
+      "nome": "Coleção Postman oficial do PlugNotas",
+      "url": "https://documenter.getpostman.com/view/3720339/2sB3WpSh1R?version=latest",
+      "observacao": "Link publicado na introdução da documentação oficial."
+    }
+  ],
+  "comercial": {
+    "modelo_acesso": "sob_contrato",
+    "custo_api": "Preços não são publicados. O site comercial trabalha com formulário de contato e pergunta o volume de documentos pretendido; a contratação é orientada a software houses (a página fala em mais de 4.100 já integradas). A documentação avisa que documentos importados pela rota POST /nfe/importa e notas sincronizadas via Consulta DF-e da NFS-e Nacional entram na bilhetagem do contrato como se fossem emissões. Valores e franquias precisam ser confirmados com o comercial (volátil).",
+    "exige_homologacao": false,
+    "tempo_medio_aprovacao": "Sandbox é imediato e sem cadastro. Produção depende de contrato comercial com a TecnoSpeed e do certificado digital A1 da empresa emitente; prazo não publicado.",
+    "volatil": true
+  },
+  "conformidade": {
+    "trafega_dado_pessoal": true,
+    "dado_sensivel": false,
+    "base_legal_tipica": "Cumprimento de obrigação legal/regulatória (LGPD art. 7º, II) para os dados de tomador/destinatário que compõem o documento fiscal. A rota auxiliar GET /cnpj/{cnpj} devolve também nomes de sócios vindos da Receita Federal — use com parcimônia e registre a base legal do tratamento.",
+    "exige_certificado_digital": true,
+    "regulador": "SEFAZ estaduais, Receita Federal (Ambiente Nacional da NFS-e) e prefeituras municipais",
+    "residencia_dados": null,
+    "termos_uso_url": "https://tecnospeed.com.br/politica-de-privacidade/",
+    "permite_uso_em_produto_terceiro": "sim"
+  },
+  "esforco_integracao": {
+    "complexidade": "media",
+    "horas_estimadas_mvp": 55,
+    "premissa_horas": "Premissa: um ERP que já tem os dados fiscais corretos (NCM, CFOP, CST/CSOSN, alíquotas) integrando NFS-e de alguns municípios mais NF-e de uma empresa, com cadastro de certificado e empresa por API, webhook, consulta por resumo, cancelamento e download de PDF/XML. Julgamento do analista, não é número do fornecedor. Cada família nova de município de NFS-e (padrão/prefeitura) e cada documento adicional (NFC-e, MDF-e, NFCom) somam esforço próprio.",
+    "principais_armadilhas": [
+      "A API não calcula tributos por você: CST/CSOSN, bases e alíquotas precisam sair corretos do seu sistema (há uma calculadora interna cuja versão é consultável em /calculadora/versao, mas o preenchimento é seu).",
+      "Não existe emissão de CT-e/CT-e OS no PlugNotas — quem precisa de conhecimento de transporte tem de usar outro produto da TecnoSpeed ou outro gateway.",
+      "'Produção' e 'homologação' não são bases diferentes: a base é sempre api.plugnotas.com.br e o ambiente fiscal vem da flag {documento}.config.producao no cadastro da empresa. O api.sandbox é um mock à parte.",
+      "O Sandbox é mock e compartilhado: GET /empresa responde 'Não implementado no ambiente do Sandbox' e as consultas por período devolvem dados de outros testadores. Não use para validar volume nem para conferir dados do seu CNPJ.",
+      "Toda emissão é assíncrona: o POST devolve id + protocol com 'em processamento' e a situação real só aparece no resumo ou no webhook. Um 200 não significa nota autorizada.",
+      "idIntegracao é a proteção contra duplicidade: gere um valor único por documento. Reenviar o mesmo valor devolve 409 com a nota anterior, não emite de novo.",
+      "Downloads de PDF/XML podem responder 202 com 'em processamento' — trate como 'ainda não pronto' e repita depois, não como falha.",
+      "As consultas por período (NFS-e, NF-e, NFC-e, NFCom, MDF-e e destinadas) devolvem no máximo 25 registros e paginam por hashProximaPagina; a janela é limitada a 31 dias e há cache de 300 segundos na rota de NFS-e.",
+      "Cada município de NFS-e tem regras próprias: consulte GET /nfse/cidades/{codigoIbge} antes de prometer emissão, porque de lá vêm exigência de certificado, login/senha da prefeitura, suporte a cancelamento por webservice e tamanho máximo de discriminação.",
+      "Rotas que consomem franquia sem 'emitir' nada de novo: POST /nfe/importa e a consulta DF-e da NFS-e Nacional são contabilizadas como documentos na fatura.",
+      "A NFC-e em contingência (Neverstop) não roda na nuvem: é um agente local, com base http://localhost:8082, instalado no PDV.",
+      "Não há rate limit publicado nem cabeçalhos de limite: dimensione o polling por conta própria e prefira webhook.",
+      "O webhook não tem assinatura HMAC; a única verificação é o cabeçalho fixo que você configurar, então valide também a origem pelos IPs publicados."
+    ]
+  },
+  "casos_uso_negocio": [
+    {
+      "titulo": "Software house emitindo NFS-e em muitos municípios",
+      "dor_resolvida": "Cada prefeitura tem webservice, leiaute e regra própria; o gateway concentra isso em um único JSON e ainda informa por API o que cada município exige.",
+      "endpoints_envolvidos": [
+        "plugnotas.nota_fiscal.emitir.nfse",
+        "plugnotas.tabela_auxiliar.obter.cidade",
+        "plugnotas.nota_fiscal.consultar_status.nfse",
+        "plugnotas.nota_fiscal.baixar_arquivo.pdf_nfse"
+      ],
+      "valor_percebido": "Cobertura declarada de mais de 2.200 municípios sem desenvolver uma integração por prefeitura."
+    },
+    {
+      "titulo": "Faturamento de pedidos com NF-e",
+      "dor_resolvida": "Evita manter comunicação SOAP com as SEFAZ, assinatura de XML, contingência e atualização de leiaute.",
+      "endpoints_envolvidos": [
+        "plugnotas.nota_fiscal.emitir.nfe",
+        "plugnotas.nota_fiscal.consultar_status.nfe",
+        "plugnotas.webhook.assinar_webhook.organizacao",
+        "plugnotas.nota_fiscal.baixar_arquivo.xml_nfe"
+      ],
+      "valor_percebido": "Go-live fiscal em semanas, sem equipe especializada em leiaute SEFAZ."
+    },
+    {
+      "titulo": "Escrituração de entrada a partir das notas destinadas",
+      "dor_resolvida": "Descobrir, importar e manifestar as NF-e emitidas contra o CNPJ sem ficar baixando XML no portal da SEFAZ.",
+      "endpoints_envolvidos": [
+        "plugnotas.nota_fiscal.listar.nfe_destinada",
+        "plugnotas.nota_fiscal.manifestar.nfe_destinada",
+        "plugnotas.nota_fiscal.baixar_arquivo.xml_nfe"
+      ],
+      "valor_percebido": "Automatiza a entrada de mercadoria e reduz digitação no fiscal."
+    },
+    {
+      "titulo": "Onboarding automatizado de emitentes",
+      "dor_resolvida": "Cadastrar certificado, empresa, séries e webhook de cada cliente novo sem passar pelo painel.",
+      "endpoints_envolvidos": [
+        "plugnotas.empresa.criar",
+        "plugnotas.empresa.atualizar",
+        "plugnotas.empresa.criar.certificado",
+        "plugnotas.webhook.assinar_webhook.empresa"
+      ],
+      "valor_percebido": "Uma software house com centenas de CNPJs ativa cliente novo por API, em minutos."
+    },
+    {
+      "titulo": "Painel fiscal em Excel/Power BI",
+      "dor_resolvida": "Acompanhar quantas notas foram autorizadas, rejeitadas e canceladas por CNPJ e por período, sem abrir o painel.",
+      "endpoints_envolvidos": [
+        "plugnotas.relatorio.listar.nfse",
+        "plugnotas.relatorio.obter.organizacao",
+        "plugnotas.nota_fiscal.listar.nfse_periodo",
+        "plugnotas.nota_fiscal.listar.nfe_periodo"
+      ],
+      "valor_percebido": "Visão gerencial de emissão consolidada, com atualização programada."
+    },
+    {
+      "titulo": "Conferência de dados antes de emitir",
+      "dor_resolvida": "Validar CEP, dados cadastrais do CNPJ e disponibilidade do município antes de mandar a nota e tomar rejeição.",
+      "endpoints_envolvidos": [
+        "plugnotas.endereco.obter.cep",
+        "plugnotas.pessoa.obter.cnpj",
+        "plugnotas.tabela_auxiliar.obter.cidade"
+      ],
+      "valor_percebido": "Menos rejeição de prefeitura/SEFAZ por cadastro errado."
+    }
+  ],
+  "indice_integrabilidade": {
+    "score": 62,
+    "componentes": {
+      "documentacao": {
+        "peso": 20,
+        "pontos": 17,
+        "justificativa": "Especificação OpenAPI 3.1.1 oficial e baixável (docs.plugnotas.com.br/api.json), com 184 operações, exemplos de sucesso e de erro por status, enums e observações por rota. Perde pontos porque não documenta rate limit, tem chaves de caminho duplicadas com espaço em branco no fim, uma operação sem operationId, uma referência de schema quebrada (sucess-email) e vários detalhes fiscais que só estão na base de conhecimento protegida por Cloudflare."
+      },
+      "sandbox": {
+        "peso": 15,
+        "pontos": 11,
+        "justificativa": "Sandbox público com token fixo publicado na doc, sem cadastro nem certificado — excelente para explorar. Perde pontos porque é mock: várias rotas respondem 'Não implementado no ambiente do Sandbox', os dados são compartilhados entre todos os testadores e a autenticação nem sempre é exigida, então não serve para homologar fluxo real."
+      },
+      "autenticacao": {
+        "peso": 15,
+        "pontos": 6,
+        "justificativa": "Chave estática única em cabeçalho x-api-key, sem OAuth2, sem escopos, sem expiração e sem rotação por API. O token dá acesso a todas as empresas da organização."
+      },
+      "webhooks": {
+        "peso": 15,
+        "pontos": 10,
+        "justificativa": "Dois níveis (organização e empresa) com CRUD completo, rota de teste, reentrega por cerca de 6 horas, cabeçalhos e query string configuráveis e IPs de origem publicados. Sem assinatura HMAC, sem catálogo de eventos assinável e sem reenvio manual de uma notificação específica."
+      },
+      "limites_paginacao": {
+        "peso": 10,
+        "pontos": 6,
+        "justificativa": "Paginação por cursor bem definida (hashProximaPagina, 25 por página) e paginação por página nos relatórios (page/perPage, máximo 100, com totalPages/totalItems). Perde pontos porque não há rate limit publicado, as listas por cursor não devolvem total e a janela de 31 dias obriga a fatiar consultas longas."
+      },
+      "sdks_comunidade": {
+        "peso": 10,
+        "pontos": 5,
+        "justificativa": "Organização oficial no GitHub com pacote PHP, demos em C# e Delphi, repositório de JSONs completos atualizado em 2026 e coleção Postman. Sem SDK mantido para Python, Node ou Java e sem comunidade pública avaliada."
+      },
+      "acesso_sem_barreira": {
+        "peso": 10,
+        "pontos": 5,
+        "justificativa": "Sandbox aberto e documentação inteira pública, o que é ótimo para avaliar. Mas não há preço publicado nem autoatendimento de contratação: produção depende de contato comercial, com posicionamento voltado a software houses."
+      },
+      "versionamento": {
+        "peso": 5,
+        "pontos": 2,
+        "justificativa": "Existe número de versão na especificação (2.4.2) e página de status pública, mas nenhuma versão no caminho das rotas, nenhum changelog de API aberto e nenhuma política de depreciação publicada."
+      }
+    }
+  },
+  "qualidade_doc": {
+    "nota": 8,
+    "observacoes": "A especificação OpenAPI oficial é completa e navegável em ReDoc, com exemplos de requisição e resposta por cenário (nota concluída, rejeitada, cancelada) e enums de situação. Pontos fracos: nenhuma palavra sobre rate limit, artigos de apoio importantes (webhook, fluxo de emissão, códigos de cancelamento de NFS-e) ficam em base de conhecimento com proteção antibot, e a documentação do Sandbox não avisa quais rotas não estão implementadas lá."
+  },
+  "monitoramento": {
+    "changelog_url": null,
+    "canal_breaking_changes": "Página de status pública em https://status.plugnotas.com.br/ e base de conhecimento em https://atendimento.tecnospeed.com.br/. Não foi encontrado changelog público da API; a única pista de versão é info.version na especificação (2.4.2 em 2026-09-17).",
+    "frequencia_revisao_sugerida": "mensal"
+  },
+  "lacunas": [
+    {
+      "campo": "limites.rate_limit",
+      "descricao": "Nenhum limite de requisições por minuto/hora é publicado e nenhuma resposta real trouxe cabeçalhos de rate limit. Sem isso, não dá para dimensionar polling com segurança nem saber o comportamento sob carga. Confirmar com o fornecedor.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "comercial.custo_api",
+      "descricao": "Preços, franquias e forma de cobrança não são publicados. A documentação confirma que importação de XML e sincronização de NFS-e Nacional consomem franquia, mas não diz quanto custa nada.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "webhooks.payload",
+      "descricao": "O formato da notificação só aparece como exemplo dentro das rotas de webhook (campos id, idIntegracao, status, emitente, destinatario, valor, chave, protocolo, pdf, xml, cStat, documento). Não há schema publicado por tipo de documento nem lista formal de eventos, e a opção nfse.retornoCompleto muda o tamanho do payload sem que o formato completo esteja documentado.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "webhooks.verificacao_assinatura",
+      "descricao": "Não existe assinatura HMAC. A autenticidade depende de um cabeçalho fixo configurado por você e dos dois IPs de origem publicados, que podem mudar sem aviso.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "conformidade.residencia_dados",
+      "descricao": "Não foi encontrada informação oficial sobre onde os dados e os XMLs ficam hospedados.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "conformidade.termos_uso_url",
+      "descricao": "Não foi localizada uma página pública de termos de uso específica do PlugNotas nesta sessão; registrada a política de privacidade da TecnoSpeed como referência. 'permite_uso_em_produto_terceiro: sim' se apoia no posicionamento comercial explícito para software houses (a própria página fala em mais de 4.100 integradas) e no modelo de organização com várias empresas, não em cláusula contratual lida.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "ambiente_testes (cobertura do mock)",
+      "descricao": "A documentação não lista quais rotas existem no Sandbox. Observado em 2026-09-17: GET /empresa responde 'Não implementado no ambiente do Sandbox', GET /certificado devolve dados fictícios e as consultas por período devolvem documentos de outros testadores. A lista completa do que é mock não é publicada.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "autenticacao (exigência por rota)",
+      "descricao": "Observado em chamada real em 2026-09-17, não documentado: GET /nfse/cidades/{codigoIbge} respondeu 200 com token inválido, tanto no Sandbox quanto em produção, enquanto GET /cep/{cep} sem cabeçalho devolveu 401. A documentação declara segurança x-api-key global e não explica a exceção.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "api.politica_versionamento / monitoramento.changelog_url",
+      "descricao": "Sem versão no caminho, sem changelog público e sem política de depreciação. A única pista de mudança é o info.version da especificação.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "cobertura: CT-e e CT-e OS",
+      "descricao": "O PlugNotas não tem rotas de CT-e. A TecnoSpeed vende componentes de CT-e separados (repositórios Componente-CTe e Componente-CTeOS no GitHub oficial), mas isso é outro produto, fora desta API. Diferença relevante frente à Focus NFe, que emite CT-e na mesma API.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "NFC-e em contingência (Neverstop)",
+      "descricao": "As seis rotas do grupo 'NFC-e contingência' apontam para http://localhost:8082 na própria especificação, ou seja, dependem de um agente local instalado no PDV. Instalação, requisitos e sincronização com a nuvem não estão nesta documentação. Catalogadas como secundárias.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "schemas de corpo de emissão (NF-e, NFC-e, NFCom, MDF-e)",
+      "descricao": "Os payloads de emissão têm centenas de campos aninhados. Foram documentados aqui os campos de primeiro nível e os grupos obrigatórios; a íntegra fica na especificação oficial e no repositório plugnotas-json-completo.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "execucao.campo_total (listas por cursor)",
+      "descricao": "As consultas por período e /nfe/destinada não devolvem total de registros, só hashProximaPagina. Por isso campo_total fica null nesses endpoints; só os relatórios trazem totalItems/totalPages.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "execucao.colunas_sugeridas (downloads binários)",
+      "descricao": "Nos downloads de PDF, XML e ZIP a resposta é binária, sem JSON. As colunas sugeridas nesses endpoints descrevem o identificador usado na requisição e o tipo de arquivo, ficando abaixo do mínimo de 5 campos da seção 7.1.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "defeitos na especificação oficial",
+      "descricao": "Observado em 2026-09-17: GET /nfcom/{idOrChave}/cancelamento/xml está sem operationId; o schema #/components/schemas/sucess-email é referenciado mas não existe; várias chaves de caminho aparecem duplicadas com um espaço em branco no fim, só para repetir a mesma operação em outra tag; e as rotas do Neverstop estão sem barra inicial.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "cnpj alfanumérico",
+      "descricao": "Não foi encontrada menção do PlugNotas ao CNPJ alfanumérico. Os schemas tratam cpfCnpj como string de 11 a 14 caracteres, o que tende a aceitar letras, mas nada confirma validação.",
+      "impacto": "medio"
+    }
+  ],
+  "fontes": [
+    {
+      "url": "https://docs.plugnotas.com.br/",
+      "titulo": "Documentação API PlugNotas (ReDoc)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://docs.plugnotas.com.br/api.json",
+      "titulo": "Especificação OpenAPI 3.1.1 oficial do PlugNotas, versão 2.4.2",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://tecnospeed.com.br/plugdfe/plugnotas/",
+      "titulo": "Página do produto PlugNotas no site da TecnoSpeed (destino do redirecionamento de plugnotas.com.br)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://app2.plugnotas.com.br/",
+      "titulo": "Painel PlugNotas (geração do token de produção)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://status.plugnotas.com.br/",
+      "titulo": "Página de status do PlugNotas",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://github.com/tecnospeed/plugnotas-php",
+      "titulo": "Pacote PHP oficial de integração com o PlugNotas",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://github.com/tecnospeed/plugnotas-json-completo",
+      "titulo": "Repositório oficial com JSONs completos de exemplo",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://documenter.getpostman.com/view/3720339/2sB3WpSh1R?version=latest",
+      "titulo": "Coleção Postman oficial do PlugNotas",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://tecnospeed.com.br/politica-de-privacidade/",
+      "titulo": "Política de privacidade da TecnoSpeed",
+      "data_consulta": "2026-09-17"
+    }
+  ]
+}

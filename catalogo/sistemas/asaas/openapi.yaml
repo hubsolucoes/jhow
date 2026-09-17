@@ -1,0 +1,5243 @@
+openapi: 3.1.0
+info:
+  title: Asaas API v3 (reconstrução do catálogo)
+  version: 3.0.0
+  description: Subconjunto detalhado reconstruído a partir da referência oficial (docs.asaas.com) e da spec pública https://www.asaas.com/openApi/document?version=3&languageCode=pt-BR.
+    Consulta em 2026-09-17.
+servers:
+- url: https://api.asaas.com
+  description: Produção
+- url: https://api-sandbox.asaas.com
+  description: Sandbox
+security:
+- accessToken: []
+components:
+  securitySchemes:
+    accessToken:
+      type: apiKey
+      in: header
+      name: access_token
+      description: Chave de API da conta. Enviar também User-Agent.
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              description:
+                type: string
+  responses:
+    Erro:
+      description: Erro com lista errors[]
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errors:
+            - code: invalid_access_token
+              description: <mensagem da API>
+paths:
+  /v3/customers:
+    post:
+      operationId: asaas__cliente__criar
+      summary: Criar novo cliente
+      description: Cadastra o pagador (pessoa física ou jurídica) na conta Asaas e devolve o identificador cus_... usado em cobranças, parcelamentos
+        e assinaturas.
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/criar-novo-cliente
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  description: Nome ou razão social do pagador.
+                  type: string
+                cpfCnpj:
+                  description: CPF (11 dígitos) ou CNPJ (14) sem pontuação.
+                  type: string
+                email:
+                  description: Endereço de e-mail.
+                  type: string
+                phone:
+                  description: Telefone fixo com DDD.
+                  type: string
+                mobilePhone:
+                  description: Celular com DDD.
+                  type: string
+                address:
+                  description: Logradouro (rua/avenida).
+                  type: string
+                addressNumber:
+                  description: Número do endereço.
+                  type: string
+                complement:
+                  description: Complemento do endereço (até 255 caracteres).
+                  type: string
+                province:
+                  description: Bairro.
+                  type: string
+                postalCode:
+                  description: CEP, somente dígitos.
+                  type: string
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+                notificationDisabled:
+                  description: Quando true, o Asaas não envia avisos de cobrança a este cliente.
+                  type: boolean
+                additionalEmails:
+                  description: E-mails extras para avisos, separados por vírgula.
+                  type: string
+                municipalInscription:
+                  description: Inscrição municipal do cliente.
+                  type: string
+                stateInscription:
+                  description: Inscrição estadual do cliente.
+                  type: string
+                observations:
+                  description: Texto livre de observações.
+                  type: string
+                groupName:
+                  description: Grupo de clientes (um único nome).
+                  type: string
+                groupNames:
+                  description: Lista de grupos do cliente (até 20 por chamada).
+                  type: array
+                  items:
+                    type: string
+                company:
+                  description: Nome da empresa do cliente.
+                  type: string
+                foreignCustomer:
+                  description: Marque true para pagador estrangeiro.
+                  type: boolean
+              required:
+              - name
+              - cpfCnpj
+            example:
+              name: Cliente Exemplo Ltda
+              cpfCnpj: 00000000000191
+              email: financeiro@example.com
+              mobilePhone: '11900000000'
+              postalCode: '01001000'
+              addressNumber: '100'
+              externalReference: CLI-001
+              notificationDisabled: false
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: &id001
+                object: customer
+                id: cus_000000000001
+                dateCreated: '2026-09-17'
+                name: Cliente Exemplo Ltda
+                email: financeiro@example.com
+                cpfCnpj: 00000000000191
+                personType: JURIDICA
+                postalCode: '01001000'
+                externalReference: CLI-001
+                deleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+    get:
+      operationId: asaas__cliente__listar
+      summary: Listar clientes
+      description: Retorna a lista paginada de clientes com filtros por nome, e-mail, CPF/CNPJ, grupo e externalReference.
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/listar-clientes
+      x-acao-canonica: listar
+      security:
+      - accessToken: []
+      parameters:
+      - name: offset
+        in: query
+        required: false
+        description: Posição inicial da página (começa em 0).
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Tamanho da página; 1 a 100, padrão 10.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+      - name: name
+        in: query
+        required: false
+        description: Filtra por nome.
+        schema:
+          type: string
+      - name: email
+        in: query
+        required: false
+        description: Filtra por e-mail.
+        schema:
+          type: string
+      - name: cpfCnpj
+        in: query
+        required: false
+        description: Filtra por CPF/CNPJ.
+        schema:
+          type: string
+      - name: groupName
+        in: query
+        required: false
+        description: Filtra por grupo.
+        schema:
+          type: string
+      - name: externalReference
+        in: query
+        required: false
+        description: Filtra pelo seu identificador.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: list
+                hasMore: false
+                totalCount: 1
+                limit: 10
+                offset: 0
+                data:
+                - *id001
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/customers/{id}:
+    get:
+      operationId: asaas__cliente__obter
+      summary: Recuperar um único cliente
+      description: Busca os dados cadastrais de um cliente pelo id cus_...; clientes removidos aparecem com deleted=true.
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-um-unico-cliente
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: *id001
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+    put:
+      operationId: asaas__cliente__atualizar
+      summary: Atualizar cliente existente
+      description: Altera dados cadastrais do cliente; somente os campos enviados são modificados (comportamento parcial inferido pela ausência
+        de campos obrigatórios no body).
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/atualizar-cliente-existente
+      x-acao-canonica: atualizar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  description: Nome ou razão social do pagador.
+                  type: string
+                cpfCnpj:
+                  description: CPF (11 dígitos) ou CNPJ (14) sem pontuação.
+                  type: string
+                email:
+                  description: Endereço de e-mail.
+                  type: string
+                phone:
+                  description: Telefone fixo com DDD.
+                  type: string
+                mobilePhone:
+                  description: Celular com DDD.
+                  type: string
+                address:
+                  description: Logradouro (rua/avenida).
+                  type: string
+                addressNumber:
+                  description: Número do endereço.
+                  type: string
+                complement:
+                  description: Complemento do endereço (até 255 caracteres).
+                  type: string
+                province:
+                  description: Bairro.
+                  type: string
+                postalCode:
+                  description: CEP, somente dígitos.
+                  type: string
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+                notificationDisabled:
+                  description: Quando true, o Asaas não envia avisos de cobrança a este cliente.
+                  type: boolean
+                additionalEmails:
+                  description: E-mails extras para avisos, separados por vírgula.
+                  type: string
+                municipalInscription:
+                  description: Inscrição municipal do cliente.
+                  type: string
+                stateInscription:
+                  description: Inscrição estadual do cliente.
+                  type: string
+                observations:
+                  description: Texto livre de observações.
+                  type: string
+                groupName:
+                  description: Grupo de clientes (um único nome).
+                  type: string
+                groupNames:
+                  description: Lista de grupos do cliente (até 20 por chamada).
+                  type: array
+                  items:
+                    type: string
+                company:
+                  description: Nome da empresa do cliente.
+                  type: string
+                foreignCustomer:
+                  description: Marque true para pagador estrangeiro.
+                  type: boolean
+            example:
+              email: novo-financeiro@example.com
+              notificationDisabled: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: *id001
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+    delete:
+      operationId: asaas__cliente__excluir
+      summary: Remover cliente
+      description: 'Remove o cliente da conta. A remoção é lógica: existe o endpoint POST /v3/customers/{id}/restore para restaurar.'
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/remover-cliente
+      x-acao-canonica: excluir
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                deleted: true
+                id: cus_000000000001
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/payments:
+    post:
+      operationId: asaas__cobranca__criar
+      summary: Criar nova cobrança
+      description: Emite uma cobrança avulsa ou parcelada por boleto (BOLETO), Pix (PIX), cartão (CREDIT_CARD) ou deixando o pagador escolher
+        (UNDEFINED). Retorna invoiceUrl, bankSlipUrl e nossoNumero.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/criar-nova-cobranca
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customer:
+                  description: Id do cliente no Asaas (cus_...).
+                  type: string
+                billingType:
+                  description: 'Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).'
+                  type: string
+                  enum:
+                  - UNDEFINED
+                  - BOLETO
+                  - CREDIT_CARD
+                  - PIX
+                value:
+                  description: Valor em reais, com ponto decimal.
+                  type: number
+                dueDate:
+                  description: Data de vencimento (AAAA-MM-DD).
+                  type: string
+                  format: date
+                description:
+                  description: Texto descritivo (até 500 caracteres onde aplicável).
+                  type: string
+                daysAfterDueDateToRegistrationCancellation:
+                  description: 'Boleto: quantos dias após o vencimento o registro é baixado.'
+                  type: integer
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+                installmentCount:
+                  description: Quantidade de parcelas.
+                  type: integer
+                totalValue:
+                  description: Valor total a ser dividido entre as parcelas.
+                  type: number
+                installmentValue:
+                  description: Valor de cada parcela (alternativa a totalValue).
+                  type: number
+                discount:
+                  description: Objeto de desconto por pagamento antecipado.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual do desconto.
+                      type: number
+                    dueDateLimitDays:
+                      description: Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).
+                      type: integer
+                    type:
+                      description: FIXED (valor) ou PERCENTAGE (percentual).
+                      type: string
+                      enum: &id003
+                      - FIXED
+                      - PERCENTAGE
+                interest:
+                  description: Objeto de juros por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Percentual de juros ao mês após o vencimento.
+                      type: number
+                fine:
+                  description: Objeto de multa por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual da multa.
+                      type: number
+                    type:
+                      description: FIXED ou PERCENTAGE.
+                      type: string
+                      enum: &id004
+                      - FIXED
+                      - PERCENTAGE
+                postalService:
+                  description: true para envio do boleto por Correios (serviço tarifado).
+                  type: boolean
+                split:
+                  description: Lista de divisões do valor recebido entre carteiras Asaas.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      walletId:
+                        description: walletId da conta que recebe a parte.
+                        type: string
+                      fixedValue:
+                        description: Parte em valor fixo.
+                        type: number
+                      percentualValue:
+                        description: Parte em percentual do valor líquido.
+                        type: number
+                      totalFixedValue:
+                        description: 'Somente parcelamentos: valor fixo sobre o total parcelado.'
+                        type: number
+                      externalReference:
+                        description: Seu identificador para esta divisão.
+                        type: string
+                      description:
+                        description: Descrição da divisão.
+                        type: string
+                    required:
+                    - walletId
+                callback:
+                  description: Redirecionamento do pagador após pagar a fatura.
+                  type: object
+                  properties:
+                    successUrl:
+                      description: URL de retorno após pagamento aprovado.
+                      type: string
+                    autoRedirect:
+                      description: true redireciona automaticamente; false mostra botão.
+                      type: boolean
+                  required:
+                  - successUrl
+                pixAutomaticAuthorizationId:
+                  description: Id de uma autorização de Pix Automático a vincular.
+                  type: string
+              required:
+              - customer
+              - billingType
+              - value
+              - dueDate
+            example:
+              customer: cus_000000000001
+              billingType: BOLETO
+              value: 150.0
+              dueDate: '2026-09-30'
+              description: Pedido 123
+              externalReference: PEDIDO-123
+              fine:
+                value: 2
+                type: PERCENTAGE
+              interest:
+                value: 1
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: &id002
+                object: payment
+                id: pay_000000000001
+                dateCreated: '2026-09-17'
+                customer: cus_000000000001
+                value: 150.0
+                netValue: 148.01
+                billingType: BOLETO
+                status: PENDING
+                dueDate: '2026-09-30'
+                invoiceUrl: https://sandbox.asaas.com/i/000000000001
+                bankSlipUrl: https://sandbox.asaas.com/b/pdf/000000000001
+                nossoNumero: '0000001'
+                externalReference: PEDIDO-123
+                deleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+    get:
+      operationId: asaas__cobranca__listar
+      summary: Listar cobranças
+      description: Lista cobranças com paginação e filtros por cliente, forma de pagamento, status, assinatura, parcelamento, datas (dateCreated/paymentDate/dueDate
+        com [ge]/[le]) e QR Code estático.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/listar-cobrancas
+      x-acao-canonica: listar
+      security:
+      - accessToken: []
+      parameters:
+      - name: offset
+        in: query
+        required: false
+        description: Posição inicial da página (começa em 0).
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Tamanho da página; 1 a 100, padrão 10.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+      - name: customer
+        in: query
+        required: false
+        description: Filtra pelo id do cliente.
+        schema:
+          type: string
+      - name: customerGroupName
+        in: query
+        required: false
+        description: Filtra pelo grupo de clientes.
+        schema:
+          type: string
+      - name: billingType
+        in: query
+        required: false
+        description: Filtra por meio de pagamento.
+        schema:
+          type: string
+          enum:
+          - UNDEFINED
+          - BOLETO
+          - CREDIT_CARD
+          - PIX
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro (valores no enum).
+        schema:
+          type: string
+          enum:
+          - PENDING
+          - RECEIVED
+          - CONFIRMED
+          - OVERDUE
+          - REFUNDED
+          - RECEIVED_IN_CASH
+          - REFUND_REQUESTED
+          - REFUND_IN_PROGRESS
+          - CHARGEBACK_REQUESTED
+          - CHARGEBACK_DISPUTE
+          - AWAITING_CHARGEBACK_REVERSAL
+          - DUNNING_REQUESTED
+          - DUNNING_RECEIVED
+          - AWAITING_RISK_ANALYSIS
+      - name: subscription
+        in: query
+        required: false
+        description: Filtra pelo id da assinatura.
+        schema:
+          type: string
+      - name: installment
+        in: query
+        required: false
+        description: Filtra pelo id do parcelamento.
+        schema:
+          type: string
+      - name: externalReference
+        in: query
+        required: false
+        description: Filtra pelo seu identificador.
+        schema:
+          type: string
+      - name: paymentDate
+        in: query
+        required: false
+        description: Filtra pela data de pagamento.
+        schema:
+          type: string
+      - name: invoiceStatus
+        in: query
+        required: false
+        description: Filtra cobranças pela situação da nota fiscal.
+        schema:
+          type: string
+          enum:
+          - SCHEDULED
+          - AUTHORIZED
+          - PROCESSING_CANCELLATION
+          - CANCELED
+          - CANCELLATION_DENIED
+          - ERROR
+      - name: estimatedCreditDate
+        in: query
+        required: false
+        description: Filtra pela data prevista de crédito.
+        schema:
+          type: string
+      - name: pixQrCodeId
+        in: query
+        required: false
+        description: Filtra cobranças geradas por um QR Code estático.
+        schema:
+          type: string
+      - name: anticipated
+        in: query
+        required: false
+        description: Filtra cobranças antecipadas (true/false).
+        schema:
+          type: boolean
+      - name: anticipable
+        in: query
+        required: false
+        description: Filtra cobranças passíveis de antecipação.
+        schema:
+          type: boolean
+      - name: dateCreated[ge]
+        in: query
+        required: false
+        description: Criadas a partir desta data (AAAA-MM-DD).
+        schema:
+          type: string
+      - name: dateCreated[le]
+        in: query
+        required: false
+        description: Criadas até esta data.
+        schema:
+          type: string
+      - name: paymentDate[ge]
+        in: query
+        required: false
+        description: Pagas a partir desta data.
+        schema:
+          type: string
+      - name: paymentDate[le]
+        in: query
+        required: false
+        description: Pagas até esta data.
+        schema:
+          type: string
+      - name: estimatedCreditDate[ge]
+        in: query
+        required: false
+        description: Crédito previsto a partir desta data.
+        schema:
+          type: string
+      - name: estimatedCreditDate[le]
+        in: query
+        required: false
+        description: Crédito previsto até esta data.
+        schema:
+          type: string
+      - name: dueDate[ge]
+        in: query
+        required: false
+        description: Vencimento a partir desta data.
+        schema:
+          type: string
+      - name: dueDate[le]
+        in: query
+        required: false
+        description: Vencimento até esta data.
+        schema:
+          type: string
+      - name: user
+        in: query
+        required: false
+        description: Filtra pelo e-mail do usuário que criou a cobrança.
+        schema:
+          type: string
+      - name: checkoutSession
+        in: query
+        required: false
+        description: Filtra pelo id de sessão de checkout.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: list
+                hasMore: false
+                totalCount: 1
+                limit: 10
+                offset: 0
+                data:
+                - *id002
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/payments/:
+    post:
+      operationId: asaas__cobranca__criar__cartao_credito
+      summary: Criar cobrança com cartão de crédito
+      description: Cria e já tenta autorizar uma cobrança no cartão, enviando os dados do cartão (creditCard + creditCardHolderInfo) ou um creditCardToken.
+        Suporta pré-autorização (authorizeOnly) e 3D Secure.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/criar-cobranca-com-cartao-de-credito
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customer:
+                  description: Id do cliente no Asaas (cus_...).
+                  type: string
+                billingType:
+                  description: 'Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).'
+                  type: string
+                  enum:
+                  - UNDEFINED
+                  - BOLETO
+                  - CREDIT_CARD
+                  - PIX
+                value:
+                  description: Valor em reais, com ponto decimal.
+                  type: number
+                dueDate:
+                  description: Data de vencimento (AAAA-MM-DD).
+                  type: string
+                  format: date
+                description:
+                  description: Texto descritivo (até 500 caracteres onde aplicável).
+                  type: string
+                daysAfterDueDateToRegistrationCancellation:
+                  description: 'Boleto: quantos dias após o vencimento o registro é baixado.'
+                  type: integer
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+                installmentCount:
+                  description: Quantidade de parcelas.
+                  type: integer
+                totalValue:
+                  description: Valor total a ser dividido entre as parcelas.
+                  type: number
+                installmentValue:
+                  description: Valor de cada parcela (alternativa a totalValue).
+                  type: number
+                discount:
+                  description: Objeto de desconto por pagamento antecipado.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual do desconto.
+                      type: number
+                    dueDateLimitDays:
+                      description: Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).
+                      type: integer
+                    type:
+                      description: FIXED (valor) ou PERCENTAGE (percentual).
+                      type: string
+                      enum: *id003
+                interest:
+                  description: Objeto de juros por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Percentual de juros ao mês após o vencimento.
+                      type: number
+                fine:
+                  description: Objeto de multa por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual da multa.
+                      type: number
+                    type:
+                      description: FIXED ou PERCENTAGE.
+                      type: string
+                      enum: *id004
+                postalService:
+                  description: true para envio do boleto por Correios (serviço tarifado).
+                  type: boolean
+                split:
+                  description: Lista de divisões do valor recebido entre carteiras Asaas.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      walletId:
+                        description: walletId da conta que recebe a parte.
+                        type: string
+                      fixedValue:
+                        description: Parte em valor fixo.
+                        type: number
+                      percentualValue:
+                        description: Parte em percentual do valor líquido.
+                        type: number
+                      totalFixedValue:
+                        description: 'Somente parcelamentos: valor fixo sobre o total parcelado.'
+                        type: number
+                      externalReference:
+                        description: Seu identificador para esta divisão.
+                        type: string
+                      description:
+                        description: Descrição da divisão.
+                        type: string
+                    required:
+                    - walletId
+                callback:
+                  description: Redirecionamento do pagador após pagar a fatura.
+                  type: object
+                  properties:
+                    successUrl:
+                      description: URL de retorno após pagamento aprovado.
+                      type: string
+                    autoRedirect:
+                      description: true redireciona automaticamente; false mostra botão.
+                      type: boolean
+                  required:
+                  - successUrl
+                pixAutomaticAuthorizationId:
+                  description: Id de uma autorização de Pix Automático a vincular.
+                  type: string
+                creditCard:
+                  description: Dados do cartão (tráfego exige ambiente PCI-DSS).
+                  type: object
+                  properties:
+                    holderName:
+                      description: Nome como impresso no cartão.
+                      type: string
+                    number:
+                      description: Número do cartão.
+                      type: string
+                    expiryMonth:
+                      description: Mês de validade com 2 dígitos.
+                      type: string
+                    expiryYear:
+                      description: Ano de validade com 4 dígitos.
+                      type: string
+                    ccv:
+                      description: Código de segurança.
+                      type: string
+                  required:
+                  - holderName
+                  - number
+                  - expiryMonth
+                  - expiryYear
+                  - ccv
+                creditCardHolderInfo:
+                  description: Dados do titular do cartão para antifraude.
+                  type: object
+                  properties:
+                    name:
+                      description: Nome do titular.
+                      type: string
+                    email:
+                      description: E-mail do titular.
+                      type: string
+                    cpfCnpj:
+                      description: CPF/CNPJ do titular.
+                      type: string
+                    postalCode:
+                      description: CEP do titular.
+                      type: string
+                    addressNumber:
+                      description: Número do endereço do titular.
+                      type: string
+                    addressComplement:
+                      description: Complemento do endereço do titular.
+                      type: string
+                    phone:
+                      description: Telefone com DDD do titular.
+                      type: string
+                    mobilePhone:
+                      description: Celular do titular.
+                      type: string
+                  required:
+                  - name
+                  - email
+                  - cpfCnpj
+                  - postalCode
+                  - addressNumber
+                  - phone
+                creditCardToken:
+                  description: Token de cartão obtido na tokenização (substitui os dados do cartão).
+                  type: string
+                authorizeOnly:
+                  description: true faz só a pré-autorização; a captura é feita depois.
+                  type: boolean
+                remoteIp:
+                  description: IP público do comprador (não o do servidor).
+                  type: string
+                threeDSecure:
+                  description: Ativa autenticação 3D Secure na cobrança.
+                  type: object
+                  properties:
+                    callbackUrl:
+                      description: URL de retorno após o desafio 3DS.
+                      type: string
+                  required:
+                  - callbackUrl
+                deviceInfo:
+                  description: Dados do navegador/dispositivo exigidos pelo 3DS.
+                  type: object
+                  properties:
+                    colorDepth:
+                      description: Profundidade de cor da tela (bits).
+                      type: integer
+                    screenHeight:
+                      description: Altura da tela em pixels.
+                      type: integer
+                    screenWidth:
+                      description: Largura da tela em pixels.
+                      type: integer
+                    timeZoneOffset:
+                      description: Diferença em horas para o UTC.
+                      type: integer
+                    language:
+                      description: Idioma do navegador.
+                      type: string
+                    userAgent:
+                      description: User-Agent do navegador do comprador.
+                      type: string
+                    remoteIp:
+                      description: IP do dispositivo do comprador.
+                      type: string
+                  required:
+                  - colorDepth
+                  - screenHeight
+                  - screenWidth
+                  - timeZoneOffset
+                  - language
+                  - userAgent
+                  - remoteIp
+              required:
+              - customer
+              - billingType
+              - value
+              - dueDate
+              - remoteIp
+            example:
+              customer: cus_000000000001
+              billingType: CREDIT_CARD
+              value: 200.0
+              dueDate: '2026-09-17'
+              creditCard:
+                holderName: TITULAR TESTE
+                number: <<NUMERO_CARTAO_TESTE>>
+                expiryMonth: '12'
+                expiryYear: '2030'
+                ccv: '123'
+              creditCardHolderInfo:
+                name: Titular Teste
+                email: titular@example.com
+                cpfCnpj: '00000000000'
+                postalCode: '01001000'
+                addressNumber: '100'
+                phone: '11900000000'
+              remoteIp: 203.0.113.10
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: payment
+                id: pay_000000000001
+                dateCreated: '2026-09-17'
+                customer: cus_000000000001
+                value: 150.0
+                netValue: 148.01
+                billingType: CREDIT_CARD
+                status: CONFIRMED
+                dueDate: '2026-09-30'
+                invoiceUrl: https://sandbox.asaas.com/i/000000000001
+                bankSlipUrl: https://sandbox.asaas.com/b/pdf/000000000001
+                nossoNumero: '0000001'
+                externalReference: PEDIDO-123
+                deleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/payments/{id}:
+    get:
+      operationId: asaas__cobranca__obter
+      summary: Recuperar uma única cobrança
+      description: 'Retorna a cobrança completa: status, valores líquidos, datas de pagamento/crédito, links de fatura/boleto, split, estornos
+        (refunds) e chargeback.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-uma-unica-cobranca
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: payment
+                id: pay_000000000001
+                dateCreated: '2026-09-17'
+                customer: cus_000000000001
+                value: 150.0
+                netValue: 148.01
+                billingType: BOLETO
+                status: RECEIVED
+                dueDate: '2026-09-30'
+                invoiceUrl: https://sandbox.asaas.com/i/000000000001
+                bankSlipUrl: https://sandbox.asaas.com/b/pdf/000000000001
+                nossoNumero: '0000001'
+                externalReference: PEDIDO-123
+                deleted: false
+                paymentDate: '2026-09-25'
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+    put:
+      operationId: asaas__cobranca__atualizar
+      summary: Atualizar cobrança existente
+      description: Altera forma de pagamento, valor, vencimento, descrição, juros/multa/desconto e split de uma cobrança ainda não paga.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/atualizar-cobranca-existente
+      x-acao-canonica: atualizar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                billingType:
+                  description: 'Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).'
+                  type: string
+                  enum:
+                  - UNDEFINED
+                  - BOLETO
+                  - CREDIT_CARD
+                  - PIX
+                value:
+                  description: Valor em reais, com ponto decimal.
+                  type: number
+                dueDate:
+                  description: Data de vencimento (AAAA-MM-DD).
+                  type: string
+                  format: date
+                description:
+                  description: Texto descritivo (até 500 caracteres onde aplicável).
+                  type: string
+                daysAfterDueDateToRegistrationCancellation:
+                  description: 'Boleto: quantos dias após o vencimento o registro é baixado.'
+                  type: integer
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+                discount:
+                  description: Objeto de desconto por pagamento antecipado.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual do desconto.
+                      type: number
+                    dueDateLimitDays:
+                      description: Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).
+                      type: integer
+                    type:
+                      description: FIXED (valor) ou PERCENTAGE (percentual).
+                      type: string
+                      enum: *id003
+                interest:
+                  description: Objeto de juros por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Percentual de juros ao mês após o vencimento.
+                      type: number
+                fine:
+                  description: Objeto de multa por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual da multa.
+                      type: number
+                    type:
+                      description: FIXED ou PERCENTAGE.
+                      type: string
+                      enum: *id004
+                postalService:
+                  description: true para envio do boleto por Correios (serviço tarifado).
+                  type: boolean
+                split:
+                  description: Lista de divisões do valor recebido entre carteiras Asaas.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      walletId:
+                        description: walletId da conta que recebe a parte.
+                        type: string
+                      fixedValue:
+                        description: Parte em valor fixo.
+                        type: number
+                      percentualValue:
+                        description: Parte em percentual do valor líquido.
+                        type: number
+                      totalFixedValue:
+                        description: 'Somente parcelamentos: valor fixo sobre o total parcelado.'
+                        type: number
+                      externalReference:
+                        description: Seu identificador para esta divisão.
+                        type: string
+                      description:
+                        description: Descrição da divisão.
+                        type: string
+                    required:
+                    - walletId
+                callback:
+                  description: Redirecionamento do pagador após pagar a fatura.
+                  type: object
+                  properties:
+                    successUrl:
+                      description: URL de retorno após pagamento aprovado.
+                      type: string
+                    autoRedirect:
+                      description: true redireciona automaticamente; false mostra botão.
+                      type: boolean
+                  required:
+                  - successUrl
+              required:
+              - billingType
+              - value
+              - dueDate
+            example:
+              billingType: PIX
+              value: 160.0
+              dueDate: '2026-10-05'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: payment
+                id: pay_000000000001
+                dateCreated: '2026-09-17'
+                customer: cus_000000000001
+                value: 160.0
+                netValue: 148.01
+                billingType: PIX
+                status: PENDING
+                dueDate: '2026-09-30'
+                invoiceUrl: https://sandbox.asaas.com/i/000000000001
+                bankSlipUrl: https://sandbox.asaas.com/b/pdf/000000000001
+                nossoNumero: '0000001'
+                externalReference: PEDIDO-123
+                deleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+    delete:
+      operationId: asaas__cobranca__cancelar
+      summary: Excluir cobrança
+      description: Remove (cancela) uma cobrança; a remoção é lógica e pode ser desfeita por POST /v3/payments/{id}/restore.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/excluir-cobranca
+      x-acao-canonica: cancelar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                deleted: true
+                id: pay_000000000001
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/payments/{id}/status:
+    get:
+      operationId: asaas__cobranca__consultar_status
+      summary: Recuperar status de uma cobrança
+      description: Retorna somente o campo status da cobrança — resposta leve para checagens pontuais.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-status-de-uma-cobranca
+      x-acao-canonica: consultar_status
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                status: RECEIVED
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/payments/{id}/pixQrCode:
+    get:
+      operationId: asaas__cobranca__obter__pix_qrcode
+      summary: Obter QR Code para pagamentos via Pix
+      description: 'Devolve o QR Code dinâmico da cobrança: imagem em Base64 (encodedImage), código copia-e-cola (payload) e expirationDate.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/obter-qr-code-para-pagamentos-via-pix
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                encodedImage: <<BASE64_PNG>>
+                payload: 00020101021226...6304ABCD
+                expirationDate: '2027-09-30 23:59:59'
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/payments/{id}/identificationField:
+    get:
+      operationId: asaas__cobranca__obter__linha_digitavel
+      summary: Obter linha digitável do boleto
+      description: Retorna identificationField (linha digitável), nossoNumero e barCode (código de barras) do boleto da cobrança.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/obter-linha-digitavel-do-boleto
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                identificationField: 00190000090000000000000000000000000000000000000
+                nossoNumero: '0000001'
+                barCode: 00190000000000000000000000000000000000000000
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/payments/{id}/captureAuthorizedPayment:
+    post:
+      operationId: asaas__cobranca__autorizar__captura
+      summary: Capturar cobrança com Pré-Autorização
+      description: Captura uma cobrança de cartão criada com authorizeOnly=true (pré-autorização), efetivando o débito.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/capturar-cobranca-com-pre-autorizacao
+      x-acao-canonica: autorizar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: payment
+                id: pay_000000000001
+                dateCreated: '2026-09-17'
+                customer: cus_000000000001
+                value: 150.0
+                netValue: 148.01
+                billingType: CREDIT_CARD
+                status: CONFIRMED
+                dueDate: '2026-09-30'
+                invoiceUrl: https://sandbox.asaas.com/i/000000000001
+                bankSlipUrl: https://sandbox.asaas.com/b/pdf/000000000001
+                nossoNumero: '0000001'
+                externalReference: PEDIDO-123
+                deleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/payments/{id}/refund:
+    post:
+      operationId: asaas__cobranca__estornar
+      summary: Estornar cobrança
+      description: Devolve total ou parcialmente o valor de uma cobrança recebida (Pix ou cartão), podendo indicar quanto estornar de cada split.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/estornar-cobranca
+      x-acao-canonica: estornar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  description: Quanto estornar; omitido = valor total (inferido).
+                  type: number
+                description:
+                  description: Motivo do estorno.
+                  type: string
+                splitRefunds:
+                  description: Quanto devolver de cada split.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        description: Id do split a estornar.
+                        type: string
+                      value:
+                        description: Valor a estornar desse split.
+                        type: number
+                    required:
+                    - id
+                    - value
+            example:
+              value: 50.0
+              description: Devolução parcial - item avariado
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: payment
+                id: pay_000000000001
+                dateCreated: '2026-09-17'
+                customer: cus_000000000001
+                value: 150.0
+                netValue: 148.01
+                billingType: BOLETO
+                status: REFUND_IN_PROGRESS
+                dueDate: '2026-09-30'
+                invoiceUrl: https://sandbox.asaas.com/i/000000000001
+                bankSlipUrl: https://sandbox.asaas.com/b/pdf/000000000001
+                nossoNumero: '0000001'
+                externalReference: PEDIDO-123
+                deleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/payments/{id}/bankSlip/refund:
+    post:
+      operationId: asaas__cobranca__estornar__boleto
+      summary: Estornar boleto
+      description: Inicia o estorno de uma cobrança paga por boleto; a resposta traz requestUrl, link onde os dados bancários para devolução são
+        informados.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/estornar-boleto
+      x-acao-canonica: estornar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                requestUrl: https://sandbox.asaas.com/refundRequest/000000000001
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/payments/{id}/refunds:
+    get:
+      operationId: asaas__cobranca__listar__estornos
+      summary: Listar estornos de uma cobrança
+      description: Lista os estornos vinculados a uma cobrança, com valor, status (PENDING, CANCELLED, DONE), endToEndIdentifier e comprovante.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/listar-estornos-de-uma-cobranca
+      x-acao-canonica: listar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: list
+                hasMore: false
+                totalCount: 1
+                limit: 10
+                offset: 0
+                data:
+                - dateCreated: '2026-09-18 10:00:00'
+                  status: DONE
+                  value: 50.0
+                  endToEndIdentifier: null
+                  transactionReceiptUrl: null
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/installments:
+    post:
+      operationId: asaas__cobranca__criar__parcelamento
+      summary: Criar parcelamento
+      description: 'Gera um parcelamento: N cobranças (installmentCount) do mesmo cliente com vencimentos mensais a partir de dueDate, com split
+        opcional por parcela.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/criar-parcelamento
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                installmentCount:
+                  description: Quantidade de parcelas.
+                  type: integer
+                customer:
+                  description: Id do cliente no Asaas (cus_...).
+                  type: string
+                value:
+                  description: Valor de CADA parcela.
+                  type: number
+                totalValue:
+                  description: Valor total a ser dividido entre as parcelas.
+                  type: number
+                billingType:
+                  description: 'Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).'
+                  type: string
+                  enum:
+                  - UNDEFINED
+                  - BOLETO
+                  - CREDIT_CARD
+                  - PIX
+                dueDate:
+                  description: Vencimento da primeira parcela.
+                  type: string
+                  format: date
+                description:
+                  description: Texto descritivo (até 500 caracteres onde aplicável).
+                  type: string
+                postalService:
+                  description: true para envio do boleto por Correios (serviço tarifado).
+                  type: boolean
+                daysAfterDueDateToRegistrationCancellation:
+                  description: 'Boleto: quantos dias após o vencimento o registro é baixado.'
+                  type: integer
+                paymentExternalReference:
+                  description: Seu identificador aplicado às cobranças do parcelamento.
+                  type: string
+                discount:
+                  description: Objeto de desconto por pagamento antecipado.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual do desconto.
+                      type: number
+                    dueDateLimitDays:
+                      description: Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).
+                      type: integer
+                    type:
+                      description: FIXED (valor) ou PERCENTAGE (percentual).
+                      type: string
+                      enum: *id003
+                interest:
+                  description: Objeto de juros por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Percentual de juros ao mês após o vencimento.
+                      type: number
+                fine:
+                  description: Objeto de multa por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual da multa.
+                      type: number
+                    type:
+                      description: FIXED ou PERCENTAGE.
+                      type: string
+                      enum: *id004
+                splits:
+                  description: Lista de divisões aplicadas às parcelas.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      walletId:
+                        description: walletId da conta que recebe a parte.
+                        type: string
+                      fixedValue:
+                        description: Parte em valor fixo por parcela.
+                        type: number
+                      percentualValue:
+                        description: Parte em percentual do valor líquido.
+                        type: number
+                      totalFixedValue:
+                        description: Valor fixo sobre o total do parcelamento.
+                        type: number
+                      externalReference:
+                        description: Seu identificador para esta divisão.
+                        type: string
+                      description:
+                        description: Descrição da divisão.
+                        type: string
+                      installmentNumber:
+                        description: Parcela específica à qual a divisão se aplica.
+                        type: integer
+                    required:
+                    - walletId
+              required:
+              - installmentCount
+              - customer
+              - value
+              - billingType
+              - dueDate
+            example:
+              customer: cus_000000000001
+              billingType: BOLETO
+              installmentCount: 3
+              value: 100.0
+              totalValue: 300.0
+              dueDate: '2026-10-10'
+              description: Curso anual - 3x
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: installment
+                id: 00000000-0000-0000-0000-000000000001
+                value: 300.0
+                installmentCount: 3
+                billingType: BOLETO
+                customer: cus_000000000001
+                deleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/installments/{id}:
+    get:
+      operationId: asaas__cobranca__obter__parcelamento
+      summary: Recuperar um único parcelamento
+      description: Retorna o parcelamento (valor total, líquido, número de parcelas, forma de pagamento, estornos).
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-um-unico-parcelamento
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: installment
+                id: 00000000-0000-0000-0000-000000000001
+                value: 300.0
+                netValue: 294.0
+                installmentCount: 3
+                billingType: BOLETO
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+    delete:
+      operationId: asaas__cobranca__cancelar__parcelamento
+      summary: Remover parcelamento
+      description: Remove o parcelamento e suas cobranças ainda não pagas (efeito exato sobre parcelas pagas não detalhado).
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/remover-parcelamento-1
+      x-acao-canonica: cancelar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                deleted: true
+                id: 00000000-0000-0000-0000-000000000001
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/installments/{id}/refund:
+    post:
+      operationId: asaas__cobranca__estornar__parcelamento
+      summary: Estornar parcelamento
+      description: Estorna, total ou parcialmente (value), um parcelamento pago no cartão de crédito já confirmado ou recebido.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/estornar-parcelamento
+      x-acao-canonica: estornar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  description: Quanto estornar do parcelamento.
+                  type: number
+            example:
+              value: 300.0
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: installment
+                id: 00000000-0000-0000-0000-000000000001
+                value: 300.0
+                billingType: CREDIT_CARD
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/subscriptions:
+    post:
+      operationId: asaas__assinatura__criar
+      summary: Criar nova assinatura
+      description: 'Cria uma recorrência para o cliente: valor, ciclo (WEEKLY a YEARLY), primeiro vencimento (nextDueDate) e limites opcionais
+        (endDate, maxPayments). O Asaas gera as cobranças automaticamente.'
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/criar-nova-assinatura
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customer:
+                  description: Id do cliente no Asaas (cus_...).
+                  type: string
+                billingType:
+                  description: 'Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).'
+                  type: string
+                  enum:
+                  - UNDEFINED
+                  - BOLETO
+                  - CREDIT_CARD
+                  - PIX
+                value:
+                  description: Valor em reais, com ponto decimal.
+                  type: number
+                nextDueDate:
+                  description: Vencimento da primeira (ou próxima) cobrança.
+                  type: string
+                  format: date
+                discount:
+                  description: Objeto de desconto por pagamento antecipado.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual do desconto.
+                      type: number
+                    dueDateLimitDays:
+                      description: Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).
+                      type: integer
+                    type:
+                      description: FIXED (valor) ou PERCENTAGE (percentual).
+                      type: string
+                      enum: *id003
+                interest:
+                  description: Objeto de juros por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Percentual de juros ao mês após o vencimento.
+                      type: number
+                fine:
+                  description: Objeto de multa por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual da multa.
+                      type: number
+                    type:
+                      description: FIXED ou PERCENTAGE.
+                      type: string
+                      enum: *id004
+                cycle:
+                  description: 'Periodicidade: WEEKLY, BIWEEKLY, MONTHLY, BIMONTHLY, QUARTERLY, SEMIANNUALLY ou YEARLY.'
+                  type: string
+                  enum:
+                  - WEEKLY
+                  - BIWEEKLY
+                  - MONTHLY
+                  - BIMONTHLY
+                  - QUARTERLY
+                  - SEMIANNUALLY
+                  - YEARLY
+                description:
+                  description: Texto descritivo (até 500 caracteres onde aplicável).
+                  type: string
+                endDate:
+                  description: Último vencimento permitido para a recorrência.
+                  type: string
+                  format: date
+                maxPayments:
+                  description: Limite de cobranças que a assinatura pode gerar.
+                  type: integer
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+                split:
+                  description: Lista de divisões do valor recebido entre carteiras Asaas.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      walletId:
+                        description: walletId da conta que recebe a parte.
+                        type: string
+                      fixedValue:
+                        description: Parte em valor fixo.
+                        type: number
+                      percentualValue:
+                        description: Parte em percentual do valor líquido.
+                        type: number
+                      externalReference:
+                        description: Seu identificador para esta divisão.
+                        type: string
+                      description:
+                        description: Descrição da divisão.
+                        type: string
+                    required:
+                    - walletId
+                callback:
+                  description: Redirecionamento do pagador após pagar a fatura.
+                  type: object
+                  properties:
+                    successUrl:
+                      description: URL de retorno após pagamento aprovado.
+                      type: string
+                    autoRedirect:
+                      description: true redireciona automaticamente; false mostra botão.
+                      type: boolean
+                  required:
+                  - successUrl
+              required:
+              - customer
+              - billingType
+              - value
+              - nextDueDate
+              - cycle
+            example:
+              customer: cus_000000000001
+              billingType: PIX
+              value: 99.9
+              nextDueDate: '2026-10-05'
+              cycle: MONTHLY
+              description: Plano Pro
+              externalReference: CONTRATO-9
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: &id005
+                object: subscription
+                id: sub_000000000001
+                customer: cus_000000000001
+                billingType: PIX
+                cycle: MONTHLY
+                value: 99.9
+                nextDueDate: '2026-10-05'
+                status: ACTIVE
+                deleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+    get:
+      operationId: asaas__assinatura__listar
+      summary: Listar assinaturas
+      description: Lista assinaturas com filtros por cliente, grupo, forma de pagamento, status (ACTIVE, EXPIRED, INACTIVE), removidas e externalReference.
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/listar-assinaturas
+      x-acao-canonica: listar
+      security:
+      - accessToken: []
+      parameters:
+      - name: offset
+        in: query
+        required: false
+        description: Posição inicial da página (começa em 0).
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Tamanho da página; 1 a 100, padrão 10.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+      - name: customer
+        in: query
+        required: false
+        description: Filtra pelo cliente.
+        schema:
+          type: string
+      - name: customerGroupName
+        in: query
+        required: false
+        description: Filtra pelo grupo de clientes.
+        schema:
+          type: string
+      - name: billingType
+        in: query
+        required: false
+        description: Filtra por meio de pagamento.
+        schema:
+          type: string
+          enum:
+          - UNDEFINED
+          - BOLETO
+          - CREDIT_CARD
+          - DEBIT_CARD
+          - TRANSFER
+          - DEPOSIT
+          - PIX
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro (valores no enum).
+        schema:
+          type: string
+          enum:
+          - ACTIVE
+          - EXPIRED
+          - INACTIVE
+      - name: deletedOnly
+        in: query
+        required: false
+        description: '''true'' retorna só assinaturas removidas.'
+        schema:
+          type: string
+      - name: includeDeleted
+        in: query
+        required: false
+        description: '''true'' inclui assinaturas removidas.'
+        schema:
+          type: string
+      - name: externalReference
+        in: query
+        required: false
+        description: Filtra pelo seu identificador.
+        schema:
+          type: string
+      - name: order
+        in: query
+        required: false
+        description: Direção da ordenação (asc/desc).
+        schema:
+          type: string
+      - name: sort
+        in: query
+        required: false
+        description: Campo usado na ordenação.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: list
+                hasMore: false
+                totalCount: 1
+                limit: 10
+                offset: 0
+                data:
+                - *id005
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/subscriptions/:
+    post:
+      operationId: asaas__assinatura__criar__cartao_credito
+      summary: Criar assinatura com cartão de crédito
+      description: Cria a assinatura já vinculando o cartão (creditCard + creditCardHolderInfo ou creditCardToken); a primeira cobrança é processada
+        no cartão.
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/criar-assinatura-com-cartao-de-credito
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customer:
+                  description: Id do cliente no Asaas (cus_...).
+                  type: string
+                billingType:
+                  description: 'Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).'
+                  type: string
+                  enum:
+                  - UNDEFINED
+                  - BOLETO
+                  - CREDIT_CARD
+                  - PIX
+                value:
+                  description: Valor em reais, com ponto decimal.
+                  type: number
+                nextDueDate:
+                  description: Vencimento da primeira (ou próxima) cobrança.
+                  type: string
+                  format: date
+                discount:
+                  description: Objeto de desconto por pagamento antecipado.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual do desconto.
+                      type: number
+                    dueDateLimitDays:
+                      description: Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).
+                      type: integer
+                    type:
+                      description: FIXED (valor) ou PERCENTAGE (percentual).
+                      type: string
+                      enum: *id003
+                interest:
+                  description: Objeto de juros por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Percentual de juros ao mês após o vencimento.
+                      type: number
+                fine:
+                  description: Objeto de multa por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual da multa.
+                      type: number
+                    type:
+                      description: FIXED ou PERCENTAGE.
+                      type: string
+                      enum: *id004
+                cycle:
+                  description: 'Periodicidade: WEEKLY, BIWEEKLY, MONTHLY, BIMONTHLY, QUARTERLY, SEMIANNUALLY ou YEARLY.'
+                  type: string
+                  enum:
+                  - WEEKLY
+                  - BIWEEKLY
+                  - MONTHLY
+                  - BIMONTHLY
+                  - QUARTERLY
+                  - SEMIANNUALLY
+                  - YEARLY
+                description:
+                  description: Texto descritivo (até 500 caracteres onde aplicável).
+                  type: string
+                endDate:
+                  description: Último vencimento permitido para a recorrência.
+                  type: string
+                  format: date
+                maxPayments:
+                  description: Limite de cobranças que a assinatura pode gerar.
+                  type: integer
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+                split:
+                  description: Lista de divisões do valor recebido entre carteiras Asaas.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      walletId:
+                        description: walletId da conta que recebe a parte.
+                        type: string
+                      fixedValue:
+                        description: Parte em valor fixo.
+                        type: number
+                      percentualValue:
+                        description: Parte em percentual do valor líquido.
+                        type: number
+                      externalReference:
+                        description: Seu identificador para esta divisão.
+                        type: string
+                      description:
+                        description: Descrição da divisão.
+                        type: string
+                    required:
+                    - walletId
+                callback:
+                  description: Redirecionamento do pagador após pagar a fatura.
+                  type: object
+                  properties:
+                    successUrl:
+                      description: URL de retorno após pagamento aprovado.
+                      type: string
+                    autoRedirect:
+                      description: true redireciona automaticamente; false mostra botão.
+                      type: boolean
+                  required:
+                  - successUrl
+                creditCard:
+                  description: Dados do cartão (tráfego exige ambiente PCI-DSS).
+                  type: object
+                  properties:
+                    holderName:
+                      description: Nome como impresso no cartão.
+                      type: string
+                    number:
+                      description: Número do cartão.
+                      type: string
+                    expiryMonth:
+                      description: Mês de validade com 2 dígitos.
+                      type: string
+                    expiryYear:
+                      description: Ano de validade com 4 dígitos.
+                      type: string
+                    ccv:
+                      description: Código de segurança.
+                      type: string
+                  required:
+                  - holderName
+                  - number
+                  - expiryMonth
+                  - expiryYear
+                  - ccv
+                creditCardHolderInfo:
+                  description: Dados do titular do cartão para antifraude.
+                  type: object
+                  properties:
+                    name:
+                      description: Nome do titular.
+                      type: string
+                    email:
+                      description: E-mail do titular.
+                      type: string
+                    cpfCnpj:
+                      description: CPF/CNPJ do titular.
+                      type: string
+                    postalCode:
+                      description: CEP do titular.
+                      type: string
+                    addressNumber:
+                      description: Número do endereço do titular.
+                      type: string
+                    addressComplement:
+                      description: Complemento do endereço do titular.
+                      type: string
+                    phone:
+                      description: Telefone com DDD do titular.
+                      type: string
+                    mobilePhone:
+                      description: Celular do titular.
+                      type: string
+                  required:
+                  - name
+                  - email
+                  - cpfCnpj
+                  - postalCode
+                  - addressNumber
+                  - phone
+                creditCardToken:
+                  description: Token de cartão obtido na tokenização (substitui os dados do cartão).
+                  type: string
+                remoteIp:
+                  description: IP público do comprador (não o do servidor).
+                  type: string
+              required:
+              - customer
+              - billingType
+              - value
+              - nextDueDate
+              - cycle
+              - creditCard
+              - creditCardHolderInfo
+              - remoteIp
+            example:
+              customer: cus_000000000001
+              billingType: CREDIT_CARD
+              value: 49.9
+              nextDueDate: '2026-09-17'
+              cycle: MONTHLY
+              creditCardToken: <<CREDIT_CARD_TOKEN>>
+              remoteIp: 203.0.113.10
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: subscription
+                id: sub_000000000001
+                customer: cus_000000000001
+                billingType: CREDIT_CARD
+                cycle: MONTHLY
+                value: 49.9
+                nextDueDate: '2026-10-05'
+                status: ACTIVE
+                deleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/subscriptions/{id}:
+    get:
+      operationId: asaas__assinatura__obter
+      summary: Recuperar uma única assinatura
+      description: Retorna a assinatura com ciclo, valor, próximo vencimento, status e split.
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-uma-unica-assinatura
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: *id005
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+    put:
+      operationId: asaas__assinatura__atualizar
+      summary: Atualizar assinatura existente
+      description: Altera valor, ciclo, forma de pagamento, próximo vencimento, status (ACTIVE/INACTIVE) e split; com updatePendingPayments=true
+        propaga para cobranças pendentes.
+      tags:
+      - Assinatura
+      x-confianca: inferido
+      x-fonte-url: https://docs.asaas.com/reference/atualizar-assinatura-existente
+      x-acao-canonica: atualizar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                billingType:
+                  description: 'Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).'
+                  type: string
+                  enum:
+                  - UNDEFINED
+                  - BOLETO
+                  - CREDIT_CARD
+                  - PIX
+                status:
+                  description: Situação do registro (valores no enum).
+                  type: string
+                  enum:
+                  - ACTIVE
+                  - INACTIVE
+                nextDueDate:
+                  description: Vencimento da primeira (ou próxima) cobrança.
+                  type: string
+                  format: date
+                discount:
+                  description: Objeto de desconto por pagamento antecipado.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual do desconto.
+                      type: number
+                    dueDateLimitDays:
+                      description: Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).
+                      type: integer
+                    type:
+                      description: FIXED (valor) ou PERCENTAGE (percentual).
+                      type: string
+                      enum: *id003
+                interest:
+                  description: Objeto de juros por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Percentual de juros ao mês após o vencimento.
+                      type: number
+                fine:
+                  description: Objeto de multa por atraso.
+                  type: object
+                  properties:
+                    value:
+                      description: Valor ou percentual da multa.
+                      type: number
+                    type:
+                      description: FIXED ou PERCENTAGE.
+                      type: string
+                      enum: *id004
+                cycle:
+                  description: 'Periodicidade: WEEKLY, BIWEEKLY, MONTHLY, BIMONTHLY, QUARTERLY, SEMIANNUALLY ou YEARLY.'
+                  type: string
+                  enum:
+                  - WEEKLY
+                  - BIWEEKLY
+                  - MONTHLY
+                  - BIMONTHLY
+                  - QUARTERLY
+                  - SEMIANNUALLY
+                  - YEARLY
+                description:
+                  description: Texto descritivo (até 500 caracteres onde aplicável).
+                  type: string
+                endDate:
+                  description: Último vencimento permitido para a recorrência.
+                  type: string
+                  format: date
+                updatePendingPayments:
+                  description: true aplica a alteração também às cobranças pendentes.
+                  type: boolean
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+                split:
+                  description: Lista de divisões do valor recebido entre carteiras Asaas.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      walletId:
+                        description: walletId da conta que recebe a parte.
+                        type: string
+                      fixedValue:
+                        description: Parte em valor fixo.
+                        type: number
+                      percentualValue:
+                        description: Parte em percentual do valor líquido.
+                        type: number
+                      externalReference:
+                        description: Seu identificador para esta divisão.
+                        type: string
+                      description:
+                        description: Descrição da divisão.
+                        type: string
+                    required:
+                    - walletId
+                callback:
+                  description: Redirecionamento do pagador após pagar a fatura.
+                  type: object
+                  properties:
+                    successUrl:
+                      description: URL de retorno após pagamento aprovado.
+                      type: string
+                    autoRedirect:
+                      description: true redireciona automaticamente; false mostra botão.
+                      type: boolean
+                  required:
+                  - successUrl
+            example:
+              value: 129.9
+              updatePendingPayments: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: subscription
+                id: sub_000000000001
+                customer: cus_000000000001
+                billingType: PIX
+                cycle: MONTHLY
+                value: 129.9
+                nextDueDate: '2026-10-05'
+                status: ACTIVE
+                deleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+    delete:
+      operationId: asaas__assinatura__cancelar
+      summary: Remover assinatura
+      description: Remove a assinatura, interrompendo a geração de novas cobranças.
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/remover-assinatura
+      x-acao-canonica: cancelar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                deleted: true
+                id: sub_000000000001
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/subscriptions/{id}/payments:
+    get:
+      operationId: asaas__cobranca__listar__assinatura
+      summary: Listar cobranças de uma assinatura
+      description: Lista as cobranças geradas por uma assinatura, com filtro por status.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/listar-cobrancas-de-uma-assinatura
+      x-acao-canonica: listar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Filtra as cobranças por status.
+        schema:
+          type: string
+          enum:
+          - PENDING
+          - RECEIVED
+          - CONFIRMED
+          - OVERDUE
+          - REFUNDED
+          - RECEIVED_IN_CASH
+          - REFUND_REQUESTED
+          - REFUND_IN_PROGRESS
+          - CHARGEBACK_REQUESTED
+          - CHARGEBACK_DISPUTE
+          - AWAITING_CHARGEBACK_REVERSAL
+          - DUNNING_REQUESTED
+          - DUNNING_RECEIVED
+          - AWAITING_RISK_ANALYSIS
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: list
+                hasMore: false
+                totalCount: 1
+                limit: 10
+                offset: 0
+                data:
+                - object: payment
+                  id: pay_000000000001
+                  dateCreated: '2026-09-17'
+                  customer: cus_000000000001
+                  value: 150.0
+                  netValue: 148.01
+                  billingType: PIX
+                  status: PENDING
+                  dueDate: '2026-09-30'
+                  invoiceUrl: https://sandbox.asaas.com/i/000000000001
+                  bankSlipUrl: https://sandbox.asaas.com/b/pdf/000000000001
+                  nossoNumero: '0000001'
+                  externalReference: PEDIDO-123
+                  deleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/pix/addressKeys:
+    post:
+      operationId: asaas__empresa__criar__chave_pix
+      summary: Criar uma chave
+      description: Cadastra uma chave Pix aleatória (type=EVP) na conta Asaas.
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/criar-uma-chave
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  description: Tipo da chave; só EVP (aleatória) é aceito.
+                  type: string
+                  enum:
+                  - EVP
+              required:
+              - type
+            example:
+              type: EVP
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 00000000-0000-0000-0000-00000000000c
+                key: 00000000-0000-0000-0000-00000000000d
+                type: EVP
+                status: AWAITING_ACTIVATION
+                canBeDeleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+    get:
+      operationId: asaas__empresa__listar__chave_pix
+      summary: Listar chaves
+      description: Lista as chaves Pix da conta com filtro de status.
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/listar-chaves
+      x-acao-canonica: listar
+      security:
+      - accessToken: []
+      parameters:
+      - name: offset
+        in: query
+        required: false
+        description: Posição inicial da página (começa em 0).
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Tamanho da página; 1 a 100, padrão 10.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+      - name: status
+        in: query
+        required: false
+        description: Filtra pelo status da chave.
+        schema:
+          type: string
+          enum:
+          - AWAITING_ACTIVATION
+          - ACTIVE
+          - AWAITING_DELETION
+          - AWAITING_ACCOUNT_DELETION
+          - DELETED
+          - ERROR
+      - name: statusList
+        in: query
+        required: false
+        description: Um ou mais status separados por vírgula.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                data:
+                - id: 00000000-0000-0000-0000-00000000000c
+                  key: 00000000-0000-0000-0000-00000000000d
+                  type: EVP
+                  status: ACTIVE
+                  canBeDeleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/pix/addressKeys/{id}:
+    get:
+      operationId: asaas__empresa__obter__chave_pix
+      summary: Recuperar uma única chave
+      description: Consulta uma chave Pix da conta pelo id, incluindo status e se pode ser removida.
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-uma-unica-chave
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 00000000-0000-0000-0000-00000000000c
+                key: 00000000-0000-0000-0000-00000000000d
+                type: EVP
+                status: ACTIVE
+                canBeDeleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+    delete:
+      operationId: asaas__empresa__excluir__chave_pix
+      summary: Remover chave
+      description: Solicita a remoção de uma chave Pix da conta.
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/remover-chave
+      x-acao-canonica: excluir
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 00000000-0000-0000-0000-00000000000c
+                key: 00000000-0000-0000-0000-00000000000d
+                type: EVP
+                status: AWAITING_DELETION
+                canBeDeleted: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/pix/qrCodes/static:
+    post:
+      operationId: asaas__cobranca__criar__pix_qrcode_estatico
+      summary: Criar QR Code estático
+      description: Gera um QR Code Pix estático para uma chave da conta, com valor fixo ou livre, que pode receber vários pagamentos; cada pagamento
+        vira uma cobrança automaticamente.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/criar-qrcode-estatico
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                addressKey:
+                  description: Chave Pix da conta que receberá os pagamentos.
+                  type: string
+                description:
+                  description: Descrição exibida ao pagador.
+                  type: string
+                value:
+                  description: Valor fixo; omitido = pagador define.
+                  type: number
+                format:
+                  description: 'Formato retornado: ALL, IMAGE ou PAYLOAD.'
+                  type: string
+                  enum:
+                  - ALL
+                  - IMAGE
+                  - PAYLOAD
+                expirationDate:
+                  description: Data/hora após a qual pagamentos são recusados.
+                  type: string
+                expirationSeconds:
+                  description: Expiração em segundos (alternativa à data).
+                  type: integer
+                allowsMultiplePayments:
+                  description: Se o QR aceita vários pagamentos (padrão true).
+                  type: boolean
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+            example:
+              addressKey: 00000000-0000-0000-0000-00000000000d
+              description: Evento beneficente
+              value: 50.0
+              format: ALL
+              allowsMultiplePayments: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 0000000000000000000000000000000a
+                encodedImage: <<BASE64_PNG>>
+                payload: 00020126...6304ABCD
+                allowsMultiplePayments: true
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/pix/qrCodes/pay:
+    post:
+      operationId: asaas__pagamento__criar__pix_qrcode
+      summary: Pagar um QRCode
+      description: Paga um QR Code Pix de terceiros (copia-e-cola) usando o saldo da conta, com opção de agendamento.
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/pagar-um-qrcode
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                qrCode:
+                  description: QR Code a pagar.
+                  type: object
+                  properties:
+                    payload:
+                      description: Código Pix copia-e-cola.
+                      type: string
+                    changeValue:
+                      description: Valor de troco (QR Code Troco).
+                      type: number
+                  required:
+                  - payload
+                value:
+                  description: Valor a pagar.
+                  type: number
+                description:
+                  description: Descrição do pagamento.
+                  type: string
+                scheduleDate:
+                  description: Data de agendamento; vazio = imediato.
+                  type: string
+                  format: date
+              required:
+              - qrCode
+              - value
+            example:
+              qrCode:
+                payload: 00020126...6304ABCD
+              value: 50.0
+              description: Fornecedor X
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 00000000-0000-0000-0000-00000000000b
+                endToEndIdentifier: null
+                value: 50.0
+                status: AWAITING_REQUEST
+                type: DEBIT
+                canBeCanceled: true
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/pix/qrCodes/decode:
+    post:
+      operationId: asaas__pagamento__validar__pix_qrcode
+      summary: Decodificar um QRCode para pagamento
+      description: Lê um payload Pix e devolve recebedor, valor, juros/multa/desconto, vencimento e se pode ser pago (canBePaid), sem movimentar
+        dinheiro.
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/decodificar-um-qrcode-para-pagamento
+      x-acao-canonica: validar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  description: Código Pix copia-e-cola a decodificar.
+                  type: string
+                changeValue:
+                  description: Valor de troco (QR Code Troco).
+                  type: number
+                expectedPaymentDate:
+                  description: Data em que pretende pagar (afeta juros/multa calculados).
+                  type: string
+                  format: date
+              required:
+              - payload
+            example:
+              payload: 00020126...6304ABCD
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                type: DYNAMIC
+                value: 50.0
+                totalValue: 50.0
+                canBePaid: true
+                receiver:
+                  name: Fornecedor Exemplo
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/pix/transactions:
+    get:
+      operationId: asaas__transacao__listar__pix
+      summary: Listar transações
+      description: Lista transações Pix (débitos, créditos e devoluções) com filtros por status, tipo e endToEndIdentifier.
+      tags:
+      - Transacao
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/listar-transacoes
+      x-acao-canonica: listar
+      security:
+      - accessToken: []
+      parameters:
+      - name: offset
+        in: query
+        required: false
+        description: Posição inicial da página (começa em 0).
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Tamanho da página; 1 a 100, padrão 10.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+      - name: status
+        in: query
+        required: false
+        description: Filtra pelo status da transação.
+        schema:
+          type: string
+          enum:
+          - AWAITING_BALANCE_VALIDATION
+          - AWAITING_INSTANT_PAYMENT_ACCOUNT_BALANCE
+          - AWAITING_CRITICAL_ACTION_AUTHORIZATION
+          - AWAITING_CHECKOUT_RISK_ANALYSIS_REQUEST
+          - AWAITING_CASH_IN_RISK_ANALYSIS_REQUEST
+          - SCHEDULED
+          - AWAITING_REQUEST
+          - REQUESTED
+          - DONE
+          - REFUSED
+          - CANCELLED
+      - name: type
+        in: query
+        required: false
+        description: DEBIT, CREDIT ou tipos de devolução.
+        schema:
+          type: string
+          enum:
+          - DEBIT
+          - CREDIT
+          - CREDIT_REFUND
+          - DEBIT_REFUND
+          - DEBIT_REFUND_CANCELLATION
+      - name: endToEndIdentifier
+        in: query
+        required: false
+        description: Filtra pelo EndToEndId.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: list
+                hasMore: false
+                totalCount: 1
+                limit: 10
+                offset: 0
+                data:
+                - id: 00000000-0000-0000-0000-00000000000b
+                  endToEndIdentifier: E00000000202609171200000000000001
+                  value: 50.0
+                  status: DONE
+                  type: DEBIT
+                  canBeCanceled: true
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/pix/transactions/{id}:
+    get:
+      operationId: asaas__transacao__obter__pix
+      summary: Recuperar uma única transação
+      description: Retorna uma transação Pix com status, E2E, comprovante, motivo de recusa e se pode ser cancelada/estornada.
+      tags:
+      - Transacao
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-uma-unica-transacao
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 00000000-0000-0000-0000-00000000000b
+                endToEndIdentifier: null
+                value: 50.0
+                status: DONE
+                type: DEBIT
+                canBeCanceled: true
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/pix/transactions/{id}/cancel:
+    post:
+      operationId: asaas__pagamento__cancelar__pix_agendado
+      summary: Cancelar uma transação agendada
+      description: Cancela uma transação Pix agendada que ainda não foi efetivada.
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/cancelar-uma-transacao-agendada
+      x-acao-canonica: cancelar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 00000000-0000-0000-0000-00000000000b
+                endToEndIdentifier: null
+                value: 50.0
+                status: CANCELLED
+                type: DEBIT
+                canBeCanceled: false
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/transfers:
+    post:
+      operationId: asaas__pagamento__criar__transferencia
+      summary: Transferir para conta de outra Instituição ou chave Pix
+      description: Envia dinheiro do saldo para chave Pix (pixAddressKey + pixAddressKeyType) ou conta bancária (bankAccount) via PIX ou TED,
+        com agendamento e recorrência Pix opcionais.
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/transferir-para-conta-de-outra-instituicao-ou-chave-pix
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  description: Valor a transferir.
+                  type: number
+                bankAccount:
+                  description: Conta bancária de destino (quando não for chave Pix).
+                  type: object
+                  properties:
+                    bank:
+                      description: Objeto com o banco de destino (código COMPE).
+                      type: object
+                    accountName:
+                      description: Apelido da conta.
+                      type: string
+                    ownerName:
+                      description: Titular da conta de destino.
+                      type: string
+                    ownerBirthDate:
+                      description: Nascimento do titular (quando a conta não é do mesmo CPF/CNPJ).
+                      type: string
+                      format: date
+                    cpfCnpj:
+                      description: CPF/CNPJ do titular da conta de destino.
+                      type: string
+                    agency:
+                      description: Agência sem dígito.
+                      type: string
+                    account:
+                      description: Conta sem dígito.
+                      type: string
+                    accountDigit:
+                      description: Dígito da conta.
+                      type: string
+                    bankAccountType:
+                      description: CONTA_CORRENTE ou CONTA_POUPANCA.
+                      type: string
+                      enum:
+                      - CONTA_CORRENTE
+                      - CONTA_POUPANCA
+                    ispb:
+                      description: ISPB da instituição de destino.
+                      type: string
+                  required:
+                  - ownerName
+                  - cpfCnpj
+                  - agency
+                  - account
+                  - accountDigit
+                operationType:
+                  description: PIX ou TED; se omitido o Asaas escolhe conforme o banco destino.
+                  type: string
+                  enum:
+                  - PIX
+                  - TED
+                pixAddressKey:
+                  description: Chave Pix de destino.
+                  type: string
+                pixAddressKeyType:
+                  description: 'Tipo da chave: CPF, CNPJ, EMAIL, PHONE ou EVP.'
+                  type: string
+                  enum:
+                  - CPF
+                  - CNPJ
+                  - EMAIL
+                  - PHONE
+                  - EVP
+                description:
+                  description: Descrição (aceita em Pix).
+                  type: string
+                scheduleDate:
+                  description: Data de agendamento; vazio = imediato.
+                  type: string
+                  format: date
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+                recurring:
+                  description: Repetição da transferência (só Pix).
+                  type: object
+                  properties:
+                    frequency:
+                      description: WEEKLY ou MONTHLY.
+                      type: string
+                      enum:
+                      - WEEKLY
+                      - MONTHLY
+                    quantity:
+                      description: Quantas vezes repetir.
+                      type: integer
+              required:
+              - value
+            example:
+              value: 250.0
+              operationType: PIX
+              pixAddressKey: financeiro@example.com
+              pixAddressKeyType: EMAIL
+              description: Repasse setembro
+              externalReference: REPASSE-77
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: &id006
+                object: transfer
+                id: 00000000-0000-0000-0000-00000000000a
+                type: PIX
+                value: 250.0
+                netValue: 250.0
+                status: PENDING
+                transferFee: 0
+                operationType: PIX
+                externalReference: REPASSE-77
+                authorized: true
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+    get:
+      operationId: asaas__pagamento__listar__transferencia
+      summary: Listar transferências
+      description: Lista transferências com filtros de data de criação, data de efetivação e tipo.
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/listar-transferencias
+      x-acao-canonica: listar
+      security:
+      - accessToken: []
+      parameters:
+      - name: dateCreated[ge]
+        in: query
+        required: false
+        description: Criadas a partir desta data (AAAA-MM-DD).
+        schema:
+          type: string
+      - name: dateCreated[le]
+        in: query
+        required: false
+        description: Criadas até esta data.
+        schema:
+          type: string
+      - name: transferDate[ge]
+        in: query
+        required: false
+        description: Efetivadas a partir desta data.
+        schema:
+          type: string
+      - name: transferDate[le]
+        in: query
+        required: false
+        description: Efetivadas até esta data.
+        schema:
+          type: string
+      - name: type
+        in: query
+        required: false
+        description: Filtra por tipo de transferência.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: list
+                hasMore: false
+                totalCount: 1
+                limit: 10
+                offset: 0
+                data:
+                - *id006
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/transfers/:
+    post:
+      operationId: asaas__pagamento__criar__transferencia_asaas
+      summary: Transferir para conta Asaas
+      description: 'Transfere saldo para outra conta Asaas identificada pelo walletId (ex.: subconta).'
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/transferir-para-conta-asaas
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  description: Valor a transferir.
+                  type: number
+                walletId:
+                  description: walletId da conta Asaas de destino.
+                  type: string
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+              required:
+              - value
+              - walletId
+            example:
+              value: 100.0
+              walletId: 00000000-0000-0000-0000-000000000010
+              externalReference: AJUSTE-1
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: transfer
+                id: 00000000-0000-0000-0000-00000000000a
+                type: ASAAS_ACCOUNT
+                value: 250.0
+                netValue: 250.0
+                status: PENDING
+                transferFee: 0
+                operationType: PIX
+                externalReference: REPASSE-77
+                authorized: true
+                walletId: 00000000-0000-0000-0000-000000000010
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/transfers/{id}:
+    get:
+      operationId: asaas__pagamento__obter__transferencia
+      summary: Recuperar uma única transferência
+      description: Consulta status, taxa, E2E, motivo de falha e comprovante de uma transferência.
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-uma-unica-transferencia
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: transfer
+                id: 00000000-0000-0000-0000-00000000000a
+                type: PIX
+                value: 250.0
+                netValue: 250.0
+                status: DONE
+                transferFee: 0
+                operationType: PIX
+                externalReference: REPASSE-77
+                authorized: true
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/transfers/{id}/cancel:
+    delete:
+      operationId: asaas__pagamento__cancelar__transferencia
+      summary: Cancelar uma transferência
+      description: 'Cancela uma transferência ainda não efetivada (ex.: agendada ou pendente).'
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/cancelar-uma-transfer%C3%AAncia
+      x-acao-canonica: cancelar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: transfer
+                id: 00000000-0000-0000-0000-00000000000a
+                type: PIX
+                value: 250.0
+                netValue: 250.0
+                status: CANCELLED
+                transferFee: 0
+                operationType: PIX
+                externalReference: REPASSE-77
+                authorized: true
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/financialTransactions:
+    get:
+      operationId: asaas__transacao__listar
+      summary: Recuperar extrato
+      description: Retorna o extrato da conta (lançamentos de entrada e saída) entre startDate e finishDate, paginado.
+      tags:
+      - Transacao
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-extrato
+      x-acao-canonica: listar
+      security:
+      - accessToken: []
+      parameters:
+      - name: offset
+        in: query
+        required: false
+        description: Posição inicial da página (começa em 0).
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Tamanho da página; 1 a 100, padrão 10.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+      - name: startDate
+        in: query
+        required: false
+        description: Início do período (AAAA-MM-DD).
+        schema:
+          type: string
+      - name: finishDate
+        in: query
+        required: false
+        description: Fim do período (AAAA-MM-DD).
+        schema:
+          type: string
+      - name: order
+        in: query
+        required: false
+        description: Direção da ordenação (asc/desc).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: list
+                hasMore: false
+                totalCount: 1
+                limit: 10
+                offset: 0
+                data:
+                - object: financialTransaction
+                  id: ft_000000000001
+                  value: 148.01
+                  balance: 1148.01
+                  type: PAYMENT_RECEIVED
+                  date: '2026-09-25'
+                  description: Cobrança recebida
+                  paymentId: pay_000000000001
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/finance/balance:
+    get:
+      operationId: asaas__empresa__obter__saldo
+      summary: Recuperar saldo da conta
+      description: Retorna o saldo disponível (balance) da conta autenticada.
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-saldo-da-conta
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                balance: 1148.01
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/invoices:
+    post:
+      operationId: asaas__nota_fiscal__criar__nfse
+      summary: Agendar nota fiscal
+      description: Agenda a emissão de uma NFS-e vinculada a uma cobrança, parcelamento ou apenas a um cliente, com descrição do serviço, valor,
+        deduções, data de emissão e impostos.
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/agendar-nota-fiscal
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment:
+                  description: Id da cobrança (pay_...).
+                  type: string
+                installment:
+                  description: Id do parcelamento a que a nota se refere.
+                  type: string
+                customer:
+                  description: Id do cliente tomador (quando não há cobrança).
+                  type: string
+                serviceDescription:
+                  description: Descrição do serviço prestado na NFS-e.
+                  type: string
+                observations:
+                  description: Texto livre de observações.
+                  type: string
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+                value:
+                  description: Valor total dos serviços.
+                  type: number
+                deductions:
+                  description: Deduções da base de cálculo (não mudam o valor total).
+                  type: number
+                effectiveDate:
+                  description: Data de emissão da nota.
+                  type: string
+                  format: date
+                municipalServiceId:
+                  description: Id do serviço municipal (lista de serviços da prefeitura).
+                  type: string
+                municipalServiceCode:
+                  description: Código do serviço municipal (LC 116).
+                  type: string
+                municipalServiceName:
+                  description: Nome do serviço municipal.
+                  type: string
+                updatePayment:
+                  description: true desconta os impostos no valor da cobrança vinculada.
+                  type: boolean
+                taxes:
+                  description: Objeto de tributos da nota.
+                  type: object
+                  properties:
+                    nbsCode:
+                      description: Código NBS do serviço.
+                      type: string
+                    taxSituationCode:
+                      description: Código de situação tributária (Reforma Tributária).
+                      type: string
+                    taxClassificationCode:
+                      description: Código de classificação tributária.
+                      type: string
+                    operationIndicatorCode:
+                      description: Código do indicador de operação.
+                      type: string
+                    retainIss:
+                      description: Se o tomador retém o ISS.
+                      type: boolean
+                    iss:
+                      description: Alíquota de ISS (%).
+                      type: number
+                    pisCofinsRetentionType:
+                      description: Calculado pelo Asaas; não enviar.
+                      type: string
+                    pisCofinsTaxStatus:
+                      description: Situação tributária de PIS/COFINS.
+                      type: string
+                    operationPis:
+                      description: Alíquota PIS de apuração própria.
+                      type: number
+                    operationCofins:
+                      description: Alíquota COFINS de apuração própria.
+                      type: number
+                    pis:
+                      description: Alíquota PIS retida (%).
+                      type: number
+                    cofins:
+                      description: Alíquota COFINS retida (%).
+                      type: number
+                    csll:
+                      description: Alíquota CSLL (%).
+                      type: number
+                    inss:
+                      description: Alíquota INSS (%).
+                      type: number
+                    ir:
+                      description: Alíquota IR (%).
+                      type: number
+                    operationTypeCode:
+                      description: Tipo de operação da Reforma Tributária (exigido em alguns serviços).
+                      type: integer
+                    referencedInvoiceAccessKeyList:
+                      description: Chaves de NFS-e referenciadas.
+                      type: array
+                      items:
+                        type: string
+                    realEstateInfo:
+                      description: Dados do imóvel para operações imobiliárias.
+                      type: object
+                  required:
+                  - retainIss
+                  - iss
+                  - pis
+                  - cofins
+                  - csll
+                  - inss
+                  - ir
+              required:
+              - serviceDescription
+              - observations
+              - value
+              - deductions
+              - effectiveDate
+              - municipalServiceName
+              - taxes
+            example:
+              payment: pay_000000000001
+              serviceDescription: Consultoria em TI - setembro
+              observations: Pedido 123
+              value: 300.0
+              deductions: 0
+              effectiveDate: '2026-09-20'
+              municipalServiceName: Suporte técnico em informática
+              municipalServiceCode: '1.07'
+              taxes:
+                retainIss: false
+                iss: 2
+                pis: 0
+                cofins: 0
+                csll: 0
+                inss: 0
+                ir: 0
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: &id007
+                object: invoice
+                id: inv_000000000001
+                status: SCHEDULED
+                customer: cus_000000000001
+                payment: pay_000000000001
+                value: 300.0
+                effectiveDate: '2026-09-20'
+                pdfUrl: null
+                xmlUrl: null
+                number: null
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+    get:
+      operationId: asaas__nota_fiscal__listar__nfse
+      summary: Listar notas fiscais
+      description: Lista NFS-e com filtros por data de emissão (effectiveDate[Ge]/[Le]), cobrança, parcelamento, cliente, status e externalReference.
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/listar-notas-fiscais
+      x-acao-canonica: listar
+      security:
+      - accessToken: []
+      parameters:
+      - name: offset
+        in: query
+        required: false
+        description: Posição inicial da página (começa em 0).
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Tamanho da página; 1 a 100, padrão 10.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+      - name: effectiveDate[Ge]
+        in: query
+        required: false
+        description: Emitidas a partir desta data.
+        schema:
+          type: string
+      - name: effectiveDate[Le]
+        in: query
+        required: false
+        description: Emitidas até esta data.
+        schema:
+          type: string
+      - name: payment
+        in: query
+        required: false
+        description: Filtra pela cobrança.
+        schema:
+          type: string
+      - name: installment
+        in: query
+        required: false
+        description: Filtra pelo parcelamento.
+        schema:
+          type: string
+      - name: externalReference
+        in: query
+        required: false
+        description: Filtra pelo seu identificador.
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro (valores no enum).
+        schema:
+          type: string
+          enum:
+          - SCHEDULED
+          - AUTHORIZED
+          - PROCESSING_CANCELLATION
+          - CANCELED
+          - CANCELLATION_DENIED
+          - ERROR
+      - name: customer
+        in: query
+        required: false
+        description: Filtra pelo cliente.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: list
+                hasMore: false
+                totalCount: 1
+                limit: 10
+                offset: 0
+                data:
+                - object: invoice
+                  id: inv_000000000001
+                  status: AUTHORIZED
+                  customer: cus_000000000001
+                  payment: pay_000000000001
+                  value: 300.0
+                  effectiveDate: '2026-09-20'
+                  pdfUrl: null
+                  xmlUrl: null
+                  number: '123'
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/invoices/{id}:
+    get:
+      operationId: asaas__nota_fiscal__obter__nfse
+      summary: Recuperar uma única nota fiscal
+      description: Retorna a NFS-e com status, número, código de verificação, links de PDF/XML e impostos.
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-uma-nota-fiscal
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: invoice
+                id: inv_000000000001
+                status: AUTHORIZED
+                customer: cus_000000000001
+                payment: pay_000000000001
+                value: 300.0
+                effectiveDate: '2026-09-20'
+                pdfUrl: https://sandbox.asaas.com/nota/pdf/000000000001
+                xmlUrl: null
+                number: '123'
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+    put:
+      operationId: asaas__nota_fiscal__atualizar__nfse
+      summary: Atualizar nota fiscal
+      description: Altera uma nota agendada (descrição, valor, deduções, data, impostos).
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/atualizar-nota-fiscal
+      x-acao-canonica: atualizar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                serviceDescription:
+                  description: Descrição do serviço prestado na NFS-e.
+                  type: string
+                observations:
+                  description: Texto livre de observações.
+                  type: string
+                externalReference:
+                  description: Seu identificador interno para este registro; útil em buscas e conciliação.
+                  type: string
+                value:
+                  description: Valor total dos serviços.
+                  type: number
+                deductions:
+                  description: Deduções da base de cálculo (não mudam o valor total).
+                  type: number
+                effectiveDate:
+                  description: Data de emissão da nota.
+                  type: string
+                  format: date
+                updatePayment:
+                  description: true desconta os impostos no valor da cobrança vinculada.
+                  type: boolean
+                taxes:
+                  description: Objeto de tributos da nota.
+                  type: object
+                  properties:
+                    nbsCode:
+                      description: Código NBS do serviço.
+                      type: string
+                    taxSituationCode:
+                      description: Código de situação tributária (Reforma Tributária).
+                      type: string
+                    taxClassificationCode:
+                      description: Código de classificação tributária.
+                      type: string
+                    operationIndicatorCode:
+                      description: Código do indicador de operação.
+                      type: string
+                    retainIss:
+                      description: Se o tomador retém o ISS.
+                      type: boolean
+                    iss:
+                      description: Alíquota de ISS (%).
+                      type: number
+                    pisCofinsRetentionType:
+                      description: Calculado pelo Asaas; não enviar.
+                      type: string
+                    pisCofinsTaxStatus:
+                      description: Situação tributária de PIS/COFINS.
+                      type: string
+                    operationPis:
+                      description: Alíquota PIS de apuração própria.
+                      type: number
+                    operationCofins:
+                      description: Alíquota COFINS de apuração própria.
+                      type: number
+                    pis:
+                      description: Alíquota PIS retida (%).
+                      type: number
+                    cofins:
+                      description: Alíquota COFINS retida (%).
+                      type: number
+                    csll:
+                      description: Alíquota CSLL (%).
+                      type: number
+                    inss:
+                      description: Alíquota INSS (%).
+                      type: number
+                    ir:
+                      description: Alíquota IR (%).
+                      type: number
+                    operationTypeCode:
+                      description: Tipo de operação da Reforma Tributária (exigido em alguns serviços).
+                      type: integer
+                    referencedInvoiceAccessKeyList:
+                      description: Chaves de NFS-e referenciadas.
+                      type: array
+                      items:
+                        type: string
+                    realEstateInfo:
+                      description: Dados do imóvel para operações imobiliárias.
+                      type: object
+                  required:
+                  - retainIss
+                  - iss
+                  - pis
+                  - cofins
+                  - csll
+                  - inss
+                  - ir
+            example:
+              serviceDescription: Consultoria em TI - setembro (revisado)
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: *id007
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/invoices/{id}/authorize:
+    post:
+      operationId: asaas__nota_fiscal__emitir__nfse
+      summary: Emitir uma nota fiscal
+      description: Solicita a emissão imediata de uma nota agendada junto à prefeitura/portal nacional.
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/emitir-uma-nota-fiscal
+      x-acao-canonica: emitir
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: invoice
+                id: inv_000000000001
+                status: SCHEDULED
+                customer: cus_000000000001
+                payment: pay_000000000001
+                value: 300.0
+                effectiveDate: '2026-09-20'
+                pdfUrl: null
+                xmlUrl: null
+                number: null
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/invoices/{id}/cancel:
+    post:
+      operationId: asaas__nota_fiscal__cancelar__nfse
+      summary: Cancelar uma nota fiscal
+      description: Solicita o cancelamento de uma NFS-e; com cancelOnlyOnAsaas=true cancela apenas o registro no Asaas.
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/cancelar-uma-nota-fiscal
+      x-acao-canonica: cancelar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cancelOnlyOnAsaas:
+                  description: true cancela só no Asaas, sem pedir cancelamento à prefeitura.
+                  type: boolean
+            example:
+              cancelOnlyOnAsaas: false
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: invoice
+                id: inv_000000000001
+                status: PROCESSING_CANCELLATION
+                customer: cus_000000000001
+                payment: pay_000000000001
+                value: 300.0
+                effectiveDate: '2026-09-20'
+                pdfUrl: null
+                xmlUrl: null
+                number: null
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/accounts:
+    post:
+      operationId: asaas__empresa__criar__subconta
+      summary: Criar subconta
+      description: Cria uma subconta vinculada (marketplace, SaaS, filiais). A resposta traz walletId e a apiKey da subconta, exibida só nesse
+        momento; webhooks podem ser configurados no mesmo POST.
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/criar-subconta
+      x-acao-canonica: criar
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  description: Nome/razão social da subconta.
+                  type: string
+                email:
+                  description: E-mail da subconta.
+                  type: string
+                loginEmail:
+                  description: 'E-mail de login da subconta (padrão: email).'
+                  type: string
+                cpfCnpj:
+                  description: CPF/CNPJ do titular da subconta.
+                  type: string
+                birthDate:
+                  description: Data de nascimento (pessoa física).
+                  type: string
+                  format: date
+                companyType:
+                  description: 'Natureza jurídica: MEI, LIMITED, INDIVIDUAL ou ASSOCIATION.'
+                  type: string
+                  enum:
+                  - MEI
+                  - LIMITED
+                  - INDIVIDUAL
+                  - ASSOCIATION
+                phone:
+                  description: Telefone fixo com DDD.
+                  type: string
+                mobilePhone:
+                  description: Celular com DDD.
+                  type: string
+                site:
+                  description: Site da subconta.
+                  type: string
+                incomeValue:
+                  description: Faturamento ou renda mensal declarada.
+                  type: number
+                address:
+                  description: Logradouro (rua/avenida).
+                  type: string
+                addressNumber:
+                  description: Número do endereço.
+                  type: string
+                complement:
+                  description: Complemento do endereço (até 255 caracteres).
+                  type: string
+                province:
+                  description: Bairro.
+                  type: string
+                postalCode:
+                  description: CEP, somente dígitos.
+                  type: string
+                webhooks:
+                  description: Webhooks a criar junto com a subconta (mesmos campos de POST /v3/webhooks).
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        description: Nome do webhook.
+                        type: string
+                      url:
+                        description: URL que recebe os eventos.
+                        type: string
+                      email:
+                        description: E-mail para alertas de falha.
+                        type: string
+                      enabled:
+                        description: Webhook ativo.
+                        type: boolean
+                      interrupted:
+                        description: Estado da fila (false = ativa).
+                        type: boolean
+                      apiVersion:
+                        description: Versão da API (3).
+                        type: integer
+                      authToken:
+                        description: Token enviado no header asaas-access-token.
+                        type: string
+                      sendType:
+                        description: SEQUENTIALLY ou NON_SEQUENTIALLY.
+                        type: string
+                        enum: &id009
+                        - NON_SEQUENTIALLY
+                        - SEQUENTIALLY
+                      events:
+                        description: Eventos assinados.
+                        type: array
+                        items:
+                          type: string
+                          enum: &id010
+                          - PAYMENT_AUTHORIZED
+                          - PAYMENT_AWAITING_RISK_ANALYSIS
+                          - PAYMENT_APPROVED_BY_RISK_ANALYSIS
+                          - PAYMENT_REPROVED_BY_RISK_ANALYSIS
+                          - PAYMENT_CREATED
+                          - PAYMENT_UPDATED
+                          - PAYMENT_CONFIRMED
+                          - PAYMENT_RECEIVED
+                          - PAYMENT_ANTICIPATED
+                          - PAYMENT_OVERDUE
+                          - PAYMENT_DELETED
+                          - PAYMENT_RESTORED
+                          - PAYMENT_REFUNDED
+                          - PAYMENT_REFUND_IN_PROGRESS
+                          - PAYMENT_REFUND_DENIED
+                          - PAYMENT_RECEIVED_IN_CASH_UNDONE
+                          - PAYMENT_CHARGEBACK_REQUESTED
+                          - PAYMENT_CHARGEBACK_DISPUTE
+                          - PAYMENT_AWAITING_CHARGEBACK_REVERSAL
+                          - PAYMENT_DUNNING_RECEIVED
+                          - PAYMENT_DUNNING_REQUESTED
+                          - PAYMENT_BANK_SLIP_CANCELLED
+                          - PAYMENT_BANK_SLIP_VIEWED
+                          - PAYMENT_CHECKOUT_VIEWED
+                          - PAYMENT_CREDIT_CARD_CAPTURE_REFUSED
+                          - PAYMENT_PARTIALLY_REFUNDED
+                          - PAYMENT_SPLIT_CANCELLED
+                          - PAYMENT_SPLIT_DIVERGENCE_BLOCK
+                          - PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED
+                          - PAYMENT_SPLIT_DONE
+                          - INVOICE_CREATED
+                          - INVOICE_UPDATED
+                          - INVOICE_SYNCHRONIZED
+                          - INVOICE_AUTHORIZED
+                          - INVOICE_PROCESSING_CANCELLATION
+                          - INVOICE_CANCELED
+                          - INVOICE_CANCELLATION_DENIED
+                          - INVOICE_ERROR
+                          - TRANSFER_CREATED
+                          - TRANSFER_PENDING
+                          - TRANSFER_IN_BANK_PROCESSING
+                          - TRANSFER_BLOCKED
+                          - TRANSFER_DONE
+                          - TRANSFER_FAILED
+                          - TRANSFER_CANCELLED
+                          - BILL_CREATED
+                          - BILL_PENDING
+                          - BILL_BANK_PROCESSING
+                          - BILL_PAID
+                          - BILL_CANCELLED
+                          - BILL_FAILED
+                          - BILL_REFUNDED
+                          - RECEIVABLE_ANTICIPATION_CANCELLED
+                          - RECEIVABLE_ANTICIPATION_SCHEDULED
+                          - RECEIVABLE_ANTICIPATION_PENDING
+                          - RECEIVABLE_ANTICIPATION_CREDITED
+                          - RECEIVABLE_ANTICIPATION_DEBITED
+                          - RECEIVABLE_ANTICIPATION_DENIED
+                          - RECEIVABLE_ANTICIPATION_OVERDUE
+                          - MOBILE_PHONE_RECHARGE_PENDING
+                          - MOBILE_PHONE_RECHARGE_CANCELLED
+                          - MOBILE_PHONE_RECHARGE_CONFIRMED
+                          - MOBILE_PHONE_RECHARGE_REFUNDED
+                          - ACCOUNT_STATUS_BANK_ACCOUNT_INFO_APPROVED
+                          - ACCOUNT_STATUS_BANK_ACCOUNT_INFO_AWAITING_APPROVAL
+                          - ACCOUNT_STATUS_BANK_ACCOUNT_INFO_PENDING
+                          - ACCOUNT_STATUS_BANK_ACCOUNT_INFO_REJECTED
+                          - ACCOUNT_STATUS_COMMERCIAL_INFO_APPROVED
+                          - ACCOUNT_STATUS_COMMERCIAL_INFO_AWAITING_APPROVAL
+                          - ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRED
+                          - ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRING_SOON
+                          - ACCOUNT_STATUS_COMMERCIAL_INFO_PENDING
+                          - ACCOUNT_STATUS_COMMERCIAL_INFO_REJECTED
+                          - ACCOUNT_STATUS_DOCUMENT_APPROVED
+                          - ACCOUNT_STATUS_DOCUMENT_AWAITING_APPROVAL
+                          - ACCOUNT_STATUS_DOCUMENT_PENDING
+                          - ACCOUNT_STATUS_DOCUMENT_REJECTED
+                          - ACCOUNT_STATUS_GENERAL_APPROVAL_APPROVED
+                          - ACCOUNT_STATUS_GENERAL_APPROVAL_AWAITING_APPROVAL
+                          - ACCOUNT_STATUS_GENERAL_APPROVAL_PENDING
+                          - ACCOUNT_STATUS_GENERAL_APPROVAL_REJECTED
+                          - SUBSCRIPTION_CREATED
+                          - SUBSCRIPTION_UPDATED
+                          - SUBSCRIPTION_INACTIVATED
+                          - SUBSCRIPTION_DELETED
+                          - SUBSCRIPTION_SPLIT_DISABLED
+                          - SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK
+                          - SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK_FINISHED
+                          - CHECKOUT_CREATED
+                          - CHECKOUT_CANCELED
+                          - CHECKOUT_EXPIRED
+                          - CHECKOUT_PAID
+                          - BALANCE_VALUE_BLOCKED
+                          - BALANCE_VALUE_UNBLOCKED
+                          - INTERNAL_TRANSFER_CREDIT
+                          - INTERNAL_TRANSFER_DEBIT
+                          - ACCESS_TOKEN_CREATED
+                          - ACCESS_TOKEN_DELETED
+                          - ACCESS_TOKEN_DISABLED
+                          - ACCESS_TOKEN_ENABLED
+                          - ACCESS_TOKEN_EXPIRED
+                          - ACCESS_TOKEN_EXPIRING_SOON
+                          - PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CREATED
+                          - PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED
+                          - PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CANCELLED
+                          - PIX_AUTOMATIC_RECURRING_AUTHORIZATION_EXPIRED
+                          - PIX_AUTOMATIC_RECURRING_AUTHORIZATION_REFUSED
+                          - PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CREATED
+                          - PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_SCHEDULED
+                          - PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_REFUSED
+                          - PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CANCELLED
+                          - PIX_AUTOMATIC_RECURRING_ELIGIBILITY_UPDATED
+                    required:
+                    - name
+                    - url
+                    - email
+                    - enabled
+                    - interrupted
+                    - apiVersion
+                    - authToken
+                    - sendType
+                    - events
+              required:
+              - name
+              - email
+              - cpfCnpj
+              - mobilePhone
+              - incomeValue
+              - address
+              - addressNumber
+              - province
+              - postalCode
+            example:
+              name: Loja Parceira Ltda
+              email: loja@example.com
+              cpfCnpj: 00000000000191
+              companyType: LIMITED
+              mobilePhone: '11900000000'
+              incomeValue: 50000
+              address: Rua Exemplo
+              addressNumber: '100'
+              province: Centro
+              postalCode: '01001000'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: account
+                id: 00000000-0000-0000-0000-00000000000f
+                name: Loja Parceira Ltda
+                email: loja@example.com
+                cpfCnpj: 00000000000191
+                walletId: 00000000-0000-0000-0000-000000000010
+                personType: JURIDICA
+                companyType: LIMITED
+                accessToken: <<API_KEY_DA_SUBCONTA>>
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+    get:
+      operationId: asaas__empresa__listar__subconta
+      summary: Listar subcontas
+      description: Lista subcontas com filtros por CPF/CNPJ, e-mail, nome e walletId.
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/listar-subcontas
+      x-acao-canonica: listar
+      security:
+      - accessToken: []
+      parameters:
+      - name: offset
+        in: query
+        required: false
+        description: Posição inicial da página (começa em 0).
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Tamanho da página; 1 a 100, padrão 10.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+      - name: cpfCnpj
+        in: query
+        required: false
+        description: Filtra por CPF/CNPJ.
+        schema:
+          type: string
+      - name: email
+        in: query
+        required: false
+        description: Filtra por e-mail.
+        schema:
+          type: string
+      - name: name
+        in: query
+        required: false
+        description: Filtra por nome.
+        schema:
+          type: string
+      - name: walletId
+        in: query
+        required: false
+        description: Filtra por walletId.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: list
+                hasMore: false
+                totalCount: 1
+                limit: 10
+                offset: 0
+                data:
+                - &id008
+                  object: account
+                  id: 00000000-0000-0000-0000-00000000000f
+                  name: Loja Parceira Ltda
+                  email: loja@example.com
+                  cpfCnpj: 00000000000191
+                  walletId: 00000000-0000-0000-0000-000000000010
+                  personType: JURIDICA
+                  companyType: LIMITED
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/accounts/{id}:
+    get:
+      operationId: asaas__empresa__obter__subconta
+      summary: Recuperar uma única subconta
+      description: Retorna os dados cadastrais e o walletId de uma subconta.
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-uma-unica-subconta
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: *id008
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/accounts/{id}/accessTokens:
+    post:
+      operationId: asaas__autenticacao__autenticar__chave_subconta
+      summary: Criar chave de API para uma subconta
+      description: A conta-pai gera uma nova chave de API para uma subconta, com nome e expiração opcionais — útil para substituir chaves expiradas
+        por inatividade.
+      tags:
+      - Autenticacao
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/criar-chave-de-api-para-uma-subconta
+      x-acao-canonica: autenticar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  description: Nome de identificação da nova chave.
+                  type: string
+                expirationDate:
+                  description: Data/hora de expiração da chave.
+                  type: string
+            example:
+              name: integracao-erp
+              expirationDate: '2027-09-17 00:00:00'
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 00000000-0000-0000-0000-000000000011
+                name: integracao-erp
+                enabled: true
+                expirationDate: '2027-09-17 00:00:00'
+                apiKey: <<API_KEY_DA_SUBCONTA>>
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/webhooks:
+    post:
+      operationId: asaas__webhook__assinar_webhook
+      summary: Criar novo webhook
+      description: Registra uma URL para receber eventos escolhidos (events), com token de autenticação (authToken enviado no header asaas-access-token)
+        e modo de envio sequencial ou paralelo.
+      tags:
+      - Webhook
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/criar-novo-webhook
+      x-acao-canonica: assinar_webhook
+      security:
+      - accessToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  description: Nome da configuração.
+                  type: string
+                url:
+                  description: URL pública que receberá os POSTs de eventos.
+                  type: string
+                email:
+                  description: E-mail que recebe alertas de falha/fila.
+                  type: string
+                enabled:
+                  description: Liga/desliga o envio.
+                  type: boolean
+                interrupted:
+                  description: Estado da fila; false reativa uma fila interrompida.
+                  type: boolean
+                apiVersion:
+                  description: Versão da API dos payloads (3).
+                  type: integer
+                authToken:
+                  description: Segredo (32–255 caracteres, sem espaços, não pode ser API Key) enviado em asaas-access-token.
+                  type: string
+                sendType:
+                  description: SEQUENTIALLY (preserva ordem) ou NON_SEQUENTIALLY (paralelo, sem ordem).
+                  type: string
+                  enum: *id009
+                events:
+                  description: Lista de eventos a receber.
+                  type: array
+                  items:
+                    type: string
+                    enum: *id010
+              required:
+              - name
+              - url
+              - email
+              - enabled
+              - interrupted
+              - apiVersion
+              - authToken
+              - sendType
+              - events
+            example:
+              name: ERP - cobranças
+              url: https://erp.example.com/webhooks/asaas
+              email: ti@example.com
+              enabled: true
+              interrupted: false
+              apiVersion: 3
+              authToken: <<TOKEN_ALEATORIO_32_A_255_CARACTERES>>
+              sendType: SEQUENTIALLY
+              events:
+              - PAYMENT_RECEIVED
+              - PAYMENT_OVERDUE
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: &id011
+                id: 00000000-0000-0000-0000-00000000000e
+                name: ERP - cobranças
+                url: https://erp.example.com/webhooks/asaas
+                email: ti@example.com
+                enabled: true
+                interrupted: false
+                apiVersion: 3
+                hasAuthToken: true
+                sendType: SEQUENTIALLY
+                penalizedRequestsCount: 0
+                events:
+                - PAYMENT_RECEIVED
+                - PAYMENT_OVERDUE
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+    get:
+      operationId: asaas__webhook__listar
+      summary: Listar webhooks
+      description: Lista as configurações de webhook da conta, com estado da fila (interrupted) e contagem de requisições penalizadas.
+      tags:
+      - Webhook
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/listar-webhooks
+      x-acao-canonica: listar
+      security:
+      - accessToken: []
+      parameters:
+      - name: offset
+        in: query
+        required: false
+        description: Posição inicial da página (começa em 0).
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Tamanho da página; 1 a 100, padrão 10.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                object: list
+                hasMore: false
+                totalCount: 1
+                limit: 10
+                offset: 0
+                data:
+                - *id011
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+  /v3/webhooks/{id}:
+    get:
+      operationId: asaas__webhook__obter
+      summary: Recuperar um único webhook
+      description: Consulta uma configuração de webhook pelo id.
+      tags:
+      - Webhook
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/recuperar-um-unico-webhook
+      x-acao-canonica: obter
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: *id011
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+    put:
+      operationId: asaas__webhook__atualizar
+      summary: Atualizar webhook existente
+      description: Altera URL, eventos, token, modo de envio e estado; enviar interrupted=false reativa uma fila interrompida.
+      tags:
+      - Webhook
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/atualizar-webhook-existente
+      x-acao-canonica: atualizar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  description: Nome da configuração.
+                  type: string
+                url:
+                  description: URL pública que receberá os POSTs de eventos.
+                  type: string
+                sendType:
+                  description: SEQUENTIALLY (preserva ordem) ou NON_SEQUENTIALLY (paralelo, sem ordem).
+                  type: string
+                  enum:
+                  - NON_SEQUENTIALLY
+                  - SEQUENTIALLY
+                enabled:
+                  description: Liga/desliga o envio.
+                  type: boolean
+                interrupted:
+                  description: Estado da fila; false reativa uma fila interrompida.
+                  type: boolean
+                authToken:
+                  description: Segredo (32–255 caracteres, sem espaços, não pode ser API Key) enviado em asaas-access-token.
+                  type: string
+                events:
+                  description: Lista de eventos a receber.
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                    - PAYMENT_AUTHORIZED
+                    - PAYMENT_AWAITING_RISK_ANALYSIS
+                    - PAYMENT_APPROVED_BY_RISK_ANALYSIS
+                    - PAYMENT_REPROVED_BY_RISK_ANALYSIS
+                    - PAYMENT_CREATED
+                    - PAYMENT_UPDATED
+                    - PAYMENT_CONFIRMED
+                    - PAYMENT_RECEIVED
+                    - PAYMENT_ANTICIPATED
+                    - PAYMENT_OVERDUE
+                    - PAYMENT_DELETED
+                    - PAYMENT_RESTORED
+                    - PAYMENT_REFUNDED
+                    - PAYMENT_REFUND_IN_PROGRESS
+                    - PAYMENT_REFUND_DENIED
+                    - PAYMENT_RECEIVED_IN_CASH_UNDONE
+                    - PAYMENT_CHARGEBACK_REQUESTED
+                    - PAYMENT_CHARGEBACK_DISPUTE
+                    - PAYMENT_AWAITING_CHARGEBACK_REVERSAL
+                    - PAYMENT_DUNNING_RECEIVED
+                    - PAYMENT_DUNNING_REQUESTED
+                    - PAYMENT_BANK_SLIP_CANCELLED
+                    - PAYMENT_BANK_SLIP_VIEWED
+                    - PAYMENT_CHECKOUT_VIEWED
+                    - PAYMENT_CREDIT_CARD_CAPTURE_REFUSED
+                    - PAYMENT_PARTIALLY_REFUNDED
+                    - PAYMENT_SPLIT_CANCELLED
+                    - PAYMENT_SPLIT_DIVERGENCE_BLOCK
+                    - PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED
+                    - PAYMENT_SPLIT_DONE
+                    - INVOICE_CREATED
+                    - INVOICE_UPDATED
+                    - INVOICE_SYNCHRONIZED
+                    - INVOICE_AUTHORIZED
+                    - INVOICE_PROCESSING_CANCELLATION
+                    - INVOICE_CANCELED
+                    - INVOICE_CANCELLATION_DENIED
+                    - INVOICE_ERROR
+                    - TRANSFER_CREATED
+                    - TRANSFER_PENDING
+                    - TRANSFER_IN_BANK_PROCESSING
+                    - TRANSFER_BLOCKED
+                    - TRANSFER_DONE
+                    - TRANSFER_FAILED
+                    - TRANSFER_CANCELLED
+                    - BILL_CREATED
+                    - BILL_PENDING
+                    - BILL_BANK_PROCESSING
+                    - BILL_PAID
+                    - BILL_CANCELLED
+                    - BILL_FAILED
+                    - BILL_REFUNDED
+                    - RECEIVABLE_ANTICIPATION_CANCELLED
+                    - RECEIVABLE_ANTICIPATION_SCHEDULED
+                    - RECEIVABLE_ANTICIPATION_PENDING
+                    - RECEIVABLE_ANTICIPATION_CREDITED
+                    - RECEIVABLE_ANTICIPATION_DEBITED
+                    - RECEIVABLE_ANTICIPATION_DENIED
+                    - RECEIVABLE_ANTICIPATION_OVERDUE
+                    - MOBILE_PHONE_RECHARGE_PENDING
+                    - MOBILE_PHONE_RECHARGE_CANCELLED
+                    - MOBILE_PHONE_RECHARGE_CONFIRMED
+                    - MOBILE_PHONE_RECHARGE_REFUNDED
+                    - ACCOUNT_STATUS_BANK_ACCOUNT_INFO_APPROVED
+                    - ACCOUNT_STATUS_BANK_ACCOUNT_INFO_AWAITING_APPROVAL
+                    - ACCOUNT_STATUS_BANK_ACCOUNT_INFO_PENDING
+                    - ACCOUNT_STATUS_BANK_ACCOUNT_INFO_REJECTED
+                    - ACCOUNT_STATUS_COMMERCIAL_INFO_APPROVED
+                    - ACCOUNT_STATUS_COMMERCIAL_INFO_AWAITING_APPROVAL
+                    - ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRED
+                    - ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRING_SOON
+                    - ACCOUNT_STATUS_COMMERCIAL_INFO_PENDING
+                    - ACCOUNT_STATUS_COMMERCIAL_INFO_REJECTED
+                    - ACCOUNT_STATUS_DOCUMENT_APPROVED
+                    - ACCOUNT_STATUS_DOCUMENT_AWAITING_APPROVAL
+                    - ACCOUNT_STATUS_DOCUMENT_PENDING
+                    - ACCOUNT_STATUS_DOCUMENT_REJECTED
+                    - ACCOUNT_STATUS_GENERAL_APPROVAL_APPROVED
+                    - ACCOUNT_STATUS_GENERAL_APPROVAL_AWAITING_APPROVAL
+                    - ACCOUNT_STATUS_GENERAL_APPROVAL_PENDING
+                    - ACCOUNT_STATUS_GENERAL_APPROVAL_REJECTED
+                    - SUBSCRIPTION_CREATED
+                    - SUBSCRIPTION_UPDATED
+                    - SUBSCRIPTION_INACTIVATED
+                    - SUBSCRIPTION_DELETED
+                    - SUBSCRIPTION_SPLIT_DISABLED
+                    - SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK
+                    - SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK_FINISHED
+                    - CHECKOUT_CREATED
+                    - CHECKOUT_CANCELED
+                    - CHECKOUT_EXPIRED
+                    - CHECKOUT_PAID
+                    - BALANCE_VALUE_BLOCKED
+                    - BALANCE_VALUE_UNBLOCKED
+                    - INTERNAL_TRANSFER_CREDIT
+                    - INTERNAL_TRANSFER_DEBIT
+                    - ACCESS_TOKEN_CREATED
+                    - ACCESS_TOKEN_DELETED
+                    - ACCESS_TOKEN_DISABLED
+                    - ACCESS_TOKEN_ENABLED
+                    - ACCESS_TOKEN_EXPIRED
+                    - ACCESS_TOKEN_EXPIRING_SOON
+                    - PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CREATED
+                    - PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED
+                    - PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CANCELLED
+                    - PIX_AUTOMATIC_RECURRING_AUTHORIZATION_EXPIRED
+                    - PIX_AUTOMATIC_RECURRING_AUTHORIZATION_REFUSED
+                    - PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CREATED
+                    - PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_SCHEDULED
+                    - PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_REFUSED
+                    - PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CANCELLED
+                    - PIX_AUTOMATIC_RECURRING_ELIGIBILITY_UPDATED
+            example:
+              interrupted: false
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example: *id011
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+    delete:
+      operationId: asaas__webhook__excluir
+      summary: Remover um webhook
+      description: Apaga uma configuração de webhook.
+      tags:
+      - Webhook
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/remover-webhook
+      x-acao-canonica: excluir
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                deleted: true
+                id: 00000000-0000-0000-0000-00000000000e
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado
+  /v3/webhooks/{id}/removeBackoff:
+    post:
+      operationId: asaas__webhook__atualizar__remover_penalizacao
+      summary: Remover penalização de webhook
+      description: Zera o intervalo de espera (backoff) de todas as entregas penalizadas de uma configuração, para reenvio sem aguardar o próximo
+        ciclo.
+      tags:
+      - Webhook
+      x-confianca: verificado
+      x-fonte-url: https://docs.asaas.com/reference/remover-penalizacao-webhook
+      x-acao-canonica: atualizar
+      security:
+      - accessToken: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do recurso no Asaas, enviado no caminho da URL.
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro'
+        '401':
+          $ref: '#/components/responses/Erro'
+        '429':
+          description: Limite de requisições atingido
+        '404':
+          description: Recurso não encontrado

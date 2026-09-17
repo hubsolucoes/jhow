@@ -1,0 +1,387 @@
+{
+  "slug": "nfe-io",
+  "nome": "NFE.io",
+  "categoria": "fiscal_gateway",
+  "fornecedor": {
+    "razao_social": null,
+    "pais": "BR",
+    "site": "https://nfe.io/"
+  },
+  "descricao_curta": "Gateway fiscal brasileiro que emite NFS-e, NF-e e NFC-e por API REST, captura documentos recebidos (NF-e, CT-e e NFS-e) pela distribuição da SEFAZ/ADN e ainda vende consultas cadastrais (CNPJ, CPF, CEP e NF-e na SEFAZ). Nasceu focado em NFS-e municipal e é onde tem a maior cobertura de prefeituras.",
+  "porte_alvo": ["media", "grande"],
+  "verticais": ["servicos", "software_saas", "ecommerce", "varejo", "industria", "logistica", "contabilidade"],
+  "status": "documentado",
+  "api": {
+    "estilo": "REST",
+    "base_urls": {
+      "producao": "https://api.nfse.io",
+      "sandbox": "https://api.nfse.io"
+    },
+    "base_urls_por_produto": {
+      "nfse_emissao": "https://api.nfe.io",
+      "nfe_nfce_empresas_webhooks_distribuicao": "https://api.nfse.io",
+      "consulta_cnpj": "https://legalentity.api.nfe.io",
+      "consulta_cpf": "https://naturalperson.api.nfe.io",
+      "consulta_endereco_cep": "https://address.api.nfe.io",
+      "consulta_nota_fiscal_sefaz": "https://nfe.api.nfe.io"
+    },
+    "versao_atual": "NFS-e v1 (emissão) · NF-e e NFC-e v2 · Contribuintes/Empresas v2 · Distribuição DFe v2 · Consulta de CNPJ v3 · Consulta de CPF v1 · Consulta de Endereços v2 · Consulta de NF-e na SEFAZ v2. Existem em paralelo as APIs 'RTC' (Reforma Tributária) de NFS-e e NF-e, tratadas pelo fornecedor como v3.",
+    "politica_versionamento": "Versão no caminho (/v1, /v2, /v3). Cada produto versiona por conta própria. As consultas classificam versões como 'recomendada (current)' e 'legada (active-legacy)'; segundo a doc, nenhuma versão legada está bloqueada e não há data de descontinuação anunciada. O gatilho do salto para v3 é o CNPJ alfanumérico (IN RFB 2.229/2024): as rotas v1/v2 de emissão rejeitam prestador com CNPJ alfanumérico com HTTP 400.",
+    "formatos": ["json", "xml"],
+    "spec_oficial_url": "https://nfe.io/docs/docs-para-agentes/",
+    "openapi_disponivel": true
+  },
+  "autenticacao": {
+    "tipos": ["api_key"],
+    "fluxo_resumido": "Chave estática no cabeçalho HTTP Authorization, sem prefixo (não é Bearer, não é Basic) e sem endpoint de login. A conta tem DUAS chaves com finalidades diferentes: a Chave de Dados, usada nos subdomínios de consulta (legalentity/naturalperson/address/nfe.api.nfe.io), e a Chave de Nota Fiscal, usada em api.nfe.io e api.nfse.io para emitir, cadastrar empresa, gerenciar certificado e webhook. Usar a chave errada devolve 401. Alternativas documentadas nas consultas: cabeçalho X-NFEIO-APIKEY ou query string (api_key / apikey), desaconselhadas porque a chave vai parar em log de servidor.",
+    "escopos_permissoes": [
+      "Chave de Dados — consultas de CNPJ, CPF, CEP e NF-e já emitida (somente leitura)",
+      "Chave de Nota Fiscal — emissão, empresas, certificados, webhooks",
+      "Papel 'Nota Fiscal (api.nfe.io)' — captura fiscal de NFS-e e operações de documento",
+      "Papel 'NFSeDist (dfe.nfe.io)' — captura fiscal de NFS-e e backfill",
+      "Papel 'Management' — endpoints de manutenção da captura (notifications, statistics, reactivate, start-from-date, backfill/release)"
+    ],
+    "expiracao_token": "Não expira: a chave é estática enquanto estiver ativa na conta.",
+    "renovacao": "Rotação manual no app de conta (account.nfe.io, acessível pelo painel da assinatura em app.nfe.io). Não há endpoint de rotação nem refresh token.",
+    "ip_allowlist_obrigatorio": false
+  },
+  "execucao_auth": {
+    "tipo": "header_api_key",
+    "header": "Authorization",
+    "prefixo": "",
+    "usuario_basic_e_a_credencial": false,
+    "headers_fixos": {},
+    "token_url": null,
+    "credenciais_necessarias": [
+      {
+        "nome": "api_key",
+        "rotulo": "Chave de Nota Fiscal (emissão, empresas, webhooks, distribuição)",
+        "segredo": true,
+        "onde_obter": "app.nfe.io > bloco Assinatura no rodapé do menu lateral > Ir para > Chaves de acesso (abre account.nfe.io). É a chave rotulada como 'Nota fiscal'.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "api_key_dados",
+        "rotulo": "Chave de Dados (consultas de CNPJ, CPF, CEP e NF-e na SEFAZ)",
+        "segredo": true,
+        "onde_obter": "Mesma tela de Chaves de acesso em account.nfe.io; é a segunda chave, rotulada como 'Dados'. Só é necessária para os endpoints nos subdomínios *.api.nfe.io.",
+        "obrigatoria": false
+      },
+      {
+        "nome": "company_id",
+        "rotulo": "ID da empresa emissora na NFE.io",
+        "segredo": false,
+        "onde_obter": "GET https://api.nfse.io/v2/companies com a Chave de Nota Fiscal, ou no painel da empresa em app.nfe.io. É o identificador que entra no caminho da maioria das leituras (serviceinvoices, productinvoices, consumerinvoices, inbound).",
+        "obrigatoria": false
+      }
+    ],
+    "base_url_por_ambiente": {
+      "sandbox": "https://api.nfse.io",
+      "producao": "https://api.nfse.io"
+    },
+    "observacao": "Não há base URL de sandbox: o ambiente (Development/Test x Production) é atributo da Inscrição Municipal (NFS-e) ou da Inscrição Estadual (NF-e/NFC-e), e a mesma chave e o mesmo host atendem aos dois. Por isso o executor precisa avisar o usuário de que uma leitura pode misturar notas de teste e de produção; nas listagens de NF-e/NFC-e o parâmetro environment resolve isso (em NF-e ele é obrigatório). Atenção ao roteamento por host: emissão e leitura de NFS-e ficam em https://api.nfe.io; NF-e, NFC-e, empresas, certificados, webhooks e distribuição ficam em https://api.nfse.io; as consultas cadastrais ficam em subdomínios próprios e usam a OUTRA chave. Testado em 2026-09-17: com chave inválida a resposta é HTTP 401 com corpo VAZIO (Content-Length: 0) e cabeçalho www-authenticate: Bearer — não há JSON de erro para o cliente exibir, então o executor deve tratar 401 pelo status, não pelo corpo."
+  },
+  "ambiente_testes": {
+    "sandbox": true,
+    "como_obter": "Criar conta em app.nfe.io e, na empresa, cadastrar a Inscrição Municipal com Environment: \"Development\" (NFS-e) ou a Inscrição Estadual com environmentType: \"Test\" (NF-e/NFC-e). Não existe host separado de sandbox.",
+    "custo": "Não há informação oficial de um plano gratuito de testes na página de planos; a conta é criada em self-service e o ambiente de testes é uma configuração da inscrição, não um produto à parte.",
+    "dados_ficticios": true
+  },
+  "limites": {
+    "rate_limit": "Documentado apenas para a API de documentos recebidos (NFe/CTe Inbound): as respostas trazem X-RateLimit-Limit, X-RateLimit-Remaining e X-RateLimit-Reset (timestamp Unix) e o estouro devolve HTTP 429. O valor numérico do limite não é publicado. Para emissão de NFS-e/NF-e/NFC-e, consultas cadastrais e Contribuintes v2 não há rate limit publicado — nas duas chamadas de teste feitas em 2026-09-17 nenhum cabeçalho X-RateLimit-* voltou.",
+    "janela": null,
+    "burst": null,
+    "paginacao": {
+      "estilo": "page",
+      "tamanho_max": 100
+    },
+    "paginacao_por_api": {
+      "nfse_v1_e_companies_v1": "pageIndex (1-based) + pageCount; resposta traz totalResults, totalPages e page",
+      "nfe_nfce_v2_e_contribuintes_v2": "cursor por id: startingAfter / endingBefore + limit (padrão 10); resposta traz hasMore",
+      "nfse_inbound_v2": "pageIndex (1-based) + pageCount (máx 100); para sincronizar use nsuBegin em vez de pageIndex",
+      "dfe_inbound_odata": "$top (máx 1000) + $skiptoken (último NSU) e @odata.nextLink; $filter é obrigatório"
+    },
+    "tamanho_max_payload": null,
+    "timeout_recomendado": "A emissão de NFS-e documenta HTTP 408 quando o servidor passa de 60 s; use timeout de cliente acima disso e trate a emissão como assíncrona.",
+    "politica_retry": "Backoff exponencial em 429, 503 e 504; em 429 esperar até X-RateLimit-Reset. Não repetir automaticamente em 401 (o corpo vem vazio e a repetição não resolve). Nunca reenviar uma emissão em 408/timeout sem antes consultar pelo externalId — a nota pode ter sido enfileirada.",
+    "idempotencia": {
+      "suportada": true,
+      "header": "Idempotency-Key (documentado apenas na API de Declaração de Conteúdo Eletrônica, DC-e)"
+    },
+    "idempotencia_observacao": "Na emissão de NFS-e a idempotência prática é o campo externalId no corpo, que depois permite GET /v1/companies/{company_id}/serviceinvoices/external/{id}. Na captura sob demanda de NFS-e (fetch-by-access-key) a operação é idempotente por chave de acesso. Nos eventos de manifestação, repetir a mesma (accessKey, eventCode, nSequencia) devolve 409 e deve ser tratado como sucesso.",
+    "volatil": true
+  },
+  "webhooks": {
+    "suportados": true,
+    "eventos": [
+      "service_invoice.issued_successfully",
+      "service_invoice.issued_error",
+      "service_invoice.issued_failed",
+      "service_invoice.cancelled_successfully",
+      "service_invoice.cancelled_error",
+      "service_invoice.cancelled_failed",
+      "product_invoice.issued_successfully",
+      "product_invoice.issued_error",
+      "consumer_invoice.cancelled_error",
+      "product_tax",
+      "tax_payment_form",
+      "product_invoice_inbound",
+      "transportation_invoice_inbound",
+      "service_invoice_inbound",
+      "inbound.serviceInvoice.received"
+    ],
+    "verificacao_assinatura": "HMAC-SHA1 sobre os bytes crus do corpo, com o secret de 32 a 64 caracteres definido no cadastro do webhook, entregue no cabeçalho X-Hub-Signature no formato sha1=<hex>. Na captura fiscal (inbound) o cabeçalho aparece em minúsculas (x-hub-signature) e integrações antigas (Version raw-payload ou v1) recebem também X-NFEIO-Signature com sha1=<base64>; novas integrações devem usar só x-hub-signature. Há ainda allowlist opcional por IP de origem (34.44.243.117, 40.78.80.242, 20.237.231.30, 104.45.219.39), que a própria doc classifica como camada adicional, não como verificação.",
+    "politica_reentrega": "Entrega at-least-once com reenvio automático quando o endpoint não responde 2xx. A doc não publica a grade de tentativas dos webhooks de emissão. Na captura fiscal há reenvio manual: POST .../inbound/nfse/{id}/resend-webhook (NFS-e) e POST .../inbound/productinvoices/{access_key_or_nsu}/processwebhook (NF-e/CT-e), e é possível listar o que falhou por webhookStatus=DefinitivelyFailed.",
+    "requer_endpoint_publico": true
+  },
+  "erros": {
+    "formato": "JSON {\"errors\": [{\"code\": <int>, \"message\": \"...\"}]} nas APIs de emissão (NFS-e v1, NF-e/NFC-e v2), em Contribuintes v2 e na distribuição de DF-e. As consultas na SEFAZ (nfe.api.nfe.io) devolvem string simples em 400/404/500. Observado em teste real (2026-09-17): o 401 vem SEM corpo (Content-Length: 0) com www-authenticate: Bearer e x-request-id — guarde o x-request-id para abrir chamado. Rejeição da SEFAZ ou da prefeitura NÃO é erro HTTP: a emissão responde 202 e o resultado fiscal aparece depois em status/flowStatus (IssueFailed, Error, IssueDenied) e em lastEvents.events[], ou chega por webhook.",
+    "codigos_principais": [
+      "400 — parâmetro inválido; também é o código para prestador com CNPJ alfanumérico nas rotas v1/v2",
+      "401 — chave ausente, inativa ou trocada (Chave de Dados em endpoint de Nota Fiscal e vice-versa); corpo vazio",
+      "403 — chave sem o papel exigido; na captura de NFS-e sob demanda indica sigilo fiscal (a empresa não é prestador, tomador nem intermediário)",
+      "404 — empresa ou documento inexistente, ou de outra conta",
+      "408 — emissão de NFS-e passou de 60 s no servidor",
+      "409 — duplicidade (empresa já cadastrada na captura, evento de manifestação em voo)",
+      "422 — regra de negócio violada (NF-e já cancelada, eventCode 203206 sem reasonCode, NSU regressivo)",
+      "429 — rate limit estourado (documentado na distribuição de DF-e)",
+      "500 — erro de processamento",
+      "503 — dependência indisponível (SEFAZ/ADN fora); cabeçalho Retry-After",
+      "504 — timeout"
+    ]
+  },
+  "sdks_oficiais": [
+    {
+      "linguagem": "node",
+      "pacote": "nfe-io",
+      "repositorio": "https://github.com/nfe/client-nodejs",
+      "observacao": "SDK v3 em TypeScript, sem dependências, com paginação, polling de emissão assíncrona, download de PDF/XML e roteamento multi-host/multi-chave. É o SDK com documentação própria mais completa no portal."
+    },
+    {
+      "linguagem": "php",
+      "pacote": null,
+      "repositorio": "https://github.com/nfe",
+      "observacao": "Listado como SDK oficial no índice de bibliotecas (/docs/desenvolvedores/bibliotecas/); não avaliei a atualidade do repositório nesta sessão."
+    },
+    {
+      "linguagem": "ruby",
+      "pacote": null,
+      "repositorio": "https://github.com/nfe",
+      "observacao": "Listado como SDK oficial no índice de bibliotecas; não avaliei a atualidade do repositório nesta sessão."
+    }
+  ],
+  "comercial": {
+    "modelo_acesso": "plano_pago",
+    "custo_api": "Página de planos de NFS-e (consulta 2026-09-17): mensal Base R$190 (até 250 notas), Growth R$265 (até 500), Scale R$375 (até 1.000); semestral com 10% de desconto (R$1.025 / R$1.430 / R$2.025); anual com 20% (Initial R$1.075 para até 100 notas e no máximo 2 CNPJs, Base R$1.825, Growth R$2.545, Scale R$3.600) e Enterprise sob consulta. Todos os planos incluem API, emissão em lote por planilha, armazenamento por 11 anos, cálculo automático de imposto e plugins. A página não publica o preço da nota excedente nem preço de NF-e, NFC-e, captura fiscal ou consultas — nestes casos é preciso falar com o comercial. A captura fiscal cobra POR DOCUMENTO capturado, e a própria doc avisa que reposicionar o cursor de NSU (reset-nsu ou forcedStartNsu) recaptura e RECOBRA documentos já processados.",
+    "exige_homologacao": false,
+    "tempo_medio_aprovacao": "Self-service: conta criada na hora em app.nfe.io e ambiente de testes de NFS-e sem certificado. Para produção depende do certificado A1 e, em NFS-e, do credenciamento na prefeitura; em NF-e/NFC-e, do credenciamento na SEFAZ da UF e, na NFC-e, do CSC.",
+    "volatil": true
+  },
+  "conformidade": {
+    "trafega_dado_pessoal": true,
+    "dado_sensivel": false,
+    "base_legal_tipica": "Cumprimento de obrigação legal e regulatória (LGPD art. 7º, II) para os dados de tomador, destinatário e consumidor em documentos fiscais. As consultas de CPF e CNPJ na Receita Federal e a modalidade irrestrita (Serpro) exigem base legal própria do cliente, normalmente legítimo interesse ou execução de contrato.",
+    "exige_certificado_digital": true,
+    "regulador": "SEFAZ estaduais, prefeituras, Receita Federal e Ambiente Nacional da NFS-e (ADN/SEFIN)",
+    "residencia_dados": "A doc da captura fiscal tem página própria de segurança e LGPD com retenção e armazenamento, mas não nomeia a região de nuvem; não confirmei a residência dos dados nesta sessão.",
+    "termos_uso_url": "https://p.nfe.io/pt-br/termos-de-servico",
+    "permite_uso_em_produto_terceiro": "indefinido"
+  },
+  "esforco_integracao": {
+    "complexidade": "media",
+    "horas_estimadas_mvp": 55,
+    "premissa_horas": "Premissa: um SaaS ou ERP que já tem os dados do serviço prestados corretos emitindo NFS-e de uma empresa em um município, com cadastro de empresa + inscrição municipal + certificado, emissão, consulta por externalId, cancelamento, download de PDF/XML e webhook assinado. Julgamento do analista, não é número do fornecedor. NF-e acrescenta o dado fiscal de produto (NCM, CFOP, CST/CSOSN, bases) e credenciamento na SEFAZ e costuma somar mais 40 a 60 h; NFC-e acrescenta CSC e contingência.",
+    "principais_armadilhas": [
+      "Duas chaves e quatro famílias de host: Chave de Dados nos subdomínios *.api.nfe.io (consultas) e Chave de Nota Fiscal em api.nfe.io (NFS-e) e api.nfse.io (NF-e, NFC-e, empresas, webhooks, distribuição). Chave certa no host errado devolve 401.",
+      "api.nfe.io e api.nfse.io são hosts DIFERENTES com nomes quase idênticos — é a troca de letra que mais gera 404/401 em integração nova.",
+      "401 volta com corpo vazio: não há mensagem de erro para logar, só o status e o x-request-id.",
+      "Emissão é assíncrona e responde 202 Accepted: 202 significa 'entrou na fila', não 'autorizada'. O resultado real está em status/flowStatus e em lastEvents.events[], ou chega por webhook.",
+      "O ambiente não está na URL: ele é atributo da Inscrição Municipal (NFS-e, campo Environment) ou da Inscrição Estadual (NF-e/NFC-e, campo environmentType). Uma listagem sem filtro pode misturar nota de teste com nota real.",
+      "Na listagem de NF-e o parâmetro environment é OBRIGATÓRIO; na de NFC-e é opcional. Esquecer devolve 400.",
+      "Três estilos de paginação convivem: pageIndex/pageCount em NFS-e, cursor startingAfter/limit (padrão 10, não 100) em NF-e/NFC-e/empresas, e OData $top/$skiptoken na distribuição.",
+      "Em NFS-e o emissor se chama provider e o cliente se chama borrower; em NF-e/NFC-e são issuer e buyer. O payload do webhook de NFS-e vem envelopado em {\"payload\": {...}} e o de NF-e/NFC-e vem achatado na raiz — escreva o parser como body.payload ?? body.",
+      "Certificado A1 é obrigatório em NF-e e NFC-e mesmo em homologação (o ambiente de teste da SEFAZ é o órgão real); em NFS-e o certificado é dispensado no ambiente Development, que roda em servidor da NFE.io simulando a prefeitura.",
+      "Download de XML/PDF na distribuição não devolve o arquivo: devolve JSON com uma URL temporária (o spec chama de url e a página de endpoints chama de publicTemporaryUri) que expira — na NFS-e inbound o download responde 302 para URL assinada com TTL de 30 min e o PDF pode responder 202 enquanto é gerado.",
+      "Reposicionar o cursor de NSU na captura fiscal (reset-nsu ou fetch-now com forcedStartNsu) recaptura e é COBRADO de novo por documento.",
+      "CNPJ alfanumérico (IN RFB 2.229/2024): as rotas v1/v2 de emissão rejeitam prestador alfanumérico com 400 e mandam usar a v3; na consulta de CNPJ, a v3 devolve federalTaxNumber como string, a v2 como número.",
+      "A API de empresas v1 em api.nfe.io/v1/companies está marcada como em descontinuação; use Contribuintes v2 em api.nfse.io (empresa + certificado + inscrição municipal/estadual são três recursos separados).",
+      "TLS 1.0 e 1.1 não são mais aceitos em nenhuma API (release note 2026.7): clientes antigos param de conectar."
+    ]
+  },
+  "casos_uso_negocio": [
+    {
+      "titulo": "Fechamento mensal de NFS-e emitidas para o contábil",
+      "dor_resolvida": "O contador pede todo mês a relação de notas de serviço emitidas, com tomador, valor, ISS retido e status; hoje alguém exporta a mão do painel.",
+      "endpoints_envolvidos": ["nfe-io.nota_fiscal.listar.nfse", "nfe-io.nota_fiscal.obter.nfse", "nfe-io.nota_fiscal.baixar_arquivo.nfse_xml"],
+      "valor_percebido": "Planilha do período pronta em segundos, com filtro por data de competência ou de criação, e o XML de cada nota para o arquivo fiscal."
+    },
+    {
+      "titulo": "Conciliação de faturamento entre o sistema de vendas e a nota emitida",
+      "dor_resolvida": "Vendas registradas sem nota correspondente (ou nota emitida em duplicidade) só aparecem no fechamento.",
+      "endpoints_envolvidos": ["nfe-io.nota_fiscal.listar.nfse", "nfe-io.nota_fiscal.obter.nfse_externo", "nfe-io.nota_fiscal.listar.nfe"],
+      "valor_percebido": "Cruzamento pelo externalId (o id do pedido no sistema de origem) sem depender de número de nota."
+    },
+    {
+      "titulo": "Captura e conferência das notas recebidas de fornecedores",
+      "dor_resolvida": "Notas de entrada chegam por e-mail, se perdem, e o prazo legal de manifestação do destinatário vence.",
+      "endpoints_envolvidos": ["nfe-io.nota_fiscal.listar.inbound_nfe", "nfe-io.nota_fiscal.obter.inbound_nfe", "nfe-io.nota_fiscal.baixar_arquivo.inbound_xml", "nfe-io.nota_fiscal.manifestar.inbound_nfe"],
+      "valor_percebido": "Base de notas de entrada completa direto da distribuição da SEFAZ, com XML para importar no ERP e manifestação dentro do prazo."
+    },
+    {
+      "titulo": "Saneamento cadastral antes de emitir",
+      "dor_resolvida": "Rejeição de nota por CNPJ irregular, IE inválida para a UF, CEP errado ou município sem código IBGE.",
+      "endpoints_envolvidos": ["nfe-io.pessoa.obter.cnpj", "nfe-io.pessoa.obter.inscricao_estadual", "nfe-io.endereco.obter.cep"],
+      "valor_percebido": "Cadastro corrigido na entrada, com menos rejeição da SEFAZ e menos retrabalho de cancelamento."
+    },
+    {
+      "titulo": "Painel de saúde da emissão fiscal",
+      "dor_resolvida": "Ninguém percebe quando notas param de sair (certificado vencido, prefeitura fora, rejeição recorrente) até o cliente reclamar.",
+      "endpoints_envolvidos": ["nfe-io.nota_fiscal.listar.nfse", "nfe-io.nota_fiscal.listar.nfe", "nfe-io.empresa.listar.certificados", "nfe-io.webhook.listar"],
+      "valor_percebido": "Visão por status (Issued, IssueFailed, Error, Cancelled) e validade de certificado, atualizada sozinha."
+    },
+    {
+      "titulo": "Auditoria de NF-e de terceiros pela chave de acesso",
+      "dor_resolvida": "Time de compras recebe DANFE em PDF e precisa confirmar se a nota está mesmo autorizada na SEFAZ.",
+      "endpoints_envolvidos": ["nfe-io.nota_fiscal.obter.sefaz_chave", "nfe-io.nota_fiscal.listar.eventos_sefaz", "nfe-io.nota_fiscal.baixar_arquivo.sefaz_xml"],
+      "valor_percebido": "Situação atual, eventos (cancelamento, CC-e) e XML oficial a partir dos 44 dígitos da chave, sem precisar ser destinatário."
+    }
+  ],
+  "indice_integrabilidade": {
+    "score": 74,
+    "componentes": {
+      "documentacao": {
+        "peso": 20,
+        "pontos": 18,
+        "justificativa": "Muito acima da média do setor: 15 specs OpenAPI oficiais publicadas em /docs/api/, portal com index.md por página, llms.txt e llms-full.txt por produto, negociação por header Accept: text/markdown e uma página dedicada a agentes de IA. Perde pontos por divergências entre a spec e as páginas-guia (a página de chaves cita POST api.nfe.io/v2/.../serviceinvoices quando a rota é /v1; o download de XML da distribuição aparece como url na spec e publicTemporaryUri na página), pela ausência de spec da NFS-e Inbound e por várias specs ainda em Swagger 2.0."
+      },
+      "sandbox": {
+        "peso": 15,
+        "pontos": 11,
+        "justificativa": "Conta self-service e ambiente de testes real, com NFS-e emitindo contra servidor da NFE.io que simula prefeitura, sem exigir certificado. Perde pontos porque não há host de sandbox (o ambiente é atributo da inscrição, e uma leitura mal filtrada mistura teste com produção) e porque NF-e/NFC-e exigem certificado A1 real mesmo em homologação."
+      },
+      "autenticacao": {
+        "peso": 15,
+        "pontos": 6,
+        "justificativa": "Chave estática em cabeçalho, sem OAuth2, sem escopos por endpoint e sem rotação por API. Ainda por cima são duas chaves distintas com roteamento por host, e o 401 vem sem corpo, o que dificulta o diagnóstico. Os papéis (Nota Fiscal, NFSeDist, Management) só existem na captura fiscal."
+      },
+      "webhooks": {
+        "peso": 15,
+        "pontos": 12,
+        "justificativa": "Assinatura HMAC-SHA1 com secret próprio (X-Hub-Signature), cabeçalhos de deduplicação (X-Hook-Id, X-Hook-Event, X-Hook-Attempts), CRUD completo de webhook com ping de teste, catálogo de eventos publicado, IPs de origem documentados e reenvio manual na captura fiscal. Perde pontos porque a grade de tentativas de reentrega dos webhooks de emissão não é publicada e porque o envelope difere entre NFS-e e NF-e/NFC-e."
+      },
+      "limites_paginacao": {
+        "peso": 10,
+        "pontos": 5,
+        "justificativa": "Três estilos de paginação convivendo (page, cursor e OData), limite padrão baixo em NF-e/NFC-e (10) e rate limit publicado apenas na distribuição, sem o valor numérico. Em compensação a sincronização incremental por NSU é bem documentada."
+      },
+      "sdks_comunidade": {
+        "peso": 10,
+        "pontos": 6,
+        "justificativa": "SDK oficial de Node.js v3 em TypeScript, sem dependências e com documentação própria extensa (paginação, polling, downloads, multi-host). PHP e Ruby aparecem como oficiais, mas sem a mesma profundidade de documentação; não avaliei a atividade dos repositórios nesta sessão."
+      },
+      "acesso_sem_barreira": {
+        "peso": 10,
+        "pontos": 7,
+        "justificativa": "Conta self-service e preço público para NFS-e. Perde pontos porque não há preço público de NF-e, NFC-e, captura fiscal nem consultas, e a captura fiscal cobra por documento capturado."
+      },
+      "versionamento": {
+        "peso": 5,
+        "pontos": 4,
+        "justificativa": "Versão no caminho, release notes com data por mudança, política explícita de 'recomendada x legada' nas consultas e guia de migração v2 para v3. Perde ponto porque cada produto versiona por conta própria e não há data de fim de vida anunciada para as versões legadas."
+      }
+    }
+  },
+  "qualidade_doc": {
+    "nota": 9,
+    "observacoes": "Uma das melhores documentações fiscais brasileiras que já vi: specs OpenAPI baixáveis, manifestos llms.txt por produto, index.md em toda página, catálogo de eventos de webhook com payloads reais anonimizados, troubleshooting com cStat da SEFIN e uma seção inteira de captura fiscal escrita em estilo Diátaxis. Os defeitos são de consistência, não de cobertura: rotas citadas com versão errada em páginas-guia, campo de download com dois nomes diferentes, NFS-e Inbound sem spec publicada e specs antigas ainda em Swagger 2.0."
+  },
+  "monitoramento": {
+    "changelog_url": "https://nfe.io/docs/release-notes/",
+    "canal_breaking_changes": "Release notes numeradas (2026.1 a 2026.9 no momento da consulta), banner de Reforma Tributária no topo do portal e páginas dedicadas ao CNPJ alfanumérico e à RTC. O llms.txt de release notes (https://nfe.io/docs/release-notes/llms.txt) serve bem para monitoramento automatizado.",
+    "frequencia_revisao_sugerida": "mensal"
+  },
+  "lacunas": [
+    {
+      "campo": "limites.rate_limit",
+      "descricao": "O valor numérico do rate limit não é publicado em lugar nenhum. Só a distribuição de DF-e documenta os cabeçalhos X-RateLimit-*; nas duas chamadas de teste de 2026-09-17 (com chave inválida) nenhum cabeçalho de limite voltou. Não dá para dimensionar carga sem perguntar ao fornecedor.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "comercial.custo_api",
+      "descricao": "A página de planos cobre só NFS-e. Não há preço público de NF-e, NFC-e, captura fiscal (NFe/CTe Inbound e NFS-e Inbound), consultas de CNPJ/CPF/CEP nem do motor de cálculo de tributos, e o preço da nota excedente não é publicado.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "api.spec_oficial_url",
+      "descricao": "Não há spec OpenAPI publicada para a NFS-e Inbound (Captura Fiscal), embora a página de endpoints afirme que a referência é gerada de um contrato OpenAPI canônico. Os endpoints dessa família foram documentados aqui a partir da página de endpoints e do guia de integração REST, não de spec.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "endpoints.*.response_sucesso",
+      "descricao": "Divergência entre fontes oficiais no download de arquivo da distribuição: a spec consulta-dfe-distribuicao-v2.yaml declara a resposta como {\"url\": \"...\"} e a página de endpoints de NF-e mostra {\"publicTemporaryUri\": \"...\"}. Registrado nos endpoints afetados; o cliente deve aceitar os dois nomes.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "webhooks.politica_reentrega",
+      "descricao": "A grade de tentativas de reentrega dos webhooks de emissão não é publicada (só 'at-least-once com retry em resposta fora de 2xx'). Não dá para dimensionar por quanto tempo um endpoint pode ficar fora sem perder evento.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "fornecedor.razao_social",
+      "descricao": "O rodapé do portal publica o CNPJ 18.792.479/0001-01 e o endereço em São Paulo, mas não a razão social. Não confirmei a razão social em fonte oficial nesta sessão.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "conformidade.residencia_dados",
+      "descricao": "A página de segurança e LGPD da captura fiscal fala de armazenamento e retenção, mas não nomeia a região de nuvem. Para cliente com exigência de residência de dados é preciso confirmar com o fornecedor.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "taxonomia",
+      "descricao": "Sugestão de extensão: a captura fiscal de documentos recebidos (inbound/distribuição) é hoje mapeada como NotaFiscal + listar/obter/manifestar e a ATIVAÇÃO do serviço como Empresa + criar/obter/excluir. Uma entidade como 'AssinaturaDistribuicao' (ou uma ação 'ativar'/'desativar') representaria melhor esses endpoints de configuração de serviço, que não criam um documento nem alteram a empresa.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "endpoints_secundarios",
+      "descricao": "As famílias CT-e Inbound, Declaração de Conteúdo Eletrônica (DC-e), eventos de autoridade da RTC, notas de crédito/débito, cadastro de produtos e o motor de cálculo de tributos foram apenas catalogadas, não detalhadas. São produtos inteiros com contrato próprio.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "ambiente_testes.custo",
+      "descricao": "Não há declaração oficial de que o ambiente de testes seja gratuito ou de quantas notas de teste cabem. A página de planos não separa teste de produção.",
+      "impacto": "baixo"
+    }
+  ],
+  "fontes": [
+    { "url": "https://nfe.io/docs/", "titulo": "NFE.io — índice da documentação", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/docs-para-agentes/", "titulo": "Documentação para agentes e LLMs (índice das specs OpenAPI e dos manifestos llms.txt)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/nf-servico-v1.yaml", "titulo": "OpenAPI oficial — Nota Fiscal de Serviço v1", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/nf-produto-v2.yaml", "titulo": "OpenAPI oficial — Nota Fiscal de Produto v2", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/nf-consumidor-v2.yaml", "titulo": "OpenAPI oficial — Nota Fiscal de Consumidor v2", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/contribuintes-v2.json", "titulo": "OpenAPI oficial — Contribuintes / Gerenciamento de Empresas v2", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/consulta-dfe-distribuicao-v2.yaml", "titulo": "OpenAPI oficial — DFeDistribution Inbound v2", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/consulta-nfe-distribuicao-v1.yaml", "titulo": "OpenAPI oficial — Consulta de NF-e (Distribuição) v1", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/consulta-nf.yaml", "titulo": "OpenAPI oficial — Consulta de Notas Fiscais na SEFAZ v2", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/consulta-cnpj.yaml", "titulo": "OpenAPI oficial — Legal Entities (consulta de CNPJ)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/cpf-api.yaml", "titulo": "OpenAPI oficial — Consulta de Pessoa Física (CPF)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/consulta-endereco.yaml", "titulo": "OpenAPI oficial — Consulta de Endereço (CEP)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/calculo-impostos-v1.yaml", "titulo": "OpenAPI oficial — Cálculo de Impostos v1", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/product-register-pt-br-v1.yaml", "titulo": "OpenAPI oficial — Cadastro de Produtos v1", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/api/consulta-cte-v2.yaml", "titulo": "OpenAPI oficial — Consulta de CT-e (Distribuição) v2", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/documentacao/nossa-plataforma/chaves-de-autenticacao/", "titulo": "Chaves de autenticação (Chave de Dados x Chave de Nota Fiscal)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/documentacao/nota-fiscal-servico-eletronica/primeiros-passos/", "titulo": "Primeiros passos — NFS-e (ambientes e cadência de cadastro)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/documentacao/nota-fiscal-produto-eletronica/integracao-api/primeiros-passos/", "titulo": "Primeiros passos — NF-e (ambiente Test x Production)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/documentacao/webhooks/ips-de-origem/", "titulo": "IPs de origem dos webhooks e validação HMAC", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/webhooks/catalogo-de-eventos/", "titulo": "Catálogo de eventos de webhook (envelopes e política de entrega)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/documentacao/webhooks/guias/payloads-de-emissao/", "titulo": "Payloads dos webhooks de emissão (NFS-e, NF-e, NFC-e)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/distribuicao-nfe-cte-http-errors/", "titulo": "Códigos HTTP, formato de erro e rate limiting da distribuição", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/distribuicao-nfse-inbound-endpoints/", "titulo": "Endpoints da captura fiscal de NFS-e (NFS-e Inbound)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/distribuicao-nfse-inbound-integracao-rest/", "titulo": "Integração REST da captura de NFS-e (auth, paginação, sincronização por NSU)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/distribuicao-nfe-cte-endpoints-nfe/", "titulo": "Endpoints de NF-e da captura fiscal (metadados, XML, DANFE, manifestação)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/documentacao/consultas/pessoa-juridica/consulta-cnpj-v3/", "titulo": "Consulta de CNPJ v3 (CNPJ alfanumérico)", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/desenvolvedores/bibliotecas/", "titulo": "SDKs e bibliotecas oficiais", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/docs/release-notes/", "titulo": "Release notes da plataforma", "data_consulta": "2026-09-17" },
+    { "url": "https://nfe.io/precos/", "titulo": "Planos e preços (NFS-e)", "data_consulta": "2026-09-17" },
+    { "url": "https://p.nfe.io/pt-br/termos-de-servico", "titulo": "Termos de serviço", "data_consulta": "2026-09-17" }
+  ]
+}

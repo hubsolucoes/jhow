@@ -1,0 +1,7 @@
+{
+  "sistema": "Protótipo IBGE (teste do mecanismo)",
+  "linhas": [
+    { "Chave": "Ambiente", "Valor": "sandbox", "Descricao": "sandbox para testes; producao para dados reais" },
+    { "Chave": "ApiKey", "Valor": "<<SUA_API_KEY>>", "Descricao": "Credencial da API (no protótipo, qualquer texto funciona)" }
+  ]
+}

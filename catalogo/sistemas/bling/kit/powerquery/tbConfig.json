@@ -1,0 +1,10 @@
+{
+  "sistema": "Bling (ERP) - API v3",
+  "linhas": [
+    { "Chave": "Ambiente", "Valor": "sandbox", "Descricao": "sandbox = token de uma conta Bling de TESTE (o Bling nao tem sandbox separado; a URL e a mesma). producao = conta real da empresa." },
+    { "Chave": "AccessToken", "Valor": "<<SEU_ACCESS_TOKEN>>", "Descricao": "Token OAuth2 do Bling. Expira (em geral em poucas horas): atualize com 'python cliente.py renovar --excel <esta planilha>' (kit/python)." },
+    { "Chave": "DataInicial", "Valor": "2026-01-01", "Descricao": "Inicio do periodo (AAAA-MM-DD) para pedidos, notas e contas. Intervalo maximo de 1 ano." },
+    { "Chave": "DataFinal", "Valor": "2026-12-31", "Descricao": "Fim do periodo (AAAA-MM-DD). Intervalo maximo de 1 ano em relacao a DataInicial." },
+    { "Chave": "TokenAtualizadoEm", "Valor": "", "Descricao": "Preenchido automaticamente pelo script Python quando grava um token novo (apenas informativo)." }
+  ]
+}

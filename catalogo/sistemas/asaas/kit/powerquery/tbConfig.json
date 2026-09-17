@@ -1,0 +1,30 @@
+{
+  "sistema": "Asaas (API v3)",
+  "linhas": [
+    {
+      "Chave": "Ambiente",
+      "Valor": "sandbox",
+      "Descricao": "sandbox (testes, padrão) ou producao (dados e dinheiro reais)"
+    },
+    {
+      "Chave": "ApiKey",
+      "Valor": "<<SUA_API_KEY>>",
+      "Descricao": "Chave de API do Asaas do MESMO ambiente (sandbox começa com $aact_hmlg_, produção com $aact_prod_). Painel: Integrações > Chaves de API"
+    },
+    {
+      "Chave": "DataInicial",
+      "Valor": "2026-01-01",
+      "Descricao": "Opcional. Início do período (AAAA-MM-DD) para Cobrancas, Extrato, Transferencias e NotasFiscais"
+    },
+    {
+      "Chave": "DataFinal",
+      "Valor": "",
+      "Descricao": "Opcional. Fim do período (AAAA-MM-DD); vazio = sem limite final"
+    },
+    {
+      "Chave": "UserAgent",
+      "Valor": "",
+      "Descricao": "Opcional. Nome da sua aplicação enviado no header User-Agent (vazio = kit-catalogo-powerquery/1.0)"
+    }
+  ]
+}

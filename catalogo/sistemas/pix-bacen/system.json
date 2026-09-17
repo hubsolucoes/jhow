@@ -1,0 +1,459 @@
+{
+  "slug": "pix-bacen",
+  "nome": "API Pix (arranjo Bacen)",
+  "categoria": "pagamentos_padrao",
+  "fornecedor": {
+    "razao_social": "Banco Central do Brasil",
+    "pais": "BR",
+    "site": "https://www.bcb.gov.br/estabilidadefinanceira/pix"
+  },
+  "descricao_curta": "Padrão de API do arranjo Pix definido pelo Banco Central: cobranças imediatas (cob), com vencimento (cobv), em lote (lotecobv), locations de QR dinâmico (loc), consulta de Pix recebidos e devoluções, webhooks e Pix Automático (rec, solicrec, cobr). Não é um fornecedor: quem expõe a API é cada PSP recebedor, que define base URL, credenciais e certificado.",
+  "porte_alvo": [
+    "media",
+    "grande"
+  ],
+  "verticais": [
+    "varejo",
+    "servicos",
+    "educacao",
+    "saude",
+    "utilities",
+    "saas",
+    "financeiro"
+  ],
+  "status": "documentado",
+  "api": {
+    "estilo": "REST",
+    "base_urls": {
+      "producao": null,
+      "sandbox": null
+    },
+    "versao_atual": "2.10.0",
+    "politica_versionamento": "SemVer com quatro elementos (major.minor.patch.rc). Só o major aparece no path da URL (v2 hoje); minor/patch são retrocompatíveis e podem sair a qualquer momento — adição de recursos, de parâmetros opcionais, de campos em respostas, de itens em enumerações e mudança de ordem de campos são consideradas compatíveis, então o cliente precisa tolerá-las. Releases publicadas em github.com/bacen/pix-api/releases.",
+    "formatos": [
+      "json"
+    ],
+    "spec_oficial_url": "https://github.com/bacen/pix-api/releases/tag/2.10.0",
+    "openapi_disponivel": true
+  },
+  "autenticacao": {
+    "tipos": [
+      "oauth2_client_credentials",
+      "mtls"
+    ],
+    "fluxo_resumido": "TLS 1.2+ com autenticação mútua (mTLS, RFC 8705) em todas as chamadas, mais OAuth 2.0 no fluxo client credentials: o software do usuário recebedor troca client_id + segredo por um access_token no Authorization Server do próprio PSP, pedindo apenas os escopos de que precisa, e envia o token em Authorization: Bearer. O token é vinculado ao certificado do cliente (certificate-bound access token): o Resource Server confere se o thumbprint do certificado da conexão TLS é o mesmo que emitiu o token, então token roubado sem a chave privada não funciona. O certificado é emitido pelo próprio PSP ou por AC externa aceita por ele — não precisa ser ICP-Brasil e certificado autoassinado não é aceito. A URL do token, o TTL e o formato do segredo não são padronizados: cada PSP define.",
+    "escopos_permissoes": [
+      "cob.read",
+      "cob.write",
+      "cobv.read",
+      "cobv.write",
+      "lotecobv.read",
+      "lotecobv.write",
+      "pix.read",
+      "pix.write",
+      "webhook.read",
+      "webhook.write",
+      "payloadlocation.read",
+      "payloadlocation.write",
+      "payloadlocationrec.read",
+      "payloadlocationrec.write",
+      "rec.read",
+      "rec.write",
+      "solicrec.read",
+      "solicrec.write",
+      "cobr.read",
+      "cobr.write",
+      "webhookrec.read",
+      "webhookrec.write",
+      "webhookcobr.read",
+      "webhookcobr.write"
+    ],
+    "expiracao_token": "Não padronizada pelo Bacen; cada PSP define (valores usuais na praça vão de 5 minutos a 1 hora). Trate expires_in da resposta do token como fonte da verdade.",
+    "renovacao": "Não há refresh token no client credentials: peça um token novo quando o cache expirar ou quando receber 401. Renove o certificado antes do vencimento — ele vale para a API e, normalmente, também para o canal mTLS do webhook.",
+    "ip_allowlist_obrigatorio": false
+  },
+  "execucao_auth": {
+    "tipo": "mtls_oauth2",
+    "header": "Authorization",
+    "prefixo": "Bearer ",
+    "usuario_basic_e_a_credencial": false,
+    "headers_fixos": {},
+    "token_url": null,
+    "credenciais_necessarias": [
+      {
+        "nome": "base_url",
+        "rotulo": "URL base da API Pix do PSP (inclui o /v2)",
+        "segredo": false,
+        "onde_obter": "Portal de desenvolvedores do PSP recebedor (banco/instituicao de pagamento). Nao existe URL do Banco Central: cada PSP publica a sua para producao e para homologacao.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "token_url",
+        "rotulo": "URL do endpoint de token OAuth do PSP",
+        "segredo": false,
+        "onde_obter": "Portal de desenvolvedores do PSP. O Manual de Padroes exige que cada PSP tenha seu proprio Authorization Server, mas nao padroniza o caminho.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "client_id",
+        "rotulo": "Client ID da aplicacao",
+        "segredo": true,
+        "onde_obter": "Area logada do PSP, no cadastro (onboarding) da aplicacao. O client_id fica vinculado ao CPF/CNPJ do usuario recebedor e so alcanca contas desse titular.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "client_secret",
+        "rotulo": "Client Secret da aplicacao",
+        "segredo": true,
+        "onde_obter": "Entregue junto com o client_id, por canal seguro do PSP. Formato e politica de rotacao variam por PSP.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "certificado_pem",
+        "rotulo": "Certificado cliente (PEM) para o TLS mutuo",
+        "segredo": true,
+        "onde_obter": "Emitido pelo proprio PSP ou por AC externa aceita por ele; gerado a partir de um CSR na area logada. Autoassinado nao e aceito e nao precisa ser ICP-Brasil.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "chave_privada_pem",
+        "rotulo": "Chave privada (PEM) do certificado cliente",
+        "segredo": true,
+        "onde_obter": "Gerada pelo cliente junto com o CSR; nunca sai do cofre.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "senha_certificado",
+        "rotulo": "Senha do arquivo de certificado (quando PFX/P12 ou chave cifrada)",
+        "segredo": true,
+        "onde_obter": "Definida pelo cliente na exportacao do certificado, ou informada pelo PSP na entrega do PFX.",
+        "obrigatoria": false
+      },
+      {
+        "nome": "escopos",
+        "rotulo": "Escopos OAuth liberados em contrato (lista separada por espaco)",
+        "segredo": false,
+        "onde_obter": "Contrato/portal do PSP. Pedir no token apenas os escopos de leitura necessarios, por exemplo 'pix.read cob.read cobv.read'.",
+        "obrigatoria": false
+      }
+    ],
+    "base_url_por_ambiente": {
+      "sandbox": null,
+      "producao": null
+    },
+    "observacao": "Nao existe base URL do arranjo Pix: o padrao do Banco Central define caminhos (/cob, /pix, /webhook...) e schemas, mas quem hospeda a API e cada PSP recebedor; os servers da especificacao (pix.example.com) sao ficticios. Por isso base_url e token_url entram como credenciais de configuracao do cliente, e base_url_por_ambiente fica null. Receita de execucao: (1) POST em token_url com grant_type=client_credentials e os escopos desejados, usando o certificado cliente no handshake TLS (mTLS obrigatorio tambem no Authorization Server); (2) guardar o access_token pelo expires_in devolvido; (3) chamar base_url + path com Authorization: Bearer <token> e o mesmo certificado cliente, porque o token e vinculado ao thumbprint do certificado (Client Certificate-Bound Access Tokens, RFC 8705) e o Resource Server compara os dois. Nao ha refresh token no client credentials: expirou, pede outro. Se o certificado da conexao for diferente do que originou o token, a chamada falha mesmo com token valido."
+  },
+  "ambiente_testes": {
+    "sandbox": false,
+    "como_obter": "Não existe sandbox nem mock oficial do Banco Central para a API Pix: o repositório bacen/pix-api publica só a especificação (e o único quickstart da organização é o do DICT, restrito a participantes). Quem oferece homologação é cada PSP recebedor, com base URL, credenciais e certificado próprios de teste, normalmente liberados no portal de desenvolvedores depois da abertura da conta. Para testar sem PSP, gere um mock local a partir da spec 2.10.0 (Prism, WireMock, openapi-mock) — ele valida contratos e códigos de erro, mas não simula liquidação no SPI.",
+    "custo": "Depende do PSP; a especificação em si é pública e gratuita.",
+    "dados_ficticios": true
+  },
+  "limites": {
+    "rate_limit": null,
+    "janela": null,
+    "burst": null,
+    "paginacao": {
+      "estilo": "page",
+      "tamanho_max": 1000
+    },
+    "tamanho_max_payload": null,
+    "timeout_recomendado": null,
+    "politica_retry": "O padrão não define retry. Regra segura: repetir GET e repetir PUT com txid/id definido por você (são idempotentes por construção) com backoff exponencial em 429, 503 e 504; nunca repetir cegamente POST /cob, POST /cobr ou POST /solicrec, porque o identificador é gerado pelo servidor e a repetição cria um segundo registro.",
+    "idempotencia": {
+      "suportada": true,
+      "header": null
+    },
+    "volatil": true
+  },
+  "webhooks": {
+    "suportados": true,
+    "eventos": [
+      "Pix recebido associado a um txid (POST {webhookUrl}/pix)",
+      "Devolução que atingiu status final DEVOLVIDO ou NAO_REALIZADO (POST {webhookUrl}/pix)",
+      "Mudança de status de recorrência do Pix Automático (POST {webhookUrl}/rec)",
+      "Mudança de status de cobrança recorrente e de suas tentativas de liquidação (POST {webhookUrl}/cobr)"
+    ],
+    "verificacao_assinatura": "Não há assinatura HMAC nem cabeçalho de assinatura no padrão. A garantia é o canal: as notificações do PSP para o usuário recebedor trafegam em mTLS, e o Manual de Padrões recomenda usar o mesmo certificado da API Pix (outro certificado é possível por acordo entre as partes). Na prática, valide o certificado cliente no seu servidor/proxy e trate o corpo como aviso: confirme sempre com GET /pix ou GET /cob/{txid} antes de baixar o título.",
+    "politica_reentrega": "Não definida pelo padrão: o SLA de acionamento e a política de retentativa ficam a cargo de cada PSP (o texto só orienta que o callback seja um aviso praticamente on-line e permite agrupar vários Pix da mesma chave em uma chamada). Por isso, polling periódico em GET /pix continua sendo a rede de segurança.",
+    "requer_endpoint_publico": true
+  },
+  "erros": {
+    "formato": "RFC 7807 (application/problem+json) com type no padrão https://pix.bcb.gov.br/api/v2/error/<TipoErro>, mais title, status, detail e, quando houver erro de campo, o array violacoes[] com razao, propriedade e valor.",
+    "codigos_principais": [
+      "400 RequisicaoInvalida — requisição inválida (erro geral).",
+      "400 CobOperacaoInvalida / CobVOperacaoInvalida / CobROperacaoInvalida / RecOperacaoInvalida / SolicRecOperacaoInvalida / LoteCobVOperacaoInvalida / WebhookOperacaoInvalida / PayloadLocationOperacaoInvalida — corpo fora do schema ou semanticamente inconsistente.",
+      "400 CobConsultaInvalida / CobVConsultaInvalida / PixConsultaInvalida / CobRConsultaInvalida / RecConsultaInvalida / LoteCobVConsultaInvalida / WebhookConsultaInvalida / PayloadLocationConsultaInvalida — parâmetros de consulta inválidos (inicio/fim invertidos, cpf e cnpj juntos, paginação negativa).",
+      "400 PixDevolucaoInvalida — devolução acima do valor do Pix, id repetido ou fora da janela de 90 dias desde a liquidação.",
+      "403 AcessoNegado — autenticado, mas sem escopo/contrato para a funcionalidade ou acessando recurso de outro titular.",
+      "404 CobNaoEncontrado / CobVNaoEncontrada / CobRNaoEncontrado / RecNaoEncontrada / SolicRecNaoEncontrada / PixNaoEncontrado / PixDevolucaoNaoEncontrada / WebhookNaoEncontrado / LoteCobVNaoEncontrado / PayloadLocationNaoEncontrado — entidade inexistente.",
+      "410 PermanentementeRemovido — a entidade existiu e foi removida em definitivo.",
+      "500 ErroInternoDoServidor — falha inesperada no PSP.",
+      "503 ServicoIndisponivel — indisponibilidade ou janela de manutenção do PSP.",
+      "504 IndisponibilidadePorTempoEsgotado — o serviço demorou além do esperado."
+    ]
+  },
+  "sdks_oficiais": [],
+  "comercial": {
+    "modelo_acesso": "aberto",
+    "custo_api": "A especificação é pública e gratuita (repositório oficial do Bacen, licença Apache 2.0 declarada no README). O que custa é o serviço do PSP: tarifa por Pix recebido, por cobrança gerada ou mensalidade do pacote, definida em contrato com cada PSP. O Regulamento do Pix proíbe cobrar tarifa de pessoa natural em recebimentos, salvo nas hipóteses previstas; PJ é tarifada livremente.",
+    "exige_homologacao": false,
+    "tempo_medio_aprovacao": null,
+    "volatil": true
+  },
+  "conformidade": {
+    "trafega_dado_pessoal": true,
+    "dado_sensivel": false,
+    "base_legal_tipica": "Execução de contrato e cumprimento de obrigação regulatória: os dados de devedor (CPF/CNPJ, nome, endereço), de pagador (infoPagador) e de conta trafegam para liquidar e conciliar pagamentos regulados pela Resolução BCB nº 1/2020 e pelo Regulamento do Pix. Sigilo bancário (LC 105/2001) alcança os dados de conta e de transação.",
+    "exige_certificado_digital": true,
+    "regulador": "Banco Central do Brasil",
+    "residencia_dados": "Brasil — a liquidação ocorre no SPI e os dados ficam com PSPs autorizados a funcionar pelo Bacen.",
+    "termos_uso_url": "https://www.bcb.gov.br/estabilidadefinanceira/pix?modalAberto=regulamentacao_pix",
+    "permite_uso_em_produto_terceiro": "sim"
+  },
+  "kit_power_query": {
+    "viavel": false,
+    "motivo": "Toda chamada à API Pix exige TLS mútuo com certificado cliente emitido pelo PSP (requisito obrigatório do Manual de Padrões para Iniciação do Pix, Anexo II, seção 3.1), inclusive a obtenção do token OAuth. O Power Query do Excel e do Power BI não envia certificado cliente em Web.Contents, então nenhuma leitura da API — nem a autenticação — funciona diretamente no Power Query, em nenhum PSP.",
+    "alternativa": "O cliente.py do kit exporta Pix recebidos, cobranças imediatas e cobranças com vencimento para CSV/XLSX em uma pasta local (ou de rede/OneDrive); o Excel e o Power BI leem esses arquivos com Csv.Document/Excel.Workbook, sem tocar na API. Agende o script (Agendador de Tarefas, cron, container) na frequência do painel."
+  },
+  "esforco_integracao": {
+    "complexidade": "alta",
+    "horas_estimadas_mvp": 80,
+    "principais_armadilhas": [
+      "Não existe base URL do padrão: cada PSP publica a sua (produção e homologação) e o major v2 aparece no path. Toda a configuração tem de ser parametrizável por PSP.",
+      "mTLS em tudo: o certificado precisa ir também na chamada do token, e o token fica vinculado ao thumbprint do certificado — trocar de certificado sem trocar o token derruba as chamadas com 401/403.",
+      "txid é do recebedor, tem 26 a 35 caracteres alfanuméricos e é único por CPF/CNPJ do recebedor para sempre: não dá para reaproveitar nem depois de cancelar a cobrança. Quem usa POST /cob deixa o PSP gerar o txid e perde a idempotência.",
+      "Webhook só notifica Pix com txid. Pix de QR estático sem txid, Pix por chave e transferências avulsas nunca geram callback — só aparecem em GET /pix.",
+      "O webhook é aviso, não prova: sem assinatura de payload, confirme por GET /pix ou GET /cob/{txid} antes de dar baixa, e trate reentrega duplicada por endToEndId.",
+      "Valores são string com duas casas decimais (padrão \\d{1,10}\\.\\d{2}) e datas seguem RFC 3339 com fuso — converter para float na entrada quebra a validação; comparar horários sem normalizar o fuso quebra a conciliação.",
+      "Cada PSP implementa só os produtos que contratou com você: receber 403 AcessoNegado em cobv, lotecobv ou Pix Automático costuma ser contrato, não bug.",
+      "Devolução tem janela de 90 dias desde a liquidação do Pix original e o id da devolução é seu — repetir o mesmo id em outra devolução do mesmo e2eid dá 400.",
+      "Extensões proprietárias existem (campos a mais, endpoints de saldo, QR em PNG, split): o que não está na spec do Bacen não é portável entre PSPs."
+    ]
+  },
+  "casos_uso_negocio": [
+    {
+      "titulo": "Checkout com QR dinâmico e baixa automática",
+      "dor_resolvida": "Conferência manual do comprovante e liberação lenta do pedido depois do pagamento.",
+      "endpoints_envolvidos": [
+        "pix-bacen.cobranca.criar",
+        "pix-bacen.webhook.assinar_webhook",
+        "pix-bacen.transacao.listar",
+        "pix-bacen.cobranca.obter"
+      ],
+      "valor_percebido": "Pedido liberado em segundos, com txid amarrando o pagamento ao documento do ERP."
+    },
+    {
+      "titulo": "Conciliação diária de recebimentos",
+      "dor_resolvida": "Extrato do banco em PDF/OFX sem identificador confiável para casar com o título em aberto.",
+      "endpoints_envolvidos": [
+        "pix-bacen.transacao.listar",
+        "pix-bacen.transacao.obter",
+        "pix-bacen.cobranca.listar"
+      ],
+      "valor_percebido": "endToEndId e txid como chaves naturais de conciliação, incluindo a composição de juros, multa e desconto de cada pagamento."
+    },
+    {
+      "titulo": "Cobrança com vencimento substituindo o boleto",
+      "dor_resolvida": "Custo e prazo de registro e liquidação de boleto bancário, com juros e multa calculados fora do banco.",
+      "endpoints_envolvidos": [
+        "pix-bacen.cobranca.criar.cobv",
+        "pix-bacen.cobranca.obter.cobv",
+        "pix-bacen.cobranca.atualizar.cobv"
+      ],
+      "valor_percebido": "Documento com vencimento, multa, juros, abatimento e desconto calculados pelo PSP, liquidação imediata e sem retorno CNAB."
+    },
+    {
+      "titulo": "Carnê e mensalidades em lote",
+      "dor_resolvida": "Geração uma a uma de centenas de cobranças por vencimento, com risco de duplicidade.",
+      "endpoints_envolvidos": [
+        "pix-bacen.cobranca.criar.lote_cobv",
+        "pix-bacen.cobranca.obter.lote_cobv",
+        "pix-bacen.cobranca.listar.cobv"
+      ],
+      "valor_percebido": "Uma requisição cria o lote inteiro e devolve, por cobrança, o motivo de cada recusa."
+    },
+    {
+      "titulo": "Devolução de Pix rastreável",
+      "dor_resolvida": "Estorno feito por transferência manual, sem vínculo com o recebimento original.",
+      "endpoints_envolvidos": [
+        "pix-bacen.transacao.estornar",
+        "pix-bacen.transacao.obter.devolucao"
+      ],
+      "valor_percebido": "Devolução amarrada ao endToEndId original, com rtrId, status e trilha de auditoria."
+    },
+    {
+      "titulo": "Assinaturas e mensalidades com Pix Automático",
+      "dor_resolvida": "Inadimplência e atrito do débito automático restrito ao banco do cliente.",
+      "endpoints_envolvidos": [
+        "pix-bacen.assinatura.criar",
+        "pix-bacen.assinatura.enviar.solicitacao",
+        "pix-bacen.cobranca.criar.cobr",
+        "pix-bacen.webhook.assinar_webhook.cobr"
+      ],
+      "valor_percebido": "Autorização única do pagador e cobranças recorrentes agendadas pelo PSP pagador, com política de retentativa padronizada."
+    },
+    {
+      "titulo": "Multibanco sem reescrever a integração",
+      "dor_resolvida": "Cada banco com API própria trava a negociação de tarifas e a troca de PSP.",
+      "endpoints_envolvidos": [
+        "pix-bacen.autenticacao.autenticar",
+        "pix-bacen.cobranca.criar",
+        "pix-bacen.transacao.listar"
+      ],
+      "valor_percebido": "Mesmos paths e schemas em todos os PSPs: muda a base URL, o certificado e as credenciais — o resto do código continua."
+    }
+  ],
+  "indice_integrabilidade": {
+    "score": 64,
+    "componentes": {
+      "documentacao": {
+        "peso": 20,
+        "pontos": 17,
+        "justificativa": "Especificação OpenAPI oficial e versionada no GitHub do Bacen (releases, changelog, HTML renderizado), somada ao Manual de Padrões para Iniciação do Pix com regras de negócio, estados e casos de uso, e ao catálogo completo de tipos de erro e violações. Perde pontos porque a spec é OpenAPI 3.0 com servers fictícios, sem base URL nem endpoint de token, e porque a parte de segurança e a de homologação ficam fora do repositório, em manuais separados."
+      },
+      "sandbox": {
+        "peso": 15,
+        "pontos": 4,
+        "justificativa": "Não há sandbox nem mock oficial do Bacen. Testar depende do ambiente de homologação de cada PSP, com credencial e certificado próprios, qualidade desigual e nenhuma garantia de paridade com produção; o que dá para fazer sem PSP é subir um mock local a partir da spec."
+      },
+      "autenticacao": {
+        "peso": 15,
+        "pontos": 14,
+        "justificativa": "OAuth2 client credentials com escopos granulares por recurso e operação, sobre mTLS obrigatório, com access token vinculado ao certificado (RFC 8705) e credencial amarrada ao CPF/CNPJ do recebedor. Perde 1 ponto porque a URL do token, o TTL e a jornada de emissão do certificado não são padronizados."
+      },
+      "webhooks": {
+        "peso": 15,
+        "pontos": 9,
+        "justificativa": "Webhooks padronizados para Pix recebidos, devoluções, recorrências e cobranças recorrentes, com canal mTLS e payload especificado. Perde pontos porque não há assinatura do payload, o SLA e a política de reentrega ficam a cargo de cada PSP e só Pix com txid geram notificação."
+      },
+      "limites_paginacao": {
+        "peso": 10,
+        "pontos": 7,
+        "justificativa": "Paginação uniforme em todas as listagens (paginacao.paginaAtual/itensPorPagina, até 1000 por página, com quantidadeDePaginas e quantidadeTotalDeItens na resposta) e filtros obrigatórios de período. Perde pontos porque o padrão não define rate limit, timeout nem política de retry — cada PSP arbitra."
+      },
+      "sdks_comunidade": {
+        "peso": 10,
+        "pontos": 3,
+        "justificativa": "O Bacen não publica SDK, apenas a spec. Existem bibliotecas de comunidade e SDKs de PSPs que implementam o padrão, mas nenhuma referência oficial multiplataforma; o caminho suportado é gerar cliente a partir do OpenAPI."
+      },
+      "acesso_sem_barreira": {
+        "peso": 10,
+        "pontos": 5,
+        "justificativa": "A especificação é pública, livre e sem cadastro, e qualquer PJ com conta em PSP pode usar a API. Porém nada funciona sem contrato com um PSP, emissão de certificado e liberação de escopos por produto, e o próprio padrão prevê que o PSP conceda só um subconjunto das funcionalidades."
+      },
+      "versionamento": {
+        "peso": 5,
+        "pontos": 5,
+        "justificativa": "SemVer explícito, major no path (v2), releases datadas com changelog no repositório oficial, regra escrita do que é retrocompatível e marcação de campos deprecated (ex.: PCFD, ERSL, AGPSS na 2.10.0)."
+      }
+    }
+  },
+  "qualidade_doc": {
+    "nota": 8,
+    "observacoes": "Spec OpenAPI oficial, manual normativo detalhado e catálogo de erros por tag — raro nesse nível no Brasil. O que falta é o operacional: não há base URL, endpoint de token, rate limit, TTL de token, exemplos ponta a ponta nem sandbox de referência, e a documentação de segurança está em PDF separado da spec. Resultado: a leitura oficial explica o contrato, mas a integração real só fecha com a documentação do PSP escolhido."
+  },
+  "monitoramento": {
+    "changelog_url": "https://github.com/bacen/pix-api/releases",
+    "canal_breaking_changes": "Releases e changelog.md do repositório bacen/pix-api, comunicados do Fórum Pix e Informes SPI publicados em bcb.gov.br; PSPs replicam os prazos de adoção.",
+    "frequencia_revisao_sugerida": "mensal"
+  },
+  "lacunas": [
+    {
+      "campo": "api.base_urls",
+      "descricao": "O padrão não define base URL: os servers da spec são exemplos (pix.example.com). Cada PSP publica a sua para produção e homologação, e a posição do /v2 no path varia. Fichas de PSP devem registrar os valores reais.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "autenticacao.expiracao_token / url do token",
+      "descricao": "O endpoint de token, o TTL e o formato do segredo não estão na spec nem no manual (o tokenUrl da spec é exemplo). Foram documentados como PSP-dependentes; o endpoint pix-bacen.autenticacao.autenticar está marcado como inferido.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "limites.rate_limit",
+      "descricao": "Nenhum limite de requisições, tamanho de payload ou timeout é definido pelo padrão; o manual só exige alta disponibilidade. Não encontrei número oficial — cada PSP publica o seu.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "ambiente_testes.sandbox",
+      "descricao": "Não encontrei sandbox, mock ou coleção de testes oficial do Bacen para a API Pix (a organização bacen no GitHub só tem quickstart para o DICT, restrito a participantes). Se existir algo publicado para participantes em área logada, não é público.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "webhooks.verificacao_assinatura",
+      "descricao": "O padrão não define assinatura de payload nem cabeçalho de verificação; a proteção é o mTLS do canal. Vários PSPs acrescentam token na URL ou cabeçalho próprio — desvio a registrar na ficha de cada PSP.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "taxonomia.entidades",
+      "descricao": "Não existe entidade canônica para 'location de payload' (/loc, /locrec), que é a URL onde o QR dinâmico busca a cobrança. Foi mapeada como Cobranca/Assinatura com qualificador location. Sugestão de extensão: entidade LocationPagamento.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "taxonomia.acoes",
+      "descricao": "Não existe ação 'desvincular' para DELETE /loc/{id}/txid e DELETE /locrec/{id}/idRec, que removem só o vínculo e mantêm a location. Foi usado 'excluir' com observação. Sugestão de extensão: ação desvincular.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "endpoints.retentativa (POST /cobr/{txid}/retentativa/{data})",
+      "descricao": "Mapeado como Cobranca/criar com qualificador retentativa_cobr por falta de ação canônica para 'solicitar nova tentativa de liquidação'. A semântica real é agendar uma tentativa, não criar cobrança.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "comercial.custo_api",
+      "descricao": "Tarifas por Pix recebido e por cobrança são definidas por cada PSP em contrato; não há tabela oficial do arranjo. Valores só podem ser registrados nas fichas dos PSPs.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "endpoints CobPayload/RecPayload",
+      "descricao": "Os endpoints públicos que servem o payload do QR dinâmico (GET /{pixUrlAccessToken}, GET /cobv/{pixUrlAccessToken}, GET /rec/{recUrlAccessToken}) foram catalogados sem detalhamento: quem os chama é o aplicativo do PSP pagador, não a automação do usuário recebedor.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "execucao_auth.base_url_por_ambiente / token_url",
+      "descricao": "Ficaram null porque o padrao nao define nenhum host: sem a URL base e a URL de token do PSP escolhido, o executor nao consegue montar chamada nenhuma. O cliente precisa cadastrar as duas no cofre, junto com o par certificado/chave.",
+      "impacto": "alto"
+    }
+  ],
+  "fontes": [
+    {
+      "url": "https://github.com/bacen/pix-api",
+      "titulo": "Repositório oficial da especificação da API Pix (organização bacen, verificada no GitHub como Banco Central do Brasil)",
+      "data_consulta": "2026-09-17",
+      "versao_doc": "2.10.0"
+    },
+    {
+      "url": "https://github.com/bacen/pix-api/releases/tag/2.10.0",
+      "titulo": "API Pix — release 2.10.0 (spec.yaml/spec.json/spec.html), publicada em 19/08/2026",
+      "data_consulta": "2026-09-17",
+      "versao_doc": "2.10.0"
+    },
+    {
+      "url": "https://bacen.github.io/pix-api/index.html",
+      "titulo": "Especificação da API Pix renderizada (branch master)",
+      "data_consulta": "2026-09-17",
+      "versao_doc": "2.10.0"
+    },
+    {
+      "url": "https://www.bcb.gov.br/content/estabilidadefinanceira/pix/Regulamento_Pix/II_ManualdePadroesparaIniciacaodoPix.pdf",
+      "titulo": "Manual de Padrões para Iniciação do Pix, versão 2.10.0 (Anexo II traz a especificação técnica e os requisitos de segurança da API)",
+      "data_consulta": "2026-09-17",
+      "versao_doc": "2.10.0"
+    },
+    {
+      "url": "https://www.bcb.gov.br/estabilidadefinanceira/pix?modalAberto=regulamentacao_pix",
+      "titulo": "Regulamentação do Pix (Resolução BCB nº 1/2020, Regulamento do Pix e manuais do arranjo)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.bcb.gov.br/content/estabilidadefinanceira/pix/automatico/guia_pix_automatico.pdf",
+      "titulo": "Guia de implementação do Pix Automático",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.bcb.gov.br/estabilidadefinanceira/pix",
+      "titulo": "Página oficial do Pix no Banco Central",
+      "data_consulta": "2026-09-17"
+    }
+  ]
+}

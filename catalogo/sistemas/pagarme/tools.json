@@ -1,0 +1,2804 @@
+{
+  "sistema": "pagarme",
+  "tools": [
+    {
+      "name": "pagarme__cliente__criar",
+      "title": "Pagar.me - Criar cliente",
+      "description": "Cadastra um comprador na carteira de clientes da loja. O cliente criado pode ser reaproveitado em pedidos, assinaturas e links de pagamento pelo customer_id, e é ele que ancora cartões e endereços salvos. Quando usar: Antes do primeiro pedido de um comprador novo, quando você quer guardar o cadastro no Pagar.me em vez de reenviar os dados a cada venda. Se o comprador é avulso, envie o objeto customer direto no pedido. NAO EXECUTAR. Escrita: cria um cliente na carteira da loja. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Chave secreta (sk_) do ambiente correspondente..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome."
+          },
+          "email": {
+            "type": "string",
+            "description": "E-mail do cliente."
+          },
+          "code": {
+            "type": "string",
+            "description": "Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me."
+          },
+          "document": {
+            "type": "string",
+            "description": "Número do documento: CPF, CNPJ ou passaporte, sem máscara."
+          },
+          "document_type": {
+            "type": "string",
+            "description": "Natureza do documento informado: CPF, CNPJ ou PASSPORT.",
+            "enum": [
+              "CPF",
+              "CNPJ",
+              "PASSPORT"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "Tipo do registro; os valores válidos variam por recurso."
+          },
+          "gender": {
+            "type": "string",
+            "description": "Gênero declarado: male ou female.",
+            "enum": [
+              "male",
+              "female"
+            ]
+          },
+          "address": {
+            "type": "object",
+            "description": "Endereço vinculado ao registro."
+          },
+          "phones": {
+            "type": "object",
+            "description": "Telefones do cliente (residencial e/ou celular)."
+          },
+          "birthdate": {
+            "type": "string",
+            "description": "Data de nascimento.",
+            "format": "date"
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cliente__listar",
+      "title": "Pagar.me - Listar clientes",
+      "description": "Devolve a carteira de clientes da loja, paginada por page/size, com filtros por nome, documento, e-mail, gênero e pelo seu código externo (code). Quando usar: Para carregar a base de compradores num ERP ou num painel de BI, ou para descobrir o customer_id a partir do CPF/CNPJ antes de criar um pedido. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: Chave secreta (sk_)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome."
+          },
+          "document": {
+            "type": "string",
+            "description": "Número do documento: CPF, CNPJ ou passaporte, sem máscara."
+          },
+          "email": {
+            "type": "string",
+            "description": "E-mail do cliente."
+          },
+          "gender": {
+            "type": "string",
+            "description": "Gênero declarado: male ou female.",
+            "enum": [
+              "male",
+              "female"
+            ]
+          },
+          "page": {
+            "type": "integer",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "size": {
+            "type": "integer",
+            "description": "Quantidade de registros por página."
+          },
+          "code": {
+            "type": "string",
+            "description": "Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cliente__obter",
+      "title": "Pagar.me - Obter cliente",
+      "description": "Retorna um cliente pelo identificador cus_. Traz o endereço principal, os telefones e o metadata gravado. Quando usar: Para conferir o cadastro antes de cobrar, ou para reexibir dados do comprador na sua tela. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: customer_id obtido na criação ou na listagem..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          }
+        },
+        "required": [
+          "customer_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cliente__atualizar",
+      "title": "Pagar.me - Editar cliente",
+      "description": "Substitui os dados cadastrais do cliente informado. Como o verbo é PUT, reenvie o conjunto completo de campos que deve permanecer no cadastro. Quando usar: Quando o comprador troca de e-mail, telefone ou endereço, ou para gravar o seu code depois que o cliente já existia no Pagar.me. NAO EXECUTAR. Escrita: sobrescreve o cadastro do cliente. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: customer_id existente..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome."
+          },
+          "email": {
+            "type": "string",
+            "description": "E-mail do cliente."
+          },
+          "code": {
+            "type": "string",
+            "description": "Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me."
+          },
+          "document": {
+            "type": "string",
+            "description": "Número do documento: CPF, CNPJ ou passaporte, sem máscara."
+          },
+          "document_type": {
+            "type": "string",
+            "description": "Natureza do documento informado: CPF, CNPJ ou PASSPORT.",
+            "enum": [
+              "CPF",
+              "CNPJ",
+              "PASSPORT"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "Tipo do registro; os valores válidos variam por recurso."
+          },
+          "gender": {
+            "type": "string",
+            "description": "Gênero declarado: male ou female.",
+            "enum": [
+              "male",
+              "female"
+            ]
+          },
+          "address": {
+            "type": "object",
+            "description": "Endereço vinculado ao registro."
+          },
+          "phone": {
+            "type": "object",
+            "description": "Telefone de contato."
+          },
+          "birthdate": {
+            "type": "string",
+            "description": "Data de nascimento.",
+            "format": "date"
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          }
+        },
+        "required": [
+          "customer_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cartao__criar",
+      "title": "Pagar.me - Criar cartão",
+      "description": "Salva um cartão na carteira (wallet) do cliente e devolve um card_id reutilizável. Aceita os dados abertos do cartão (exige ambiente PCI-DSS) ou um token gerado pelo tokenizecard.js. Quando usar: Para guardar o meio de pagamento do comprador e cobrar depois com card_id, em one-click, recorrência ou cobrança avulsa, sem voltar a trafegar o número do cartão. NAO EXECUTAR. Escrita: grava um meio de pagamento na carteira. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: customer_id existente.; Para enviar número/CVV pelo seu servidor é preciso ser PCI-DSS; caso contrário use token..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "number": {
+            "type": "string",
+            "description": "Número, sem máscara. Em telefones, o número da linha; em cartões, o PAN."
+          },
+          "holder_name": {
+            "type": "string",
+            "description": "Nome do portador exatamente como impresso no cartão (sem números nem caracteres especiais)."
+          },
+          "holder_document": {
+            "type": "string",
+            "description": "CPF ou CNPJ do portador. Obrigatório para cartões voucher (VR, Pluxee)."
+          },
+          "exp_month": {
+            "type": "integer",
+            "description": "Mês de validade do cartão, de 1 a 12."
+          },
+          "exp_year": {
+            "type": "integer",
+            "description": "Ano de validade do cartão, com 2 ou 4 dígitos."
+          },
+          "cvv": {
+            "type": "string",
+            "description": "Código de segurança do cartão (3 ou 4 dígitos, conforme a bandeira)."
+          },
+          "brand": {
+            "type": "string",
+            "description": "Bandeira do cartão (ex.: visa, mastercard, elo, amex, hipercard; VR e Pluxee em voucher)."
+          },
+          "label": {
+            "type": "string",
+            "description": "Rótulo do cartão, usado em cartões multiaplicação."
+          },
+          "billing_address_id": {
+            "type": "string",
+            "description": "Identificador de um endereço já cadastrado, usado no lugar de billing_address."
+          },
+          "billing_address": {
+            "type": "object",
+            "description": "Endereço de cobrança do cartão."
+          },
+          "options": {
+            "type": "object",
+            "description": "Opções de responsabilidade e de cobrança de taxas do recebedor nesta regra."
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          },
+          "token": {
+            "type": "string",
+            "description": "Token de cartão obtido previamente, usado no lugar dos dados abertos."
+          }
+        },
+        "required": [
+          "customer_id",
+          "number",
+          "holder_name",
+          "exp_month",
+          "exp_year",
+          "cvv"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cartao__listar",
+      "title": "Pagar.me - Listar cartões",
+      "description": "Lista os cartões salvos na carteira do cliente, sempre mascarados (BIN e quatro últimos dígitos). Quando usar: Para montar a tela 'escolha um cartão salvo' do seu checkout e para auditar quais meios de pagamento o comprador mantém ativos. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: customer_id existente..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          }
+        },
+        "required": [
+          "customer_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cartao__obter",
+      "title": "Pagar.me - Obter cartão",
+      "description": "Retorna um cartão específico da carteira do cliente, com bandeira, validade, status e endereço de cobrança. Quando usar: Para checar validade e status antes de disparar uma cobrança recorrente com card_id. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: customer_id e card_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "card_id": {
+            "type": "string",
+            "description": "Identificador de um cartão já salvo na carteira do cliente (prefixo card_)."
+          }
+        },
+        "required": [
+          "customer_id",
+          "card_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cartao__excluir",
+      "title": "Pagar.me - Excluir cartão",
+      "description": "Remove o cartão da carteira do cliente. O cartão deixa de ser utilizável por card_id. Quando usar: Quando o comprador pede a remoção do meio de pagamento ou o cartão expirou e foi substituído. NAO EXECUTAR. Escrita destrutiva: apaga o cartão da carteira. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: customer_id e card_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "card_id": {
+            "type": "string",
+            "description": "Identificador de um cartão já salvo na carteira do cliente (prefixo card_)."
+          }
+        },
+        "required": [
+          "customer_id",
+          "card_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cartao__criar__token",
+      "title": "Pagar.me - Criar token de cartão",
+      "description": "Troca os dados abertos de um cartão por um token de uso único. É a alternativa ao tokenizecard.js quando não dá para embarcar o script no checkout. Autentica-se com a CHAVE PÚBLICA na query (appId), não com a chave secreta. Quando usar: No front-end do seu checkout, antes de enviar o formulário ao seu servidor, para que o número do cartão nunca passe pela sua infraestrutura. NAO EXECUTAR. Escrita: gera credencial de pagamento e trafega dados de cartão. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Chave pública (pk_) do ambiente.; Domínio do checkout liberado na allowlist da conta (Dash > configurações da account/merchant)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "appId": {
+            "type": "string",
+            "description": "Chave pública da conta (pk_...). É o único parâmetro de autenticação desta rota; não use a chave secreta aqui."
+          },
+          "type": {
+            "type": "string",
+            "description": "Tipo do registro; os valores válidos variam por recurso."
+          },
+          "card": {
+            "type": "object",
+            "description": "Dados do cartão. Enviar o cartão aberto exige ambiente PCI-DSS; prefira card_id ou card_token."
+          }
+        },
+        "required": [
+          "appId",
+          "type",
+          "card"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__endereco__criar",
+      "title": "Pagar.me - Criar endereço",
+      "description": "Adiciona um endereço à carteira do cliente e devolve um addr_ reutilizável como billing_address_id de cartões e cobranças. Quando usar: Para cadastrar endereço de cobrança do cartão (exigido por antifraude e por algumas bandeiras) sem repetir os campos a cada transação. NAO EXECUTAR. Escrita: cria endereço na carteira do cliente. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: customer_id existente..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "line_1": {
+            "type": "string",
+            "description": "Primeira linha do endereço: número, logradouro e bairro, nesta ordem e separados por vírgula."
+          },
+          "line_2": {
+            "type": "string",
+            "description": "Segunda linha do endereço: complemento e referências."
+          },
+          "zip_code": {
+            "type": "string",
+            "description": "CEP, só dígitos."
+          },
+          "city": {
+            "type": "string",
+            "description": "Município."
+          },
+          "state": {
+            "type": "string",
+            "description": "Unidade federativa no padrão ISO 3166-2 (só a sigla, ex.: SP)."
+          },
+          "country": {
+            "type": "string",
+            "description": "País no padrão ISO 3166-1 alpha-2 (ex.: BR)."
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          }
+        },
+        "required": [
+          "customer_id",
+          "line_1",
+          "zip_code",
+          "city",
+          "state",
+          "country"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__endereco__listar",
+      "title": "Pagar.me - Listar endereços",
+      "description": "Lista os endereços cadastrados na carteira de um cliente, com paginação page/size. Quando usar: Para montar o seletor de endereço de cobrança/entrega no checkout ou conferir o que está salvo. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: customer_id existente..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "page": {
+            "type": "integer",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "size": {
+            "type": "integer",
+            "description": "Quantidade de registros por página."
+          }
+        },
+        "required": [
+          "customer_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__endereco__atualizar",
+      "title": "Pagar.me - Editar endereço",
+      "description": "Atualiza os dados complementares de um endereço da carteira do cliente. Quando usar: Quando o comprador corrige complemento, número ou CEP de um endereço já usado em cobranças. NAO EXECUTAR. Escrita: altera o endereço salvo. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: customer_id e address_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "address_id": {
+            "type": "string",
+            "description": "Identificador do endereço no Pagar.me (prefixo addr_)."
+          },
+          "line_2": {
+            "type": "string",
+            "description": "Segunda linha do endereço: complemento e referências."
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          }
+        },
+        "required": [
+          "customer_id",
+          "address_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__endereco__excluir",
+      "title": "Pagar.me - Excluir endereço",
+      "description": "Remove um endereço da carteira do cliente; o registro passa a status deleted. Quando usar: Para limpar endereços antigos do comprador, respeitando pedidos de exclusão (LGPD). NAO EXECUTAR. Escrita destrutiva: apaga o endereço. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: customer_id e address_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "address_id": {
+            "type": "string",
+            "description": "Identificador do endereço no Pagar.me (prefixo addr_)."
+          }
+        },
+        "required": [
+          "customer_id",
+          "address_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__pedido__criar",
+      "title": "Pagar.me - Criar pedido",
+      "description": "Rota principal de venda da API v5. Um pedido reúne itens, comprador e um ou mais pagamentos; cada elemento de payments[] vira uma cobrança (charge). Suporta cartão de crédito e débito, boleto, Pix, voucher, private label e dinheiro, além de regras de split entre recebedores. Quando usar: Sempre que a venda nasce no seu sistema: e-commerce, PDV, aplicativo, cobrança avulsa. Para recorrência use assinaturas; para cobrar pelo checkout hospedado use link de pagamento. NAO EXECUTAR. Escrita com efeito financeiro: cria cobrança e pode capturar valor no cartão. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Chave secreta (sk_).; Para cartão: card_token, card_id ou ambiente PCI-DSS.; Para split: recebedores já cadastrados e conta no modelo PSP.; Para Pix: contrato/aditivo de Pix firmado (a chave aleatória é criada pelo Pagar.me)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "Idempotency-Key": {
+            "type": "string",
+            "description": "Chave de idempotência gerada por você. Requisições repetidas com a mesma chave em até 24 h (5 min no ambiente de teste) devolvem a mesma operação, sem duplicar."
+          },
+          "code": {
+            "type": "string",
+            "description": "Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me."
+          },
+          "items": {
+            "type": "array",
+            "description": "Itens que compõem o registro."
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "customer": {
+            "type": "object",
+            "description": "Dados do cliente criados junto com o registro. Alternativa a customer_id."
+          },
+          "shipping": {
+            "type": "object",
+            "description": "Dados de entrega do pedido."
+          },
+          "payments": {
+            "type": "array",
+            "description": "Lista de pagamentos do pedido. Mais de um item configura multimeios (o valor é dividido entre eles)."
+          },
+          "closed": {
+            "type": "boolean",
+            "description": "Indica se o pedido está fechado. Um pedido aberto ainda aceita novas cobranças."
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          }
+        },
+        "required": [
+          "items",
+          "payments"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__pedido__listar",
+      "title": "Pagar.me - Listar pedidos",
+      "description": "Lista os pedidos da loja com filtros por status, cliente, seu código externo e período de criação, paginados por page/size. Cada pedido vem com itens, comprador e cobranças. Quando usar: Base de qualquer relatório de vendas: extrair pedidos do dia/mês para o ERP, para o Excel ou para conciliar com o faturamento. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: Chave secreta (sk_)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me."
+          },
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "created_since": {
+            "type": "string",
+            "description": "Limite inicial do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "created_until": {
+            "type": "string",
+            "description": "Limite final do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "size": {
+            "type": "integer",
+            "description": "Quantidade de registros por página."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__pedido__obter",
+      "title": "Pagar.me - Obter pedido",
+      "description": "Retorna um pedido completo pelo identificador or_, incluindo itens, comprador, todas as cobranças e a última transação de cada uma (QR code do Pix, linha digitável do boleto, retorno da adquirente). Quando usar: Depois de criar o pedido, para pegar o QR code do Pix ou o boleto; e sempre que precisar do estado atual de uma venda sem depender só do webhook. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: order_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "description": "Identificador do pedido no Pagar.me (prefixo or_)."
+          }
+        },
+        "required": [
+          "order_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__pedido__encerrar",
+      "title": "Pagar.me - Fechar um pedido",
+      "description": "Fecha um pedido aberto. Enquanto o pedido está aberto é possível acrescentar cobranças a ele; depois de fechado, não. Quando usar: Em fluxos de comanda/consumo, quando o cliente encerra a conta e o pedido não deve mais receber cobranças novas. NAO EXECUTAR. Escrita: encerra o pedido para novas cobranças. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: order_id de um pedido ainda aberto..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "description": "Identificador do pedido no Pagar.me (prefixo or_)."
+          },
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          }
+        },
+        "required": [
+          "order_id",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__criar",
+      "title": "Pagar.me - Criar cobrança / incluir cobrança no pedido",
+      "description": "Cria uma cobrança avulsa ou acrescenta uma cobrança a um pedido ainda aberto, informando o order_id. É o caminho para multimeios (dividir um pedido entre cartão e Pix, por exemplo) e para cobrar de novo um pedido em aberto. Quando usar: Quando o pedido já existe e você precisa de mais uma cobrança sobre ele, ou quando quer uma cobrança sem montar o pedido completo. NAO EXECUTAR. Escrita com efeito financeiro: gera cobrança ao comprador. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Pedido aberto quando for incluir cobrança nele (order_id).; Mesmos pré-requisitos de meio de pagamento da criação de pedido..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "Idempotency-Key": {
+            "type": "string",
+            "description": "Chave de idempotência gerada por você. Requisições repetidas com a mesma chave em até 24 h (5 min no ambiente de teste) devolvem a mesma operação, sem duplicar."
+          },
+          "code": {
+            "type": "string",
+            "description": "Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me."
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Moeda do valor. Único valor aceito: BRL.",
+            "enum": [
+              "BRL"
+            ]
+          },
+          "payment": {
+            "type": "object",
+            "description": "Bloco de pagamento da cobrança."
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "customer": {
+            "type": "object",
+            "description": "Dados do cliente criados junto com o registro. Alternativa a customer_id."
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          }
+        },
+        "required": [
+          "amount",
+          "payment",
+          "customer_id",
+          "customer"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__listar",
+      "title": "Pagar.me - Listar cobranças",
+      "description": "Lista as cobranças da loja com filtros por status, meio de pagamento, cliente, pedido, código externo e período de criação. É a visão financeira do que foi cobrado, independentemente do pedido. Quando usar: Relatórios de recebimento, conciliação diária e painéis de BI: quanto foi pago por Pix, boleto e cartão em um período. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: Chave secreta (sk_)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me."
+          },
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          },
+          "payment_method": {
+            "type": "string",
+            "description": "Meio de pagamento: credit_card, debit_card, boleto, pix, voucher, bank_transfer, cash, private_label ou checkout."
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "order_id": {
+            "type": "string",
+            "description": "Identificador do pedido no Pagar.me (prefixo or_)."
+          },
+          "created_since": {
+            "type": "string",
+            "description": "Limite inicial do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "created_until": {
+            "type": "string",
+            "description": "Limite final do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "size": {
+            "type": "integer",
+            "description": "Quantidade de registros por página."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__obter",
+      "title": "Pagar.me - Obter cobrança",
+      "description": "Retorna uma cobrança pelo identificador ch_, com o objeto last_transaction — onde ficam QR code do Pix, linha digitável e código de barras do boleto, e o retorno da adquirente no cartão. Quando usar: Para recuperar o QR code ou o boleto de uma cobrança já criada, e para confirmar o status real antes de liberar a mercadoria. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: charge_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identificador da cobrança no Pagar.me (prefixo ch_)."
+          }
+        },
+        "required": [
+          "charge_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__cancelar",
+      "title": "Pagar.me - Cancelar cobrança (cancelamento e estorno)",
+      "description": "Rota única de desfazimento. Se a cobrança ainda não foi capturada, cancela a autorização; se já foi paga, executa o estorno (refund) — total quando amount é omitido, parcial quando você informa o valor em centavos. Vale para cartão, Pix e boleto, com regras próprias de cada meio. Quando usar: Devolução ao comprador, venda cancelada, cobrança emitida por engano, ou estorno parcial de um item devolvido. NAO EXECUTAR. Escrita destrutiva com efeito financeiro: devolve dinheiro ao comprador. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: charge_id.; No Pix, a devolução precisa ocorrer em até 90 dias da conciliação (regra do arranjo).; Saldo suficiente na conta para o estorno de Pix/boleto..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identificador da cobrança no Pagar.me (prefixo ch_)."
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990."
+          }
+        },
+        "required": [
+          "charge_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__autorizar",
+      "title": "Pagar.me - Capturar cobrança",
+      "description": "Captura uma cobrança de cartão que foi apenas autorizada (operation_type auth_only ou pre_auth). Permite capturar valor menor que o autorizado e, no modelo PSP, redefinir as regras de split no momento da captura. Quando usar: Fluxos de autoriza-agora-captura-depois: confirmação de estoque, faturamento após separação, hotelaria e locação com pré-autorização. NAO EXECUTAR. Escrita com efeito financeiro: efetiva o débito no cartão do comprador. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Cobrança em status authorized_pending_capture.; Respeitar o prazo de captura da bandeira — a Visa publicou prazo próprio para captura..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identificador da cobrança no Pagar.me (prefixo ch_)."
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990."
+          },
+          "split": {
+            "type": "array",
+            "description": "Regras de divisão do valor entre recebedores. Disponível apenas no modelo PSP."
+          }
+        },
+        "required": [
+          "charge_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__atualizar__vencimento",
+      "title": "Pagar.me - Editar data de vencimento da cobrança",
+      "description": "Altera a data de vencimento de uma cobrança ainda não paga (tipicamente boleto). Quando usar: Renegociação de prazo com o cliente sem precisar cancelar e reemitir o boleto. NAO EXECUTAR. Escrita: altera o vencimento da cobrança. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Cobrança em aberto (não paga, não cancelada)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identificador da cobrança no Pagar.me (prefixo ch_)."
+          },
+          "due_at": {
+            "type": "string",
+            "description": "Data/hora de vencimento.",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "charge_id",
+          "due_at"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__atualizar__meio_pagamento",
+      "title": "Pagar.me - Editar método de pagamento da cobrança",
+      "description": "Troca o meio de pagamento de uma cobrança não autorizada — por exemplo, de cartão recusado para boleto ou Pix — reaproveitando o mesmo pedido. Com update_subscription=true, a troca vale também para a assinatura que gerou a cobrança. Quando usar: Recuperação de venda após recusa do cartão, sem obrigar o comprador a refazer o pedido. NAO EXECUTAR. Escrita com efeito financeiro: dispara nova tentativa de cobrança. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Cobrança que ainda não foi autorizada..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identificador da cobrança no Pagar.me (prefixo ch_)."
+          },
+          "update_subscription": {
+            "type": "string",
+            "description": "Quando true, aplica a alteração também à assinatura que originou a cobrança."
+          },
+          "payment_method": {
+            "type": "string",
+            "description": "Meio de pagamento: credit_card, debit_card, boleto, pix, voucher, bank_transfer, cash, private_label ou checkout."
+          },
+          "credit_card": {
+            "type": "object",
+            "description": "Bloco de cartão de crédito. Obrigatório quando payment_method = credit_card."
+          },
+          "voucher": {
+            "type": "object",
+            "description": "Bloco de cartão voucher (vale-refeição/alimentação). Obrigatório quando payment_method = voucher."
+          },
+          "boleto": {
+            "type": "object",
+            "description": "Bloco de boleto. Obrigatório quando payment_method = boleto."
+          },
+          "bank_transfer": {
+            "type": "object",
+            "description": "Bloco de transferência bancária."
+          },
+          "Pix": {
+            "type": "object",
+            "description": "Bloco de Pix. Obrigatório quando payment_method = pix."
+          },
+          "reuse_split": {
+            "type": "boolean",
+            "description": "Reaproveita as regras de split já gravadas na assinatura."
+          }
+        },
+        "required": [
+          "charge_id",
+          "payment_method"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__atualizar__cartao",
+      "title": "Pagar.me - Editar cartão da cobrança",
+      "description": "Substitui o cartão de uma cobrança que não foi autorizada e refaz a tentativa. Aceita card_id, card_token ou os dados abertos do cartão. Quando usar: O comprador informou outro cartão depois da recusa; evita recriar o pedido. NAO EXECUTAR. Escrita com efeito financeiro: nova tentativa de débito no cartão. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Cobrança com transação não autorizada (a própria documentação restringe a esse caso)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identificador da cobrança no Pagar.me (prefixo ch_)."
+          },
+          "update_subscription": {
+            "type": "string",
+            "description": "Quando true, aplica a alteração também à assinatura que originou a cobrança."
+          },
+          "card_id": {
+            "type": "string",
+            "description": "Identificador de um cartão já salvo na carteira do cliente (prefixo card_)."
+          },
+          "card": {
+            "type": "object",
+            "description": "Dados do cartão. Enviar o cartão aberto exige ambiente PCI-DSS; prefira card_id ou card_token."
+          },
+          "card_token": {
+            "type": "string",
+            "description": "Token do cartão gerado pelo tokenizecard.js ou por POST /tokens. Vale 60 segundos e um único uso."
+          },
+          "initiated_type": {
+            "type": "string",
+            "description": "Motivo da transação iniciada pelo lojista: partial_shipment, related_or_delayed_charge, no_show ou resubmission.",
+            "enum": [
+              "partial_shipment",
+              "related_or_delayed_charge",
+              "no_show",
+              "resubmission"
+            ]
+          },
+          "recurrence_model": {
+            "type": "string",
+            "description": "Modelo de recorrência exigido pelas bandeiras: standing_order, instalment ou subscription.",
+            "enum": [
+              "standing_order",
+              "instalment",
+              "subscription"
+            ]
+          },
+          "payment_origin": {
+            "type": "object",
+            "description": "Referência da primeira cobrança da recorrência, usada para herdar a autenticação."
+          }
+        },
+        "required": [
+          "charge_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__autorizar__retentativa",
+      "title": "Pagar.me - Retentar uma cobrança manualmente",
+      "description": "Dispara manualmente uma nova tentativa de pagamento de uma cobrança que falhou, sem trocar o meio nem o cartão. Complementa a retentativa automática configurada na conta. Quando usar: Cobrança recusada por erro temporário do emissor ou indisponibilidade; em régua de cobrança de assinaturas antes de suspender o cliente. NAO EXECUTAR. Escrita com efeito financeiro: nova tentativa de cobrança no comprador. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Cobrança em status de falha..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identificador da cobrança no Pagar.me (prefixo ch_)."
+          }
+        },
+        "required": [
+          "charge_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__liquidar",
+      "title": "Pagar.me - Confirmar cobrança em dinheiro",
+      "description": "Registra a baixa manual de uma cobrança criada com o meio de pagamento cash (dinheiro), informando ao Pagar.me que o valor foi recebido fora do sistema. Quando usar: Venda registrada no Pagar.me mas paga em espécie no balcão, para manter pedido e conciliação coerentes. NAO EXECUTAR. Escrita: dá baixa financeira na cobrança. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Cobrança criada com payment_method = cash..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identificador da cobrança no Pagar.me (prefixo ch_)."
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990."
+          },
+          "code": {
+            "type": "string",
+            "description": "Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me."
+          },
+          "description": {
+            "type": "string",
+            "description": "Texto livre de descrição."
+          }
+        },
+        "required": [
+          "charge_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__criar__link_pagamento",
+      "title": "Pagar.me - Criar link de pagamento",
+      "description": "Gera um link para o checkout hospedado pelo Pagar.me, com carrinho, meios de pagamento aceitos, prazo de expiração, limites de uso, personalização visual e, opcionalmente, regras de split ou criação de assinatura ao ser pago. Quando usar: Venda por WhatsApp, e-mail ou redes sociais, cobrança avulsa e situações em que você não quer desenvolver checkout próprio. NAO EXECUTAR. Escrita: publica um link de cobrança. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Chave secreta (sk_)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "is_building": {
+            "type": "boolean",
+            "description": "Cria o link em rascunho (status building) em vez de já ativo."
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome."
+          },
+          "order_code": {
+            "type": "string",
+            "description": "Seu identificador do pedido, usado para correlacionar com a sua plataforma."
+          },
+          "type": {
+            "type": "string",
+            "description": "Tipo do registro; os valores válidos variam por recurso."
+          },
+          "expires_at": {
+            "type": "string",
+            "description": "Data/hora de expiração.",
+            "format": "date-time"
+          },
+          "expires_in": {
+            "type": "integer",
+            "description": "Prazo de expiração (em segundos no Pix; em minutos no link de pagamento)."
+          },
+          "max_sessions": {
+            "type": "integer",
+            "description": "Limite de pedidos que o link pode gerar, pagos ou não."
+          },
+          "max_paid_sessions": {
+            "type": "integer",
+            "description": "Limite de pedidos pagos que o link pode gerar."
+          },
+          "payment_settings": {
+            "type": "object",
+            "description": "Meios de pagamento e regras do checkout do link."
+          },
+          "customer_settings": {
+            "type": "object",
+            "description": "Dados do comprador pré-preenchidos no checkout."
+          },
+          "cart_settings": {
+            "type": "object",
+            "description": "Carrinho apresentado no checkout do link."
+          },
+          "layout_settings": {
+            "type": "object",
+            "description": "Aparência do checkout (logo e cores)."
+          },
+          "split_settings": {
+            "type": "object",
+            "description": "Regras de split aplicadas ao link de pagamento."
+          },
+          "flow_settings": {
+            "type": "object",
+            "description": "Comportamento do checkout ao final do pagamento."
+          }
+        },
+        "required": [
+          "type",
+          "payment_settings",
+          "cart_settings"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__listar__link_pagamento",
+      "title": "Pagar.me - Obter links de pagamento",
+      "description": "Lista os links de pagamento da loja com filtros por nome, status e período de criação. A paginação usa page e per_page, com no máximo 30 itens por página — diferente do resto da API. Quando usar: Para acompanhar quais links estão ativos, expirados ou cancelados e cruzar com as vendas geradas. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: Chave secreta (sk_)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome."
+          },
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          },
+          "created_since": {
+            "type": "string",
+            "description": "Limite inicial do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "created_until": {
+            "type": "string",
+            "description": "Limite final do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Quantidade de registros por página (máximo 30 nesta rota)."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__cancelar__link_pagamento",
+      "title": "Pagar.me - Cancelar link de pagamento",
+      "description": "Cancela um link de pagamento; ele deixa de aceitar novas compras, mas os pedidos já gerados continuam válidos. Quando usar: Produto esgotado, campanha encerrada ou link divulgado por engano. NAO EXECUTAR. Escrita destrutiva: desativa o link de cobrança. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: payment_link_id de um link ativo..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "payment_link_id": {
+            "type": "string",
+            "description": "Identificador do link de pagamento."
+          }
+        },
+        "required": [
+          "payment_link_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__plano__criar",
+      "title": "Pagar.me - Criar plano",
+      "description": "Cria o modelo de recorrência (plano) que servirá de base para assinaturas: periodicidade, meios de pagamento aceitos, parcelamento, período de teste, itens e esquema de preço (unit, package, volume ou tier). Quando usar: Ao estruturar a oferta de um SaaS, clube de assinatura ou mensalidade padronizada, para não repetir as regras em cada assinatura. NAO EXECUTAR. Escrita: cria a oferta de recorrência. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Chave secreta (sk_)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome."
+          },
+          "description": {
+            "type": "string",
+            "description": "Texto livre de descrição."
+          },
+          "shippable": {
+            "type": "boolean",
+            "description": "Indica se o plano envolve entrega física."
+          },
+          "payment_methods": {
+            "type": "array",
+            "description": "Meios de pagamento liberados para as assinaturas geradas a partir deste plano."
+          },
+          "installments": {
+            "type": "array",
+            "description": "Número de parcelas. Em recorrência deve ser 1."
+          },
+          "minimum_price": {
+            "type": "integer",
+            "description": "Valor mínimo da fatura, em centavos."
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "Texto que aparece na fatura do portador. Até 22 caracteres no modelo Gateway e 13 no modelo PSP."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Moeda do valor. Único valor aceito: BRL.",
+            "enum": [
+              "BRL"
+            ]
+          },
+          "interval": {
+            "type": "string",
+            "description": "Unidade do ciclo de cobrança: day, week, month ou year.",
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "year"
+            ]
+          },
+          "interval_count": {
+            "type": "integer",
+            "description": "Quantos intervalos formam um ciclo (ex.: interval=month e interval_count=2 cobra a cada dois meses)."
+          },
+          "trial_period_days": {
+            "type": "integer",
+            "description": "Dias de teste antes da primeira cobrança."
+          },
+          "billing_type": {
+            "type": "string",
+            "description": "Momento da cobrança do ciclo: prepaid (no início), postpaid (no fim) ou exact_day (em dia fixo).",
+            "enum": [
+              "prepaid",
+              "postpaid",
+              "exact_day"
+            ]
+          },
+          "billing_days": {
+            "type": "string",
+            "description": "Dias do mês liberados para a cobrança das assinaturas do plano.",
+            "format": "date"
+          },
+          "items": {
+            "type": "array",
+            "description": "Itens que compõem o registro."
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          },
+          "pricing_scheme": {
+            "type": "object",
+            "description": "Regra de formação de preço do item."
+          },
+          "quantity": {
+            "type": "integer",
+            "description": "Quantidade."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__plano__listar",
+      "title": "Pagar.me - Listar planos",
+      "description": "Lista os planos cadastrados, com filtros por nome, status e período de criação. Quando usar: Para montar a tela de escolha de plano e para relatórios de mix de produtos recorrentes. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: Chave secreta (sk_)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome."
+          },
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          },
+          "created_since": {
+            "type": "string",
+            "description": "Limite inicial do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "created_until": {
+            "type": "string",
+            "description": "Limite final do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "size": {
+            "type": "integer",
+            "description": "Quantidade de registros por página."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__plano__obter",
+      "title": "Pagar.me - Obter plano",
+      "description": "Retorna um plano pelo identificador plan_, com itens, esquema de preço e meios de pagamento aceitos. Quando usar: Para exibir os detalhes da oferta e validar o preço antes de criar a assinatura. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: plan_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "description": "Identificador do plano (prefixo plan_)."
+          }
+        },
+        "required": [
+          "plan_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__plano__atualizar",
+      "title": "Pagar.me - Editar plano",
+      "description": "Atualiza os dados de um plano existente. Como é PUT, envie o conjunto de campos que deve permanecer. Quando usar: Reajuste de preço da oferta, mudança de periodicidade ou de meios de pagamento aceitos para NOVAS assinaturas. NAO EXECUTAR. Escrita: altera a oferta de recorrência. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: plan_id existente..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "description": "Identificador do plano (prefixo plan_)."
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome."
+          },
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          },
+          "description": {
+            "type": "string",
+            "description": "Texto livre de descrição."
+          },
+          "shippable": {
+            "type": "boolean",
+            "description": "Indica se o plano envolve entrega física."
+          },
+          "payment_methods": {
+            "type": "array",
+            "description": "Meios de pagamento liberados para as assinaturas geradas a partir deste plano."
+          },
+          "installments": {
+            "type": "array",
+            "description": "Número de parcelas. Em recorrência deve ser 1."
+          },
+          "minimum_price": {
+            "type": "integer",
+            "description": "Valor mínimo da fatura, em centavos."
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "Texto que aparece na fatura do portador. Até 22 caracteres no modelo Gateway e 13 no modelo PSP."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Moeda do valor. Único valor aceito: BRL.",
+            "enum": [
+              "BRL"
+            ]
+          },
+          "interval": {
+            "type": "string",
+            "description": "Unidade do ciclo de cobrança: day, week, month ou year.",
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "year"
+            ]
+          },
+          "interval_count": {
+            "type": "integer",
+            "description": "Quantos intervalos formam um ciclo (ex.: interval=month e interval_count=2 cobra a cada dois meses)."
+          },
+          "trial_period_days": {
+            "type": "integer",
+            "description": "Dias de teste antes da primeira cobrança."
+          },
+          "billing_type": {
+            "type": "string",
+            "description": "Momento da cobrança do ciclo: prepaid (no início), postpaid (no fim) ou exact_day (em dia fixo).",
+            "enum": [
+              "prepaid",
+              "postpaid",
+              "exact_day"
+            ]
+          },
+          "billing_days": {
+            "type": "string",
+            "description": "Dias do mês liberados para a cobrança das assinaturas do plano.",
+            "format": "date"
+          },
+          "items": {
+            "type": "array",
+            "description": "Itens que compõem o registro."
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          }
+        },
+        "required": [
+          "plan_id",
+          "name",
+          "status",
+          "currency",
+          "interval",
+          "interval_count"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__assinatura__criar",
+      "title": "Pagar.me - Criar assinatura",
+      "description": "Cria a recorrência de um cliente. Pode nascer de um plano (plan_id) ou ser avulsa, com os itens e o esquema de preço definidos na própria requisição. Aceita cartão de crédito, débito e boleto, descontos, acréscimos, data de início futura e parcelamento. Quando usar: Mensalidade de SaaS, clube de assinatura, contrato com cobrança periódica — tudo que deve ser cobrado automaticamente sem o seu sistema agendar cada cobrança. NAO EXECUTAR. Escrita com efeito financeiro: inicia cobranças periódicas no cliente. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Cliente existente (customer_id) ou objeto customer completo.; Meio de pagamento válido: card_id, card_token ou dados do cartão; boleto dispensa cartão.; Plano criado, quando for assinatura de plano..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "Idempotency-Key": {
+            "type": "string",
+            "description": "Chave de idempotência gerada por você. Requisições repetidas com a mesma chave em até 24 h (5 min no ambiente de teste) devolvem a mesma operação, sem duplicar."
+          },
+          "code": {
+            "type": "string",
+            "description": "Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me."
+          },
+          "plan_id": {
+            "type": "string",
+            "description": "Identificador do plano (prefixo plan_)."
+          },
+          "payment_method": {
+            "type": "string",
+            "description": "Meio de pagamento: credit_card, debit_card, boleto, pix, voucher, bank_transfer, cash, private_label ou checkout."
+          },
+          "start_at": {
+            "type": "string",
+            "description": "Data de início.",
+            "format": "date-time"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "customer": {
+            "type": "object",
+            "description": "Dados do cliente criados junto com o registro. Alternativa a customer_id."
+          },
+          "card": {
+            "type": "object",
+            "description": "Dados do cartão. Enviar o cartão aberto exige ambiente PCI-DSS; prefira card_id ou card_token."
+          },
+          "installments": {
+            "type": "integer",
+            "description": "Número de parcelas. Em recorrência deve ser 1."
+          },
+          "discounts": {
+            "type": "array",
+            "description": "Descontos aplicados à assinatura."
+          },
+          "increments": {
+            "type": "array",
+            "description": "Acréscimos aplicados à assinatura."
+          },
+          "boleto_due_days": {
+            "type": "integer",
+            "description": "Dias até o vencimento dos boletos gerados pela assinatura."
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          }
+        },
+        "required": [
+          "plan_id",
+          "payment_method",
+          "customer_id",
+          "customer",
+          "card"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__assinatura__listar",
+      "title": "Pagar.me - Listar assinaturas",
+      "description": "Lista as assinaturas com filtros por status, plano, cliente, cartão, código externo, janela de próxima cobrança e período de criação. Quando usar: Cálculo de MRR e churn, régua de cobrança, e sincronização da base de assinantes com o CRM ou o ERP. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: Chave secreta (sk_)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          },
+          "code": {
+            "type": "string",
+            "description": "Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me."
+          },
+          "billing_type": {
+            "type": "string",
+            "description": "Momento da cobrança do ciclo: prepaid (no início), postpaid (no fim) ou exact_day (em dia fixo).",
+            "enum": [
+              "prepaid",
+              "postpaid",
+              "exact_day"
+            ]
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "plan_id": {
+            "type": "string",
+            "description": "Identificador do plano (prefixo plan_)."
+          },
+          "card_id": {
+            "type": "string",
+            "description": "Identificador de um cartão já salvo na carteira do cliente (prefixo card_)."
+          },
+          "next_billing_since": {
+            "type": "string",
+            "description": "Limite inicial do período da próxima cobrança no filtro.",
+            "format": "date-time"
+          },
+          "next_billing_until": {
+            "type": "string",
+            "description": "Limite final do período da próxima cobrança no filtro.",
+            "format": "date-time"
+          },
+          "created_since": {
+            "type": "string",
+            "description": "Limite inicial do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "created_until": {
+            "type": "string",
+            "description": "Limite final do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "size": {
+            "type": "integer",
+            "description": "Quantidade de registros por página."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__assinatura__obter",
+      "title": "Pagar.me - Obter assinatura",
+      "description": "Retorna uma assinatura pelo identificador sub_, com plano, cliente, ciclo atual, itens, descontos, acréscimos e as regras de split, quando houver. Quando usar: Tela de detalhe do assinante, suporte ao cliente e verificação do ciclo antes de renovar ou cancelar. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: subscription_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "subscription_id": {
+            "type": "string",
+            "description": "Identificador da assinatura (prefixo sub_)."
+          }
+        },
+        "required": [
+          "subscription_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__assinatura__cancelar",
+      "title": "Pagar.me - Cancelar assinatura",
+      "description": "Encerra a recorrência. Com cancel_pending_invoices=true, cancela junto as faturas e cobranças pendentes; sem isso, o que já foi faturado continua a cobrar. Quando usar: Churn do assinante, inadimplência confirmada ou migração de plano com recriação da assinatura. NAO EXECUTAR. Escrita destrutiva: encerra a recorrência do cliente. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: subscription_id de assinatura ativa..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "subscription_id": {
+            "type": "string",
+            "description": "Identificador da assinatura (prefixo sub_)."
+          },
+          "cancel_pending_invoices": {
+            "type": "boolean",
+            "description": "Quando true, cancela junto as faturas e cobranças pendentes da assinatura."
+          }
+        },
+        "required": [
+          "subscription_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__assinatura__atualizar__cartao",
+      "title": "Pagar.me - Editar cartão da assinatura",
+      "description": "Troca o cartão usado nas próximas cobranças da assinatura, por card_id, card_token ou dados do cartão. Quando usar: Cartão do assinante expirou, foi cancelado pelo emissor ou o cliente pediu a troca — é a ação central de qualquer régua antichurn. NAO EXECUTAR. Escrita: altera o meio de pagamento da recorrência. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: subscription_id ativa e cartão válido do mesmo cliente..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "subscription_id": {
+            "type": "string",
+            "description": "Identificador da assinatura (prefixo sub_)."
+          },
+          "card_id": {
+            "type": "string",
+            "description": "Identificador de um cartão já salvo na carteira do cliente (prefixo card_)."
+          },
+          "card": {
+            "type": "string",
+            "description": "Dados do cartão. Enviar o cartão aberto exige ambiente PCI-DSS; prefira card_id ou card_token."
+          }
+        },
+        "required": [
+          "subscription_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__assinatura__atualizar__split",
+      "title": "Pagar.me - Editar regras de split da assinatura",
+      "description": "Liga, desliga ou redefine as regras de divisão do valor da assinatura entre recebedores, incluindo quem paga as taxas, quem fica com a sobra e quem responde por chargeback. Quando usar: Marketplace ou plataforma que muda a comissão de um parceiro, troca o recebedor ou passa a dividir uma recorrência que antes era integral. NAO EXECUTAR. Escrita com efeito financeiro: muda o rateio do dinheiro entre recebedores. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Conta no modelo PSP (split não existe no modelo Gateway).; Recebedores já cadastrados e ativos..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "subscription_id": {
+            "type": "string",
+            "description": "Identificador da assinatura (prefixo sub_)."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Liga (true) ou desliga (false) o recurso."
+          },
+          "rules": {
+            "type": "array",
+            "description": "Regras de divisão do valor entre recebedores."
+          }
+        },
+        "required": [
+          "subscription_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__assinatura__criar__ciclo",
+      "title": "Pagar.me - Renovar ciclo da assinatura",
+      "description": "Força a renovação do ciclo da assinatura, sempre avançando para o ciclo seguinte e gerando a fatura correspondente. Quando usar: Cobrança antecipada combinada com o cliente, correção de ciclo perdido ou fechamento manual de assinatura pós-paga. NAO EXECUTAR. Escrita com efeito financeiro: gera fatura e cobrança do próximo ciclo. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: subscription_id ativa..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "subscription_id": {
+            "type": "string",
+            "description": "Identificador da assinatura (prefixo sub_)."
+          }
+        },
+        "required": [
+          "subscription_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__assinatura__listar__ciclo",
+      "title": "Pagar.me - Listar ciclos da assinatura",
+      "description": "Lista os ciclos de uma assinatura, com data de cobrança, início, fim, duração e se o ciclo já foi faturado. Quando usar: Auditoria de recorrência: descobrir quantos ciclos o cliente pagou, quando começou e se algum ciclo ficou sem faturamento. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: subscription_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "subscription_id": {
+            "type": "string",
+            "description": "Identificador da assinatura (prefixo sub_)."
+          },
+          "id": {
+            "type": "string",
+            "description": "Identificador do registro."
+          },
+          "billing_at": {
+            "type": "string",
+            "description": "Data de cobrança do ciclo.",
+            "format": "date-time"
+          },
+          "cycle": {
+            "type": "string",
+            "description": "Número do ciclo dentro da assinatura."
+          },
+          "start_at": {
+            "type": "string",
+            "description": "Data de início.",
+            "format": "date-time"
+          },
+          "end_at": {
+            "type": "string",
+            "description": "Data de término.",
+            "format": "date-time"
+          },
+          "duration": {
+            "type": "string",
+            "description": "Duração do ciclo."
+          },
+          "created_at": {
+            "type": "string",
+            "description": "Data/hora de criação (UTC).",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "Data/hora da última alteração (UTC).",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          }
+        },
+        "required": [
+          "subscription_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__listar__fatura",
+      "title": "Pagar.me - Listar faturas",
+      "description": "Lista as faturas geradas pelas assinaturas, com filtros por status, cliente, assinatura, vencimento e criação. Cada fatura aponta para a cobrança que a liquida. Quando usar: Relatório de faturamento recorrente, controle de inadimplência por assinatura e conciliação de mensalidades. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: Chave secreta (sk_)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "Identificador do cliente no Pagar.me (prefixo cus_)."
+          },
+          "subscription_id": {
+            "type": "string",
+            "description": "Identificador da assinatura (prefixo sub_)."
+          },
+          "due_since": {
+            "type": "string",
+            "description": "Limite inicial do período de vencimento no filtro.",
+            "format": "date"
+          },
+          "due_until": {
+            "type": "string",
+            "description": "Limite final do período de vencimento no filtro.",
+            "format": "date"
+          },
+          "created_since": {
+            "type": "string",
+            "description": "Limite inicial do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "created_until": {
+            "type": "string",
+            "description": "Limite final do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "size": {
+            "type": "integer",
+            "description": "Quantidade de registros por página."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__obter__fatura",
+      "title": "Pagar.me - Obter fatura",
+      "description": "Retorna uma fatura pelo identificador in_, com itens, valor, vencimento, assinatura de origem e a cobrança vinculada. Quando usar: Segunda via para o assinante e conferência do que compôs a mensalidade (itens, descontos, acréscimos). Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: invoice_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "invoice_id": {
+            "type": "string",
+            "description": "Identificador da fatura (prefixo in_)."
+          }
+        },
+        "required": [
+          "invoice_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__cobranca__cancelar__fatura",
+      "title": "Pagar.me - Cancelar fatura",
+      "description": "Cancela uma fatura de assinatura ainda não paga, junto com a cobrança que ela originou. Quando usar: Fatura gerada por engano, cortesia concedida ao assinante ou correção antes do vencimento. NAO EXECUTAR. Escrita destrutiva: cancela fatura e cobrança. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Fatura em status que admita cancelamento (não paga)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "invoice_id": {
+            "type": "string",
+            "description": "Identificador da fatura (prefixo in_)."
+          }
+        },
+        "required": [
+          "invoice_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__empresa__criar__recebedor",
+      "title": "Pagar.me - Criar recebedor",
+      "description": "Cadastra um recebedor (seller/parceiro) que receberá parte das vendas via split, com dados cadastrais de PF ou PJ, conta bancária de destino e regras de transferência e de antecipação automática. Cada recebedor é criado uma vez e reutilizado em quantos pedidos forem necessários. Quando usar: Onboarding de lojista em marketplace, de profissional em plataforma de serviços ou de franqueado — pré-requisito de qualquer split. NAO EXECUTAR. Escrita: cria cadastro regulado (KYC) e conta de destino de dinheiro. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Conta no modelo PSP.; Dados cadastrais completos: PJ exige razão social, faturamento anual e representantes legais; PF exige nome da mãe, renda e ocupação.; Conta bancária no mesmo CPF/CNPJ do recebedor..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me."
+          },
+          "register_information": {
+            "type": "object",
+            "description": "Dados cadastrais do recebedor. O conjunto obrigatório muda conforme type seja individual (PF) ou company (PJ)."
+          },
+          "default_bank_account": {
+            "type": "object",
+            "description": "Conta bancária padrão para onde vão os pagamentos do recebedor."
+          },
+          "transfer_settings": {
+            "type": "object",
+            "description": "Regras de transferência automática do saldo do recebedor."
+          },
+          "automatic_anticipation_settings": {
+            "type": "object",
+            "description": "Regras de antecipação automática dos recebíveis."
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          }
+        },
+        "required": [
+          "register_information",
+          "default_bank_account"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__empresa__listar__recebedor",
+      "title": "Pagar.me - Listar recebedores",
+      "description": "Lista os recebedores cadastrados na conta, com dados cadastrais, conta bancária padrão e configurações de transferência. Paginação por page/size. Quando usar: Painel de sellers do marketplace, conferência de quem está apto a receber e extração da base para o ERP. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: Conta no modelo PSP com recebedores cadastrados..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "size": {
+            "type": "integer",
+            "description": "Quantidade de registros por página."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__empresa__obter__recebedor",
+      "title": "Pagar.me - Obter recebedor",
+      "description": "Retorna um recebedor pelo identificador, com status do cadastro, conta bancária padrão e regras de transferência e antecipação automática. Quando usar: Antes de incluir o recebedor numa regra de split, para confirmar que o cadastro está ativo e a conta bancária correta. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: recipient_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "recipient_id": {
+            "type": "string",
+            "description": "Identificador do recebedor (prefixo rp_ ou re_)."
+          }
+        },
+        "required": [
+          "recipient_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__empresa__atualizar__recebedor",
+      "title": "Pagar.me - Editar recebedor",
+      "description": "Atualiza os dados cadastrais do recebedor e, quando necessário, a conta bancária de destino dos pagamentos. Quando usar: Seller trocou de banco, mudou de endereço ou precisa corrigir dados exigidos pela análise regulatória. NAO EXECUTAR. Escrita: altera cadastro e destino de pagamentos. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: recipient_id existente.; Conta bancária no mesmo documento do recebedor..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "recipient_id": {
+            "type": "string",
+            "description": "Identificador do recebedor (prefixo rp_ ou re_)."
+          },
+          "register_information": {
+            "type": "object",
+            "description": "Dados cadastrais do recebedor. O conjunto obrigatório muda conforme type seja individual (PF) ou company (PJ)."
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          }
+        },
+        "required": [
+          "recipient_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__empresa__obter__saldo",
+      "title": "Pagar.me - Obter saldo do recebedor",
+      "description": "Retorna o saldo do recebedor em centavos: available_amount (disponível para saque) e waiting_funds_amount (a receber). O recebedor da própria loja também é consultado por aqui. Quando usar: Painel financeiro, validação antes de criar um saque e conferência diária de caixa por seller. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: recipient_id (o da própria loja ou de um seller)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "recipient_id": {
+            "type": "string",
+            "description": "Identificador do recebedor (prefixo rp_ ou re_)."
+          }
+        },
+        "required": [
+          "recipient_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__pagamento__criar__saque",
+      "title": "Pagar.me - Criar saque do recebedor",
+      "description": "Transfere o saldo disponível do recebedor para a conta bancária cadastrada. Sem amount, saca o total disponível. Quando usar: Repasse manual a um seller fora do calendário automático, ou retirada do saldo da própria loja. NAO EXECUTAR. Escrita com efeito financeiro: movimenta dinheiro para fora da conta. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Saldo disponível suficiente (consulte GET /core/v5/recipients/{recipient_id}/balance).; Conta bancária ativa no recebedor..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "recipient_id": {
+            "type": "string",
+            "description": "Identificador do recebedor (prefixo rp_ ou re_)."
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990."
+          }
+        },
+        "required": [
+          "recipient_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__pagamento__listar__saque",
+      "title": "Pagar.me - Listar saques do recebedor",
+      "description": "Lista os saques do recebedor, com valor, status e conta bancária de destino. Filtra por status e por período de criação. Quando usar: Conciliação de repasses a sellers e conferência de saques falhados que precisam ser refeitos. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: recipient_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "recipient_id": {
+            "type": "string",
+            "description": "Identificador do recebedor (prefixo rp_ ou re_)."
+          },
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          },
+          "created_since": {
+            "type": "string",
+            "description": "Limite inicial do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "created_until": {
+            "type": "string",
+            "description": "Limite final do período de criação a considerar no filtro.",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "recipient_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__pagamento__criar__transferencia",
+      "title": "Pagar.me - Criar transferência bancária",
+      "description": "Envia valor da conta (ou da conta de um recebedor) para uma conta bancária já cadastrada. É a única rota da API v5 que documenta o header Idempotency-Key explicitamente. Quando usar: Repasse a parceiro, retirada programada e pagamentos a partir do saldo, quando você controla o momento da saída em vez de usar a transferência automática. NAO EXECUTAR. Escrita com efeito financeiro: envia dinheiro para fora da conta. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Saldo disponível.; Conta bancária cadastrada no recebedor..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "Idempotency-Key": {
+            "type": "string",
+            "description": "Chave de idempotência gerada por você. Requisições repetidas com a mesma chave em até 24 h (5 min no ambiente de teste) devolvem a mesma operação, sem duplicar."
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990."
+          },
+          "recipient_id": {
+            "type": "string",
+            "description": "Identificador do recebedor (prefixo rp_ ou re_)."
+          },
+          "metadata": {
+            "type": "string",
+            "description": "Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para o identificador do seu ERP."
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__pagamento__listar__transferencia",
+      "title": "Pagar.me - Listar transferências",
+      "description": "Lista as transferências bancárias da conta, com filtros por status, recebedor, conta bancária, valor e datas. A paginação é por cursor devolvido nos headers x-cursor-nextpage / x-cursor-previouspage. Quando usar: Conciliação das saídas de dinheiro com o extrato bancário e acompanhamento de transferências pendentes ou falhadas. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: Chave secreta (sk_)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "string",
+            "description": "Quantidade de registros por página (máximo 1000 nesta rota)."
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Cursor de paginação desta rota; o próximo valor vem no header x-cursor-nextpage."
+          },
+          "x-cursor-nextpage": {
+            "type": "string",
+            "description": "Cursor da próxima página, devolvido no header da resposta."
+          },
+          "x-cursor-previouspage": {
+            "type": "string",
+            "description": "Cursor da página anterior, devolvido no header da resposta."
+          },
+          "bank_account_id": {
+            "type": "string",
+            "description": "Identificador da conta bancária cadastrada."
+          },
+          "amount": {
+            "type": "string",
+            "description": "Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990."
+          },
+          "recipient_id": {
+            "type": "string",
+            "description": "Identificador do recebedor (prefixo rp_ ou re_)."
+          },
+          "id": {
+            "type": "string",
+            "description": "Identificador do registro."
+          },
+          "date_created": {
+            "type": "string",
+            "description": "Filtro pela data de criação do registro.",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "Data/hora de criação (UTC).",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          },
+          "date_updated": {
+            "type": "string",
+            "description": "Filtro pela data da última atualização do registro.",
+            "format": "date-time"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__recebivel__listar",
+      "title": "Pagar.me - Obter recebíveis",
+      "description": "Agenda de recebíveis da loja: cada parcela a receber, com valor bruto, taxa, taxa de antecipação, data de pagamento, cobrança e recebedor de origem. Desde 28/08/2026 é a entidade única da agenda (absorveu as operações de saldo) e pagina exclusivamente por cursor. Quando usar: Fluxo de caixa futuro, conciliação do que caiu na conta, cálculo de taxas efetivas e apuração de comissões de split por parceiro. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: Chave secreta (sk_)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "created_since": {
+            "type": "string",
+            "description": "Limite inicial do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "created_until": {
+            "type": "string",
+            "description": "Limite final do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          },
+          "payment_date_since": {
+            "type": "string",
+            "description": "Limite inicial do período de pagamento no filtro.",
+            "format": "date-time"
+          },
+          "payment_date_until": {
+            "type": "string",
+            "description": "Limite final do período de pagamento no filtro.",
+            "format": "date-time"
+          },
+          "type": {
+            "type": "string",
+            "description": "Tipo do registro; os valores válidos variam por recurso."
+          },
+          "updated_since": {
+            "type": "string",
+            "description": "Limite inicial do período de atualização a considerar no filtro.",
+            "format": "date-time"
+          },
+          "updated_until": {
+            "type": "string",
+            "description": "Limite final do período de atualização a considerar no filtro.",
+            "format": "date-time"
+          },
+          "charge_id": {
+            "type": "string",
+            "description": "Identificador da cobrança no Pagar.me (prefixo ch_)."
+          },
+          "recipient_id": {
+            "type": "string",
+            "description": "Identificador do recebedor (prefixo rp_ ou re_)."
+          },
+          "split_id": {
+            "type": "string",
+            "description": "Identificador da regra de split."
+          },
+          "id": {
+            "type": "string",
+            "description": "Identificador do registro."
+          },
+          "size": {
+            "type": "integer",
+            "description": "Quantidade de registros por página."
+          },
+          "page": {
+            "type": "integer",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "forward_cursor": {
+            "type": "string",
+            "description": "Cursor devolvido em paging.forward_cursor na chamada anterior; repasse-o para obter a página seguinte. Quando volta nulo, a listagem acabou."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__recebivel__criar__antecipacao",
+      "title": "Pagar.me - Criar antecipação",
+      "description": "Solicita a antecipação de recebíveis do recebedor: você informa o valor líquido desejado, a data em que quer receber e de qual ponta da agenda puxar os recebíveis (timeframe start ou end). Quando usar: Necessidade de caixa antes do prazo normal de liquidação do cartão, sob demanda, quando a antecipação automática não está ligada. NAO EXECUTAR. Escrita com efeito financeiro: contrata antecipação e gera custo. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: Valor dentro dos limites do recebedor (consulte a rota de limites).; Recebíveis disponíveis na janela escolhida..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "recipient_id": {
+            "type": "string",
+            "description": "Identificador do recebedor (prefixo rp_ ou re_)."
+          },
+          "payment_date": {
+            "type": "string",
+            "description": "Data de pagamento.",
+            "format": "date-time"
+          },
+          "timeframe": {
+            "type": "string",
+            "description": "De onde puxar os recebíveis: start (os mais próximos de serem pagos) ou end (os mais distantes).",
+            "enum": [
+              "start",
+              "end"
+            ]
+          },
+          "requested_amount": {
+            "type": "integer",
+            "description": "Valor líquido desejado na antecipação, em centavos."
+          },
+          "automatic_transfer": {
+            "type": "boolean",
+            "description": "Quando true, transfere o valor antecipado direto para a conta bancária do recebedor."
+          }
+        },
+        "required": [
+          "recipient_id",
+          "payment_date",
+          "timeframe",
+          "requested_amount"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__recebivel__listar__antecipacao",
+      "title": "Pagar.me - Listar antecipações",
+      "description": "Lista as antecipações do recebedor, com valor bruto, taxas, janela usada e status. Quando usar: Auditoria do custo financeiro da antecipação e acompanhamento das solicitações em análise. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: recipient_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "recipient_id": {
+            "type": "string",
+            "description": "Identificador do recebedor (prefixo rp_ ou re_)."
+          },
+          "count": {
+            "type": "string",
+            "description": "Quantidade de registros por página (máximo 1000 nesta rota)."
+          },
+          "page": {
+            "type": "string",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "amount": {
+            "type": "string",
+            "description": "Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990."
+          },
+          "fee": {
+            "type": "string",
+            "description": "Taxa cobrada, em centavos."
+          },
+          "anticipation_fee": {
+            "type": "string",
+            "description": "Taxa de antecipação cobrada, em centavos."
+          },
+          "id": {
+            "type": "string",
+            "description": "Identificador do registro."
+          },
+          "payment_date": {
+            "type": "string",
+            "description": "Data de pagamento.",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "recipient_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__recebivel__calcular__antecipacao",
+      "title": "Pagar.me - Simular antecipação spot",
+      "description": "Simula uma antecipação sem contratá-la: devolve o valor que seria recebido, o custo da operação e a data de pagamento, a partir do valor líquido desejado e da janela da agenda. Quando usar: Antes de decidir antecipar: comparar o custo com outras fontes de caixa e mostrar o número ao financeiro. Também serve para calcular o custo efetivo por seller. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: recipient_id e valor dentro dos limites do recebedor..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "recipient_id": {
+            "type": "string",
+            "description": "Identificador do recebedor (prefixo rp_ ou re_)."
+          },
+          "timeframe": {
+            "type": "string",
+            "description": "De onde puxar os recebíveis: start (os mais próximos de serem pagos) ou end (os mais distantes).",
+            "enum": [
+              "start",
+              "end"
+            ]
+          },
+          "requested_amount": {
+            "type": "integer",
+            "description": "Valor líquido desejado na antecipação, em centavos."
+          },
+          "payment_date": {
+            "type": "string",
+            "description": "Data de pagamento.",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "recipient_id",
+          "timeframe",
+          "requested_amount",
+          "payment_date"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__pagamento__listar__liquidacao",
+      "title": "Pagar.me - Listar liquidações (settlements)",
+      "description": "Lista as liquidações de cartão pagas no período: o dinheiro que o Pagar.me efetivamente enviou, por produto (crédito, débito ou antecipação), bandeira e recebedor. Com a descontinuação das operações de saldo, virou a fonte oficial de conciliação do que foi liquidado. Quando usar: Conciliação bancária do repasse do adquirente e amarração entre o recebível (settlement_id) e o crédito na conta. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: payment_date_start e payment_date_end são obrigatórios (AAAA-MM-DD)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "payment_date_start": {
+            "type": "string",
+            "description": "Data inicial do período de pagamento (AAAA-MM-DD). Obrigatória.",
+            "format": "date"
+          },
+          "payment_date_end": {
+            "type": "string",
+            "description": "Data final do período de pagamento (AAAA-MM-DD). Obrigatória.",
+            "format": "date"
+          },
+          "liquidation_arrangement_id": {
+            "type": "string",
+            "description": "Identificador do arranjo de liquidação."
+          },
+          "page": {
+            "type": "integer",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Quantidade de registros por página (máximo 2000 nesta rota)."
+          },
+          "get_ispb": {
+            "type": "boolean",
+            "description": "Quando true, inclui os dados de ISPB das liquidações."
+          },
+          "settlement_id": {
+            "type": "string",
+            "description": "Identificador da liquidação (settlement)."
+          },
+          "external_engine_payment_id": {
+            "type": "string",
+            "description": "Identificador interno do motor de liquidação."
+          },
+          "order": {
+            "type": "string",
+            "description": "Ordem de retorno pela data de criação: asc ou desc.",
+            "enum": [
+              "asc",
+              "desc"
+            ]
+          }
+        },
+        "required": [
+          "payment_date_start",
+          "payment_date_end"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__webhook__listar",
+      "title": "Pagar.me - Listar webhooks",
+      "description": "Lista as notificações enviadas pelo Pagar.me, com evento, URL de destino, status da entrega, número de tentativas, código HTTP devolvido pelo seu servidor e o payload enviado. Quando usar: Auditoria de integração: descobrir quais eventos falharam, o que o seu endpoint respondeu e reprocessar o que se perdeu. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: Chave secreta (sk_)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Situação do registro; os valores válidos variam por recurso."
+          },
+          "webhook_event": {
+            "type": "string",
+            "description": "Nome do evento do webhook (ex.: charge.paid, order.paid)."
+          },
+          "created_since": {
+            "type": "string",
+            "description": "Limite inicial do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "created_until": {
+            "type": "string",
+            "description": "Limite final do período de criação a considerar no filtro.",
+            "format": "date-time"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Número da página a recuperar, começando em 1."
+          },
+          "size": {
+            "type": "integer",
+            "description": "Quantidade de registros por página."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__webhook__obter",
+      "title": "Pagar.me - Obter webhook",
+      "description": "Retorna uma notificação específica pelo identificador hook_, com o payload enviado e a resposta que o seu servidor devolveu. Quando usar: Depuração de um evento específico que não foi processado do seu lado. Leitura sem efeito colateral: o assistente pode executar esta consulta e devolver a planilha. Pre-requisitos: hook_id..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "hook_id": {
+            "type": "string",
+            "description": "Identificador do webhook (prefixo hook_)."
+          }
+        },
+        "required": [
+          "hook_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pagarme__webhook__enviar",
+      "title": "Pagar.me - Reenviar webhook",
+      "description": "Reenvia uma notificação ao seu endpoint. É o caminho para recuperar eventos perdidos enquanto o seu servidor esteve fora do ar. Quando usar: Depois de corrigir uma indisponibilidade: identifique os hooks com status failed e reenvie um a um. NAO EXECUTAR. Escrita: dispara nova entrega HTTP ao endpoint do cliente. O assistente explica o contrato e entrega o codigo; quem executa e o cliente. Pre-requisitos: hook_id de um webhook com falha.; Endpoint público acessível na porta 80 (http) ou 443 (https)..",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "hook_id": {
+            "type": "string",
+            "description": "Identificador do webhook (prefixo hook_)."
+          }
+        },
+        "required": [
+          "hook_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

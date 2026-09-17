@@ -1,0 +1,1027 @@
+{
+  "versao": "1.2.0",
+  "data": "2026-09-17",
+  "descricao": "Vocabulário canônico do catálogo. Todo endpoint de todo sistema DEVE mapear para uma entidade e uma ação desta lista. Alterações exigem incremento de versão e registro em relatorios/changelog.md.",
+  "convencoes": {
+    "id_endpoint": "<slug_sistema>.<entidade_snake_case>.<acao>[.<qualificador>] — ex.: omie.pedido.criar, asaas.cobranca.obter.pix_qrcode. O qualificador (snake_case) só é usado quando o mesmo sistema tem mais de um endpoint para o mesmo par entidade+ação.",
+    "id_tool_mcp": "igual ao id do endpoint, trocando '.' por '__' (nomes de ferramenta MCP não aceitam ponto em vários clientes) — ex.: omie__pedido__criar",
+    "slug_sistema": "kebab-case, igual ao manifest.json",
+    "datas": "ISO-8601; data_consulta no formato YYYY-MM-DD",
+    "valores_monetarios": "decimal em reais (BRL) com ponto como separador, salvo quando o fornecedor usa centavos inteiros — nesse caso registrar em observacao_br"
+  },
+  "entidades": [
+    {
+      "nome": "Pessoa",
+      "descricao": "Pessoa física ou jurídica genérica, quando o sistema não distingue papel (cliente/fornecedor/contato).",
+      "campos_chave": [
+        "cpf_cnpj",
+        "razao_social",
+        "nome_fantasia",
+        "email",
+        "telefone"
+      ]
+    },
+    {
+      "nome": "Cliente",
+      "descricao": "Pessoa no papel de compradora/pagadora (customer, sacado, pagador, destinatário comercial).",
+      "sinonimos_fornecedor": [
+        "customer",
+        "sacado",
+        "pagador",
+        "contato do tipo cliente"
+      ],
+      "campos_chave": [
+        "cpf_cnpj",
+        "razao_social",
+        "inscricao_estadual",
+        "cep"
+      ]
+    },
+    {
+      "nome": "Fornecedor",
+      "descricao": "Pessoa no papel de vendedora/credora para a empresa.",
+      "sinonimos_fornecedor": [
+        "vendor",
+        "supplier",
+        "favorecido"
+      ],
+      "campos_chave": [
+        "cpf_cnpj",
+        "razao_social"
+      ]
+    },
+    {
+      "nome": "Produto",
+      "descricao": "Item vendável ou comprável (produto ou serviço) com dados fiscais.",
+      "sinonimos_fornecedor": [
+        "item",
+        "sku",
+        "serviço",
+        "offer",
+        "listing"
+      ],
+      "campos_chave": [
+        "codigo_sku",
+        "gtin_ean",
+        "ncm",
+        "cest",
+        "unidade_medida"
+      ]
+    },
+    {
+      "nome": "Estoque",
+      "descricao": "Saldo, reserva ou movimentação de quantidade de produto por depósito/local.",
+      "sinonimos_fornecedor": [
+        "inventory",
+        "saldo",
+        "depósito"
+      ]
+    },
+    {
+      "nome": "Pedido",
+      "descricao": "Pedido de venda ou compra confirmado.",
+      "sinonimos_fornecedor": [
+        "order",
+        "pedido de venda",
+        "ordem de compra"
+      ]
+    },
+    {
+      "nome": "Orcamento",
+      "descricao": "Proposta comercial ou cotação ainda não convertida em pedido.",
+      "sinonimos_fornecedor": [
+        "quote",
+        "proposta",
+        "cotação de venda"
+      ]
+    },
+    {
+      "nome": "NotaFiscal",
+      "descricao": "Documento fiscal eletrônico: NF-e, NFC-e, NFS-e, CT-e, MDF-e e seus eventos (cancelamento, CC-e, inutilização).",
+      "sinonimos_fornecedor": [
+        "invoice (fiscal)",
+        "nfe",
+        "nfse",
+        "cte",
+        "mdfe",
+        "DANFE"
+      ],
+      "campos_chave": [
+        "chave_acesso_nfe",
+        "numero_nf",
+        "serie_nf",
+        "cfop",
+        "protocolo_autorizacao"
+      ],
+      "observacao": "O tipo de documento vai no qualificador do id e em metadata.subtipo_documento. Subtipos: nfe, nfce, nfse, nfsen (NFS-e Nacional), cte, cte_os, mdfe, nfcom, dce, nfgas."
+    },
+    {
+      "nome": "ContaReceber",
+      "descricao": "Título a receber no controle financeiro (lançamento contábil-financeiro), independente do meio de cobrança.",
+      "sinonimos_fornecedor": [
+        "receivable",
+        "lançamento a receber",
+        "título"
+      ]
+    },
+    {
+      "nome": "ContaPagar",
+      "descricao": "Título a pagar no controle financeiro.",
+      "sinonimos_fornecedor": [
+        "payable",
+        "lançamento a pagar"
+      ]
+    },
+    {
+      "nome": "Pagamento",
+      "descricao": "Movimento de saída de dinheiro iniciado pela empresa (pagar boleto, Pix de saída, TED, lote de pagamentos) ou o registro de liquidação de um título.",
+      "sinonimos_fornecedor": [
+        "payout",
+        "transferência",
+        "pagamento em lote",
+        "baixa"
+      ]
+    },
+    {
+      "nome": "Cobranca",
+      "descricao": "Instrumento para receber dinheiro emitido pela empresa: boleto, Pix cobrança (cob/cobv), link de pagamento, cobrança em cartão.",
+      "sinonimos_fornecedor": [
+        "charge",
+        "payment (lado recebedor)",
+        "boleto",
+        "cob",
+        "cobv",
+        "invoice (financeira)"
+      ],
+      "campos_chave": [
+        "valor",
+        "data_vencimento",
+        "txid_pix",
+        "linha_digitavel",
+        "nosso_numero"
+      ]
+    },
+    {
+      "nome": "Transacao",
+      "descricao": "Lançamento já efetivado em conta/extrato/adquirente (entrada ou saída), usado para conciliação.",
+      "sinonimos_fornecedor": [
+        "transaction",
+        "extrato",
+        "statement",
+        "movimentação",
+        "Pix recebido"
+      ],
+      "campos_chave": [
+        "e2e_id_pix",
+        "valor",
+        "data_hora"
+      ]
+    },
+    {
+      "nome": "Funcionario",
+      "descricao": "Colaborador vinculado (CLT, estagiário, PJ gerido pelo RH), incluindo candidato admitido.",
+      "sinonimos_fornecedor": [
+        "employee",
+        "colaborador",
+        "trabalhador"
+      ],
+      "campos_chave": [
+        "cpf",
+        "pis_pasep",
+        "cbo"
+      ]
+    },
+    {
+      "nome": "FolhaPagamento",
+      "descricao": "Folha, holerite, rubricas e eventos de remuneração, inclusive eventos periódicos do eSocial.",
+      "sinonimos_fornecedor": [
+        "payroll",
+        "holerite",
+        "recibo"
+      ]
+    },
+    {
+      "nome": "Ponto",
+      "descricao": "Marcação, espelho ou banco de horas.",
+      "sinonimos_fornecedor": [
+        "time entry",
+        "marcação",
+        "batida"
+      ]
+    },
+    {
+      "nome": "Envio",
+      "descricao": "Remessa física: etiqueta, postagem, rastreio, coleta.",
+      "sinonimos_fornecedor": [
+        "shipment",
+        "objeto",
+        "etiqueta",
+        "tracking"
+      ],
+      "campos_chave": [
+        "codigo_rastreio",
+        "cep"
+      ]
+    },
+    {
+      "nome": "Frete",
+      "descricao": "Cotação, tabela ou cálculo de frete antes do envio.",
+      "sinonimos_fornecedor": [
+        "shipping quote",
+        "cotação",
+        "rate"
+      ]
+    },
+    {
+      "nome": "Contrato",
+      "descricao": "Contrato comercial com vigência/partes/cláusulas; em plataformas de assinatura eletrônica, o 'envelope' com signatários.",
+      "sinonimos_fornecedor": [
+        "envelope",
+        "agreement",
+        "contract"
+      ]
+    },
+    {
+      "nome": "Documento",
+      "descricao": "Arquivo genérico (PDF, XML, imagem) armazenado ou trafegado, inclusive documento enviado para assinatura.",
+      "sinonimos_fornecedor": [
+        "file",
+        "attachment",
+        "anexo"
+      ]
+    },
+    {
+      "nome": "Mensagem",
+      "descricao": "Mensagem enviada/recebida por canal (WhatsApp, SMS, e-mail, chat) e templates de mensagem.",
+      "sinonimos_fornecedor": [
+        "message",
+        "template",
+        "notification"
+      ]
+    },
+    {
+      "nome": "Ticket",
+      "descricao": "Chamado de atendimento/suporte.",
+      "sinonimos_fornecedor": [
+        "ticket",
+        "chamado",
+        "conversation (service desk)"
+      ]
+    },
+    {
+      "nome": "Lead",
+      "descricao": "Contato comercial não qualificado (marketing).",
+      "sinonimos_fornecedor": [
+        "lead",
+        "contact (marketing)",
+        "conversion"
+      ]
+    },
+    {
+      "nome": "Oportunidade",
+      "descricao": "Negociação em funil de vendas.",
+      "sinonimos_fornecedor": [
+        "deal",
+        "negócio",
+        "opportunity"
+      ]
+    },
+    {
+      "nome": "Assinatura",
+      "descricao": "Assinatura RECORRENTE (subscription): plano + cliente + ciclo de cobrança. NÃO é assinatura eletrônica de documento — essa é Contrato/Documento com ação 'enviar' ou 'assinar'.",
+      "sinonimos_fornecedor": [
+        "subscription",
+        "recorrência",
+        "plano contratado"
+      ],
+      "desambiguacao": true
+    },
+    {
+      "nome": "CentroCusto",
+      "descricao": "Centro de custo / departamento para rateio.",
+      "sinonimos_fornecedor": [
+        "cost center",
+        "departamento"
+      ]
+    },
+    {
+      "nome": "PlanoContas",
+      "descricao": "Conta contábil ou categoria financeira.",
+      "sinonimos_fornecedor": [
+        "chart of accounts",
+        "categoria",
+        "conta contábil"
+      ]
+    }
+  ],
+  "entidades_extensao_v1": {
+    "justificativa": "Necessárias para mapear 100% dos endpoints sem forçar encaixe errado nas entidades originais. Uso restrito aos casos descritos.",
+    "itens": [
+      {
+        "nome": "Autenticacao",
+        "descricao": "Obtenção/renovação/revogação de tokens e credenciais (OAuth token, refresh, login)."
+      },
+      {
+        "nome": "Webhook",
+        "descricao": "Cadastro, listagem e remoção de assinaturas de eventos. A ação assinar_webhook também pode ser usada sobre a entidade de negócio quando o fornecedor atrela webhook a ela."
+      },
+      {
+        "nome": "Empresa",
+        "descricao": "A própria conta/empresa usuária ou subconta: dados cadastrais do emitente, configurações fiscais, certificado digital, subcontas de marketplace/PSP."
+      },
+      {
+        "nome": "TabelaAuxiliar",
+        "descricao": "Listas de domínio do fornecedor: formas de pagamento, municípios atendidos, bancos, categorias, unidades, códigos de serviço."
+      },
+      {
+        "nome": "Endereco",
+        "descricao": "Endereço: consulta/validação por CEP ou geocodificação, e também endereço cadastrado e vinculado a uma pessoa (carteira de endereços do cliente)."
+      }
+    ]
+  },
+  "acoes": [
+    {
+      "nome": "listar",
+      "descricao": "Retorna coleção com filtro/paginação.",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "metodos_tipicos": [
+        "GET"
+      ]
+    },
+    {
+      "nome": "obter",
+      "descricao": "Retorna um item por identificador.",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "metodos_tipicos": [
+        "GET"
+      ]
+    },
+    {
+      "nome": "criar",
+      "descricao": "Cria um novo recurso.",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "metodos_tipicos": [
+        "POST",
+        "PUT"
+      ]
+    },
+    {
+      "nome": "atualizar",
+      "descricao": "Alteração parcial de recurso existente.",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "metodos_tipicos": [
+        "PATCH",
+        "PUT",
+        "POST"
+      ]
+    },
+    {
+      "nome": "substituir",
+      "descricao": "Substituição integral de recurso existente.",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "metodos_tipicos": [
+        "PUT"
+      ]
+    },
+    {
+      "nome": "cancelar",
+      "descricao": "Encerra o efeito de negócio do recurso preservando o registro (ex.: cancelar NF-e, cancelar cobrança).",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "metodos_tipicos": [
+        "DELETE",
+        "POST",
+        "PUT"
+      ]
+    },
+    {
+      "nome": "estornar",
+      "descricao": "Devolve valor já liquidado (refund, devolução Pix, chargeback operacional).",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "metodos_tipicos": [
+        "POST",
+        "PUT"
+      ]
+    },
+    {
+      "nome": "autorizar",
+      "descricao": "Aprova/captura/confirma operação pendente (captura de cartão, aprovação de pagamento, autorização de pedido).",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "metodos_tipicos": [
+        "POST",
+        "PUT"
+      ]
+    },
+    {
+      "nome": "consultar_status",
+      "descricao": "Consulta situação de processamento assíncrono ou rastreio (status SEFAZ, status de lote, rastreio de envio).",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "metodos_tipicos": [
+        "GET",
+        "POST (SOAP)"
+      ]
+    },
+    {
+      "nome": "emitir",
+      "descricao": "Gera documento com efeito legal/fiscal ou financeiro formal (emitir NF-e, gerar etiqueta, registrar boleto quando o fornecedor separa de 'criar').",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "metodos_tipicos": [
+        "POST"
+      ]
+    },
+    {
+      "nome": "baixar_arquivo",
+      "descricao": "Download de representação binária/textual (PDF, XML, DANFE, etiqueta, CNAB, QR code em imagem).",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "metodos_tipicos": [
+        "GET"
+      ]
+    },
+    {
+      "nome": "assinar_webhook",
+      "descricao": "Registra URL para receber eventos.",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "metodos_tipicos": [
+        "POST",
+        "PUT"
+      ]
+    }
+  ],
+  "acoes_extensao_v1": {
+    "justificativa": "A lista original não cobre exclusão física, cálculo sem persistência, envio de comunicação e eventos fiscais específicos. Sem estas, endpoints comuns ficariam mal classificados.",
+    "itens": [
+      {
+        "nome": "excluir",
+        "descricao": "Remoção do registro (DELETE que apaga, diferente de cancelar).",
+        "readOnlyHint": false,
+        "destructiveHint": true
+      },
+      {
+        "nome": "calcular",
+        "descricao": "Simulação/cálculo sem criar recurso persistente (cotação de frete, simulação de parcelas, cálculo de impostos).",
+        "readOnlyHint": true,
+        "destructiveHint": false
+      },
+      {
+        "nome": "enviar",
+        "descricao": "Dispara comunicação ou fluxo para terceiro (enviar mensagem, enviar documento para assinatura, reenviar e-mail de cobrança).",
+        "readOnlyHint": false,
+        "destructiveHint": false
+      },
+      {
+        "nome": "validar",
+        "descricao": "Checagem de consistência/identidade sem efeito colateral de negócio (validar CPF/CNPJ, validar XML, KYC).",
+        "readOnlyHint": true,
+        "destructiveHint": false
+      },
+      {
+        "nome": "corrigir",
+        "descricao": "Evento fiscal de correção (Carta de Correção Eletrônica).",
+        "readOnlyHint": false,
+        "destructiveHint": false
+      },
+      {
+        "nome": "inutilizar",
+        "descricao": "Inutilização de faixa de numeração de documento fiscal.",
+        "readOnlyHint": false,
+        "destructiveHint": true
+      },
+      {
+        "nome": "assinar",
+        "descricao": "Aplicação de assinatura eletrônica/digital por um signatário ou pela API em nome dele.",
+        "readOnlyHint": false,
+        "destructiveHint": false
+      },
+      {
+        "nome": "autenticar",
+        "descricao": "Obter/renovar/revogar credencial. Usado apenas com a entidade Autenticacao.",
+        "readOnlyHint": false,
+        "destructiveHint": false
+      }
+    ]
+  },
+  "campos_canonicos": [
+    {
+      "nome": "cpf_cnpj",
+      "tipo": "string",
+      "descricao": "CPF (11) ou CNPJ (14) sem máscara.",
+      "regex": "^([0-9]{11}|[A-Z0-9]{12}[0-9]{2})$",
+      "observacao_br": "CNPJ alfanumérico: a Receita Federal previu identificadores com letras nas 12 primeiras posições para novas inscrições a partir de 2026 (DV continua numérico). Integrações que validam CNPJ como 14 dígitos numéricos vão quebrar. Confirmar data de vigência na Fase 2.",
+      "confianca": "inferido"
+    },
+    {
+      "nome": "cpf",
+      "tipo": "string",
+      "regex": "^[0-9]{11}$",
+      "dado_pessoal": true
+    },
+    {
+      "nome": "cnpj",
+      "tipo": "string",
+      "regex": "^[A-Z0-9]{12}[0-9]{2}$",
+      "observacao_br": "Ver cpf_cnpj sobre CNPJ alfanumérico."
+    },
+    {
+      "nome": "razao_social",
+      "tipo": "string",
+      "descricao": "Nome empresarial registrado (PJ) ou nome completo (PF)."
+    },
+    {
+      "nome": "nome_fantasia",
+      "tipo": "string"
+    },
+    {
+      "nome": "inscricao_estadual",
+      "tipo": "string",
+      "descricao": "IE; formato varia por UF; aceitar 'ISENTO'.",
+      "observacao_br": "Máscara e dígito verificador diferem entre as 27 UFs."
+    },
+    {
+      "nome": "inscricao_municipal",
+      "tipo": "string"
+    },
+    {
+      "nome": "regime_tributario",
+      "tipo": "string",
+      "enum": [
+        "simples_nacional",
+        "simples_nacional_excesso_sublimite",
+        "regime_normal",
+        "mei"
+      ],
+      "descricao": "Mapeia o CRT da NF-e."
+    },
+    {
+      "nome": "cnae",
+      "tipo": "string",
+      "regex": "^[0-9]{7}$"
+    },
+    {
+      "nome": "email",
+      "tipo": "string",
+      "formato": "email",
+      "dado_pessoal": true
+    },
+    {
+      "nome": "telefone",
+      "tipo": "string",
+      "descricao": "Preferir E.164 (+55DDDNUMERO).",
+      "regex": "^\\+?[0-9]{10,13}$",
+      "dado_pessoal": true
+    },
+    {
+      "nome": "cep",
+      "tipo": "string",
+      "regex": "^[0-9]{8}$"
+    },
+    {
+      "nome": "logradouro",
+      "tipo": "string"
+    },
+    {
+      "nome": "numero_endereco",
+      "tipo": "string",
+      "observacao_br": "String: aceita 'S/N'."
+    },
+    {
+      "nome": "complemento",
+      "tipo": "string"
+    },
+    {
+      "nome": "bairro",
+      "tipo": "string"
+    },
+    {
+      "nome": "codigo_municipio_ibge",
+      "tipo": "string",
+      "regex": "^[0-9]{7}$",
+      "observacao_br": "Obrigatório em NF-e/NFS-e; nome do município sozinho não basta."
+    },
+    {
+      "nome": "uf",
+      "tipo": "string",
+      "regex": "^[A-Z]{2}$"
+    },
+    {
+      "nome": "codigo_pais_bacen",
+      "tipo": "string",
+      "descricao": "Brasil = 1058."
+    },
+    {
+      "nome": "codigo_sku",
+      "tipo": "string"
+    },
+    {
+      "nome": "gtin_ean",
+      "tipo": "string",
+      "regex": "^([0-9]{8}|[0-9]{12,14}|SEM GTIN)$"
+    },
+    {
+      "nome": "ncm",
+      "tipo": "string",
+      "regex": "^[0-9]{8}$",
+      "descricao": "Nomenclatura Comum do Mercosul."
+    },
+    {
+      "nome": "cest",
+      "tipo": "string",
+      "regex": "^[0-9]{7}$"
+    },
+    {
+      "nome": "cfop",
+      "tipo": "string",
+      "regex": "^[1-7][0-9]{3}$"
+    },
+    {
+      "nome": "cst_icms",
+      "tipo": "string",
+      "regex": "^[0-9]{2,3}$"
+    },
+    {
+      "nome": "csosn",
+      "tipo": "string",
+      "regex": "^[0-9]{3}$"
+    },
+    {
+      "nome": "unidade_medida",
+      "tipo": "string"
+    },
+    {
+      "nome": "natureza_operacao",
+      "tipo": "string"
+    },
+    {
+      "nome": "codigo_servico_municipal",
+      "tipo": "string",
+      "descricao": "Item da LC 116 / código de tributação nacional da NFS-e."
+    },
+    {
+      "nome": "chave_acesso_nfe",
+      "tipo": "string",
+      "regex": "^[0-9]{44}$",
+      "descricao": "Chave de 44 dígitos de NF-e/NFC-e/CT-e/MDF-e."
+    },
+    {
+      "nome": "chave_acesso_nfse",
+      "tipo": "string",
+      "descricao": "Chave da NFS-e Padrão Nacional; formato a confirmar na Fase 2.",
+      "confianca": "inferido"
+    },
+    {
+      "nome": "numero_nf",
+      "tipo": "string"
+    },
+    {
+      "nome": "serie_nf",
+      "tipo": "string"
+    },
+    {
+      "nome": "protocolo_autorizacao",
+      "tipo": "string"
+    },
+    {
+      "nome": "ambiente_fiscal",
+      "tipo": "string",
+      "enum": [
+        "producao",
+        "homologacao"
+      ]
+    },
+    {
+      "nome": "valor",
+      "tipo": "decimal",
+      "descricao": "Reais com 2 casas."
+    },
+    {
+      "nome": "data_emissao",
+      "tipo": "datetime"
+    },
+    {
+      "nome": "data_vencimento",
+      "tipo": "date"
+    },
+    {
+      "nome": "data_hora",
+      "tipo": "datetime"
+    },
+    {
+      "nome": "linha_digitavel",
+      "tipo": "string",
+      "regex": "^[0-9]{47,48}$"
+    },
+    {
+      "nome": "codigo_barras_boleto",
+      "tipo": "string",
+      "regex": "^[0-9]{44}$"
+    },
+    {
+      "nome": "nosso_numero",
+      "tipo": "string"
+    },
+    {
+      "nome": "codigo_banco_compe",
+      "tipo": "string",
+      "regex": "^[0-9]{3}$"
+    },
+    {
+      "nome": "ispb",
+      "tipo": "string",
+      "regex": "^[0-9]{8}$"
+    },
+    {
+      "nome": "agencia",
+      "tipo": "string"
+    },
+    {
+      "nome": "conta_bancaria",
+      "tipo": "string",
+      "dado_pessoal": true
+    },
+    {
+      "nome": "chave_pix",
+      "tipo": "string",
+      "descricao": "CPF, CNPJ, e-mail, telefone ou chave aleatória (EVP).",
+      "dado_pessoal": true
+    },
+    {
+      "nome": "txid_pix",
+      "tipo": "string",
+      "regex": "^[a-zA-Z0-9]{26,35}$",
+      "descricao": "Identificador da cobrança Pix definido pelo recebedor.",
+      "confianca": "inferido"
+    },
+    {
+      "nome": "e2e_id_pix",
+      "tipo": "string",
+      "regex": "^[Ee][0-9]{8}[0-9]{12}[a-zA-Z0-9]{11}$",
+      "descricao": "EndToEndId (32 caracteres) — chave natural para conciliação de Pix.",
+      "confianca": "inferido"
+    },
+    {
+      "nome": "pix_copia_cola",
+      "tipo": "string",
+      "descricao": "Payload BR Code (EMV)."
+    },
+    {
+      "nome": "codigo_rastreio",
+      "tipo": "string"
+    },
+    {
+      "nome": "peso_kg",
+      "tipo": "decimal"
+    },
+    {
+      "nome": "dimensoes_cm",
+      "tipo": "object",
+      "descricao": "{altura, largura, comprimento}"
+    },
+    {
+      "nome": "rntrc",
+      "tipo": "string"
+    },
+    {
+      "nome": "ciot",
+      "tipo": "string"
+    },
+    {
+      "nome": "placa_veiculo",
+      "tipo": "string",
+      "regex": "^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$"
+    },
+    {
+      "nome": "pis_pasep",
+      "tipo": "string",
+      "regex": "^[0-9]{11}$",
+      "dado_pessoal": true
+    },
+    {
+      "nome": "cbo",
+      "tipo": "string",
+      "regex": "^[0-9]{6}$"
+    },
+    {
+      "nome": "matricula_esocial",
+      "tipo": "string"
+    },
+    {
+      "nome": "id_externo",
+      "tipo": "string",
+      "descricao": "Identificador do sistema de origem gravado no sistema de destino (external reference). Base da idempotência entre sistemas."
+    },
+    {
+      "nome": "chave_idempotencia",
+      "tipo": "string",
+      "descricao": "Valor de header/campo de idempotência do fornecedor."
+    },
+    {
+      "nome": "status_canonico",
+      "tipo": "string",
+      "enum": [
+        "rascunho",
+        "pendente",
+        "processando",
+        "autorizado",
+        "pago",
+        "parcialmente_pago",
+        "vencido",
+        "cancelado",
+        "estornado",
+        "rejeitado",
+        "erro",
+        "concluido"
+      ],
+      "descricao": "Status normalizado; o status original do fornecedor fica em observacao/de-para."
+    }
+  ],
+  "enums": {
+    "categoria": [
+      "erp_nacional",
+      "erp_global",
+      "crm_marketing",
+      "pagamentos_padrao",
+      "pagamentos_psp",
+      "pagamentos_adquirente",
+      "pagamentos_baas",
+      "bancos",
+      "bancos_open_finance",
+      "fiscal_governo",
+      "fiscal_gateway",
+      "rh",
+      "rh_ponto",
+      "logistica",
+      "ecommerce_plataforma",
+      "marketplace",
+      "ecommerce_hub",
+      "comunicacao",
+      "assinatura_eletronica",
+      "dados_kyc",
+      "atendimento",
+      "produtividade_infra",
+      "bi",
+      "vertical_saude",
+      "vertical_contabil"
+    ],
+    "status_sistema": [
+      "documentado",
+      "acesso_restrito",
+      "sem_api",
+      "descontinuada"
+    ],
+    "confianca": [
+      "verificado",
+      "inferido",
+      "catalogado_nao_detalhado"
+    ],
+    "estilo_api": [
+      "REST",
+      "SOAP",
+      "GraphQL",
+      "gRPC",
+      "RPC-sobre-HTTP",
+      "arquivo/EDI"
+    ],
+    "auth": [
+      "api_key",
+      "oauth2_authorization_code",
+      "oauth2_client_credentials",
+      "jwt",
+      "mtls",
+      "certificado_icp_brasil",
+      "basic"
+    ],
+    "complexidade": [
+      "baixa",
+      "media",
+      "alta",
+      "muito_alta"
+    ],
+    "permite_uso_em_produto_terceiro": [
+      "sim",
+      "nao",
+      "indefinido"
+    ]
+  },
+  "historico": [
+    {
+      "versao": "1.0.0",
+      "data": "2026-09-14",
+      "nota": "versão inicial"
+    },
+    {
+      "versao": "1.1.0",
+      "data": "2026-09-17",
+      "nota": "extensões v1.1 a partir do Lote 1 (aprovado pelo usuário): ações encerrar, manifestar, restaurar, liquidar; entidades Recebivel, Deposito, OrdemProducao, Anuncio; novos subtipos de documento fiscal"
+    },
+    {
+      "versao": "1.2.0",
+      "data": "2026-09-17",
+      "nota": "extensões v1.2 a partir do Lote 2 (aprovado pelo usuário): entidades Relatorio, Contestacao, Cartao, Plano, LocationPagamento; ação desvincular; descrição de Endereco ampliada"
+    }
+  ],
+  "entidades_extensao_v1_1": {
+    "justificativa": "Casos recorrentes encontrados no Lote 1 que ficavam mal representados.",
+    "itens": [
+      {
+        "nome": "Recebivel",
+        "descricao": "Recebíveis futuros e sua antecipação/cessão (antecipação de cartão/boleto, registro de recebíveis, efeitos de contrato).",
+        "origem": "asaas"
+      },
+      {
+        "nome": "Deposito",
+        "descricao": "Local físico ou lógico de armazenagem (depósito, almoxarifado, CD). Saldos por depósito continuam em Estoque.",
+        "origem": "bling"
+      },
+      {
+        "nome": "OrdemProducao",
+        "descricao": "Ordem de produção/industrialização (PCP).",
+        "origem": "bling"
+      },
+      {
+        "nome": "Anuncio",
+        "descricao": "Publicação de um produto em canal de venda/marketplace (listing), com preço e status próprios do canal.",
+        "origem": "bling"
+      }
+    ]
+  },
+  "acoes_extensao_v1_1": {
+    "justificativa": "Operações de negócio com semântica própria que ficavam aproximadas no Lote 1.",
+    "itens": [
+      {
+        "nome": "encerrar",
+        "descricao": "Finaliza formalmente um documento/relação ainda ativo sem desfazê-lo (encerramento de MDF-e, encerramento de conta/garantia).",
+        "readOnlyHint": false,
+        "destructiveHint": true
+      },
+      {
+        "nome": "manifestar",
+        "descricao": "Registra a posição do destinatário sobre documento fiscal recebido (ciência, confirmação, desacordo).",
+        "readOnlyHint": false,
+        "destructiveHint": false
+      },
+      {
+        "nome": "restaurar",
+        "descricao": "Recupera registro removido (undo de exclusão).",
+        "readOnlyHint": false,
+        "destructiveHint": false
+      },
+      {
+        "nome": "liquidar",
+        "descricao": "Dá baixa em título a receber/pagar registrando o pagamento (baixa manual).",
+        "readOnlyHint": false,
+        "destructiveHint": false
+      }
+    ]
+  },
+  "entidades_extensao_v1_2": {
+    "justificativa": "Casos recorrentes em meios de pagamento e no padrão Pix, encontrados no Lote 2.",
+    "itens": [
+      {
+        "nome": "Relatorio",
+        "descricao": "Arquivo de relatório gerado pelo fornecedor (liberação de dinheiro, conciliação, extrato consolidado): solicitação, acompanhamento e download. O conteúdo é transacional, mas o recurso manipulado é o arquivo.",
+        "origem": "mercado-pago"
+      },
+      {
+        "nome": "Contestacao",
+        "descricao": "Chargeback, disputa ou mediação sobre uma cobrança, com ciclo próprio: motivo, prazo de defesa, documentos e resultado.",
+        "origem": "mercado-pago, pagarme"
+      },
+      {
+        "nome": "Cartao",
+        "descricao": "Meio de pagamento armazenado: cartão salvo, token de cartão, carteira digital. Distinto do Cliente que o possui.",
+        "origem": "pagarme"
+      },
+      {
+        "nome": "Plano",
+        "descricao": "Modelo de recorrência (preço, ciclo, período de teste) que origina Assinaturas. Distinto de Produto.",
+        "origem": "pagarme"
+      },
+      {
+        "nome": "LocationPagamento",
+        "descricao": "Location/payload de cobrança no arranjo Pix (/loc, /locrec): recurso que hospeda o QR Code e pode ser vinculado ou desvinculado de uma cobrança.",
+        "origem": "pix-bacen"
+      }
+    ]
+  },
+  "acoes_extensao_v1_2": {
+    "justificativa": "Operação com semântica própria encontrada no padrão Pix.",
+    "itens": [
+      {
+        "nome": "desvincular",
+        "descricao": "Remove o vínculo entre dois recursos preservando ambos (ex.: DELETE /loc/{id}/txid desvincula a cobrança do location sem apagá-lo).",
+        "readOnlyHint": false,
+        "destructiveHint": false
+      }
+    ]
+  }
+}

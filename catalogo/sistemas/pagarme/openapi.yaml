@@ -1,0 +1,3519 @@
+openapi: 3.1.0
+info:
+  title: Pagar.me Core API v5 (reconstrucao do catalogo)
+  version: '5'
+  description: Subconjunto detalhado reconstruido a partir da referencia oficial docs.pagar.me (API v5 / Core API). Consulta em 2026-09-17. Teste
+    e producao usam a MESMA base; o que define o ambiente e o prefixo da chave secreta (sk_test_ = teste, sk_ = producao).
+servers:
+- url: https://api.pagar.me
+  description: Producao e teste (o ambiente vem do prefixo da chave)
+- url: https://sdx-api.pagar.me
+  description: 'Ambiente de mocks das mudancas de contrato (header X-Use-Mocks: true)'
+security:
+- basicAuth: []
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: 'HTTP Basic: usuario = chave secreta (sk_...), senha vazia.'
+  schemas:
+    Erro:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          description: Mapa campo -> mensagens, em erros de validacao.
+        request:
+          type: object
+          description: Eco do corpo recebido, em erros de validacao.
+  responses:
+    NaoAutorizado:
+      description: Credencial ausente, invalida ou de outro ambiente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+    LimiteExcedido:
+      description: Rate limit da rota excedido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+paths:
+  /core/v5/customers:
+    post:
+      operationId: pagarme__cliente__criar
+      summary: Criar cliente
+      description: Cadastra um comprador na carteira de clientes da loja. O cliente criado pode ser reaproveitado em pedidos, assinaturas e links
+        de pagamento pelo customer_id, e é ele que ancora cartões e endereços salvos.
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/criar-cliente-1
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Nome.
+                email:
+                  type: string
+                  description: E-mail do cliente.
+                code:
+                  type: string
+                  description: Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me.
+                document:
+                  type: string
+                  description: 'Número do documento: CPF, CNPJ ou passaporte, sem máscara.'
+                document_type:
+                  type: string
+                  enum:
+                  - CPF
+                  - CNPJ
+                  - PASSPORT
+                  description: 'Natureza do documento informado: CPF, CNPJ ou PASSPORT.'
+                type:
+                  type: string
+                  description: Tipo do registro; os valores válidos variam por recurso.
+                gender:
+                  type: string
+                  enum:
+                  - male
+                  - female
+                  description: 'Gênero declarado: male ou female.'
+                address:
+                  type: object
+                  description: Endereço vinculado ao registro.
+                phones:
+                  type: object
+                  description: Telefones do cliente (residencial e/ou celular).
+                birthdate:
+                  type: string
+                  format: date
+                  description: Data de nascimento.
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__cliente__listar
+      summary: Listar clientes
+      description: Devolve a carteira de clientes da loja, paginada por page/size, com filtros por nome, documento, e-mail, gênero e pelo seu
+        código externo (code).
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/listar-clientes-1
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: name
+        in: query
+        required: false
+        description: Nome.
+        schema:
+          type: string
+      - name: document
+        in: query
+        required: false
+        description: 'Número do documento: CPF, CNPJ ou passaporte, sem máscara.'
+        schema:
+          type: string
+      - name: email
+        in: query
+        required: false
+        description: E-mail do cliente.
+        schema:
+          type: string
+      - name: gender
+        in: query
+        required: false
+        description: 'Gênero declarado: male ou female.'
+        schema:
+          type: string
+          enum:
+          - male
+          - female
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: integer
+      - name: size
+        in: query
+        required: false
+        description: Quantidade de registros por página.
+        schema:
+          type: integer
+      - name: code
+        in: query
+        required: false
+        description: Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/customers/{customer_id}:
+    get:
+      operationId: pagarme__cliente__obter
+      summary: Obter cliente
+      description: Retorna um cliente pelo identificador cus_. Traz o endereço principal, os telefones e o metadata gravado.
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/obter-cliente-1
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    put:
+      operationId: pagarme__cliente__atualizar
+      summary: Editar cliente
+      description: Substitui os dados cadastrais do cliente informado. Como o verbo é PUT, reenvie o conjunto completo de campos que deve permanecer
+        no cadastro.
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/editar-cliente-1
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Nome.
+                email:
+                  type: string
+                  description: E-mail do cliente.
+                code:
+                  type: string
+                  description: Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me.
+                document:
+                  type: string
+                  description: 'Número do documento: CPF, CNPJ ou passaporte, sem máscara.'
+                document_type:
+                  type: string
+                  enum:
+                  - CPF
+                  - CNPJ
+                  - PASSPORT
+                  description: 'Natureza do documento informado: CPF, CNPJ ou PASSPORT.'
+                type:
+                  type: string
+                  description: Tipo do registro; os valores válidos variam por recurso.
+                gender:
+                  type: string
+                  enum:
+                  - male
+                  - female
+                  description: 'Gênero declarado: male ou female.'
+                address:
+                  type: object
+                  description: Endereço vinculado ao registro.
+                phone:
+                  type: object
+                  description: Telefone de contato.
+                birthdate:
+                  type: string
+                  format: date
+                  description: Data de nascimento.
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/customers/{customer_id}/cards:
+    post:
+      operationId: pagarme__cartao__criar
+      summary: Criar cartão
+      description: Salva um cartão na carteira (wallet) do cliente e devolve um card_id reutilizável. Aceita os dados abertos do cartão (exige
+        ambiente PCI-DSS) ou um token gerado pelo tokenizecard.js.
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/criar-cart%C3%A3o
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                number:
+                  type: string
+                  description: Número, sem máscara. Em telefones, o número da linha; em cartões, o PAN.
+                holder_name:
+                  type: string
+                  description: Nome do portador exatamente como impresso no cartão (sem números nem caracteres especiais).
+                holder_document:
+                  type: string
+                  description: CPF ou CNPJ do portador. Obrigatório para cartões voucher (VR, Pluxee).
+                exp_month:
+                  type: integer
+                  description: Mês de validade do cartão, de 1 a 12.
+                exp_year:
+                  type: integer
+                  description: Ano de validade do cartão, com 2 ou 4 dígitos.
+                cvv:
+                  type: string
+                  description: Código de segurança do cartão (3 ou 4 dígitos, conforme a bandeira).
+                brand:
+                  type: string
+                  description: 'Bandeira do cartão (ex.: visa, mastercard, elo, amex, hipercard; VR e Pluxee em voucher).'
+                label:
+                  type: string
+                  description: Rótulo do cartão, usado em cartões multiaplicação.
+                billing_address_id:
+                  type: string
+                  description: Identificador de um endereço já cadastrado, usado no lugar de billing_address.
+                billing_address:
+                  type: object
+                  description: Endereço de cobrança do cartão.
+                options:
+                  type: object
+                  description: Opções de responsabilidade e de cobrança de taxas do recebedor nesta regra.
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+                token:
+                  type: string
+                  description: Token de cartão obtido previamente, usado no lugar dos dados abertos.
+              required:
+              - number
+              - holder_name
+              - exp_month
+              - exp_year
+              - cvv
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__cartao__listar
+      summary: Listar cartões
+      description: Lista os cartões salvos na carteira do cliente, sempre mascarados (BIN e quatro últimos dígitos).
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/listar-cart%C3%A3o
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/customers/{customer_id}/cards/{card_id}:
+    get:
+      operationId: pagarme__cartao__obter
+      summary: Obter cartão
+      description: Retorna um cartão específico da carteira do cliente, com bandeira, validade, status e endereço de cobrança.
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/obter-cart%C3%A3o
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      - name: card_id
+        in: path
+        required: true
+        description: Identificador de um cartão já salvo na carteira do cliente (prefixo card_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    delete:
+      operationId: pagarme__cartao__excluir
+      summary: Excluir cartão
+      description: Remove o cartão da carteira do cliente. O cartão deixa de ser utilizável por card_id.
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/excluir-cart%C3%A3o
+      x-acao-canonica: excluir
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      - name: card_id
+        in: path
+        required: true
+        description: Identificador de um cartão já salvo na carteira do cliente (prefixo card_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/tokens:
+    post:
+      operationId: pagarme__cartao__criar__token
+      summary: Criar token de cartão
+      description: Troca os dados abertos de um cartão por um token de uso único. É a alternativa ao tokenizecard.js quando não dá para embarcar
+        o script no checkout. Autentica-se com a CHAVE PÚBLICA na query (appId), não com a chave secreta.
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/criar-token-cart%C3%A3o-1
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: appId
+        in: query
+        required: true
+        description: Chave pública da conta (pk_...). É o único parâmetro de autenticação desta rota; não use a chave secreta aqui.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  description: Tipo do registro; os valores válidos variam por recurso.
+                card:
+                  type: object
+                  description: Dados do cartão. Enviar o cartão aberto exige ambiente PCI-DSS; prefira card_id ou card_token.
+              required:
+              - type
+              - card
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/customers/{customer_id}/addresses:
+    post:
+      operationId: pagarme__endereco__criar
+      summary: Criar endereço
+      description: Adiciona um endereço à carteira do cliente e devolve um addr_ reutilizável como billing_address_id de cartões e cobranças.
+      tags:
+      - Endereco
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/criar-endere%C3%A7o-1
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                line_1:
+                  type: string
+                  description: 'Primeira linha do endereço: número, logradouro e bairro, nesta ordem e separados por vírgula.'
+                line_2:
+                  type: string
+                  description: 'Segunda linha do endereço: complemento e referências.'
+                zip_code:
+                  type: string
+                  description: CEP, só dígitos.
+                city:
+                  type: string
+                  description: Município.
+                state:
+                  type: string
+                  description: 'Unidade federativa no padrão ISO 3166-2 (só a sigla, ex.: SP).'
+                country:
+                  type: string
+                  description: 'País no padrão ISO 3166-1 alpha-2 (ex.: BR).'
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+              required:
+              - line_1
+              - zip_code
+              - city
+              - state
+              - country
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__endereco__listar
+      summary: Listar endereços
+      description: Lista os endereços cadastrados na carteira de um cliente, com paginação page/size.
+      tags:
+      - Endereco
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/listar-endere%C3%A7os-1
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: integer
+      - name: size
+        in: query
+        required: false
+        description: Quantidade de registros por página.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/customers/{customer_id}/addresses/{address_id}:
+    put:
+      operationId: pagarme__endereco__atualizar
+      summary: Editar endereço
+      description: Atualiza os dados complementares de um endereço da carteira do cliente.
+      tags:
+      - Endereco
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/editar-endere%C3%A7o-1
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      - name: address_id
+        in: path
+        required: true
+        description: Identificador do endereço no Pagar.me (prefixo addr_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                line_2:
+                  type: string
+                  description: 'Segunda linha do endereço: complemento e referências.'
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    delete:
+      operationId: pagarme__endereco__excluir
+      summary: Excluir endereço
+      description: Remove um endereço da carteira do cliente; o registro passa a status deleted.
+      tags:
+      - Endereco
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/excluir-endere%C3%A7o-1
+      x-acao-canonica: excluir
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      - name: address_id
+        in: path
+        required: true
+        description: Identificador do endereço no Pagar.me (prefixo addr_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/orders:
+    post:
+      operationId: pagarme__pedido__criar
+      summary: Criar pedido
+      description: Rota principal de venda da API v5. Um pedido reúne itens, comprador e um ou mais pagamentos; cada elemento de payments[] vira
+        uma cobrança (charge). Suporta cartão de crédito e débito, boleto, Pix, voucher, private label e dinheiro, além de regras de split entre
+        recebedores.
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/criar-pedido-com-split-1
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Chave de idempotência gerada por você. Requisições repetidas com a mesma chave em até 24 h (5 min no ambiente de teste) devolvem
+          a mesma operação, sem duplicar.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  description: Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me.
+                items:
+                  type: array
+                  description: Itens que compõem o registro.
+                customer_id:
+                  type: string
+                  description: Identificador do cliente no Pagar.me (prefixo cus_).
+                customer:
+                  type: object
+                  description: Dados do cliente criados junto com o registro. Alternativa a customer_id.
+                shipping:
+                  type: object
+                  description: Dados de entrega do pedido.
+                payments:
+                  type: array
+                  description: Lista de pagamentos do pedido. Mais de um item configura multimeios (o valor é dividido entre eles).
+                closed:
+                  type: boolean
+                  description: Indica se o pedido está fechado. Um pedido aberto ainda aceita novas cobranças.
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+              required:
+              - items
+              - payments
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__pedido__listar
+      summary: Listar pedidos
+      description: Lista os pedidos da loja com filtros por status, cliente, seu código externo e período de criação, paginados por page/size.
+        Cada pedido vem com itens, comprador e cobranças.
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/listar-pedidos
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: code
+        in: query
+        required: false
+        description: Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me.
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro; os valores válidos variam por recurso.
+        schema:
+          type: string
+      - name: customer_id
+        in: query
+        required: false
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      - name: created_since
+        in: query
+        required: false
+        description: Limite inicial do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: created_until
+        in: query
+        required: false
+        description: Limite final do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: integer
+      - name: size
+        in: query
+        required: false
+        description: Quantidade de registros por página.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/orders/{order_id}:
+    get:
+      operationId: pagarme__pedido__obter
+      summary: Obter pedido
+      description: Retorna um pedido completo pelo identificador or_, incluindo itens, comprador, todas as cobranças e a última transação de cada
+        uma (QR code do Pix, linha digitável do boleto, retorno da adquirente).
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/obter-pedido
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        description: Identificador do pedido no Pagar.me (prefixo or_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/orders/{order_id}/closed:
+    patch:
+      operationId: pagarme__pedido__encerrar
+      summary: Fechar um pedido
+      description: Fecha um pedido aberto. Enquanto o pedido está aberto é possível acrescentar cobranças a ele; depois de fechado, não.
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/fechar-um-pedido
+      x-acao-canonica: encerrar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: order_id
+        in: path
+        required: true
+        description: Identificador do pedido no Pagar.me (prefixo or_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  description: Situação do registro; os valores válidos variam por recurso.
+              required:
+              - status
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/charges:
+    post:
+      operationId: pagarme__cobranca__criar
+      summary: Criar cobrança / incluir cobrança no pedido
+      description: Cria uma cobrança avulsa ou acrescenta uma cobrança a um pedido ainda aberto, informando o order_id. É o caminho para multimeios
+        (dividir um pedido entre cartão e Pix, por exemplo) e para cobrar de novo um pedido em aberto.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/criar-cobran%C3%A7a
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Chave de idempotência gerada por você. Requisições repetidas com a mesma chave em até 24 h (5 min no ambiente de teste) devolvem
+          a mesma operação, sem duplicar.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  description: Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me.
+                amount:
+                  type: integer
+                  description: Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990.
+                currency:
+                  type: string
+                  enum:
+                  - BRL
+                  description: 'Moeda do valor. Único valor aceito: BRL.'
+                payment:
+                  type: object
+                  description: Bloco de pagamento da cobrança.
+                customer_id:
+                  type: string
+                  description: Identificador do cliente no Pagar.me (prefixo cus_).
+                customer:
+                  type: object
+                  description: Dados do cliente criados junto com o registro. Alternativa a customer_id.
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+              required:
+              - amount
+              - payment
+              - customer_id
+              - customer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__cobranca__listar
+      summary: Listar cobranças
+      description: Lista as cobranças da loja com filtros por status, meio de pagamento, cliente, pedido, código externo e período de criação.
+        É a visão financeira do que foi cobrado, independentemente do pedido.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/listar-cobran%C3%A7as
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: code
+        in: query
+        required: false
+        description: Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me.
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro; os valores válidos variam por recurso.
+        schema:
+          type: string
+      - name: payment_method
+        in: query
+        required: false
+        description: 'Meio de pagamento: credit_card, debit_card, boleto, pix, voucher, bank_transfer, cash, private_label ou checkout.'
+        schema:
+          type: string
+      - name: customer_id
+        in: query
+        required: false
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      - name: order_id
+        in: query
+        required: false
+        description: Identificador do pedido no Pagar.me (prefixo or_).
+        schema:
+          type: string
+      - name: created_since
+        in: query
+        required: false
+        description: Limite inicial do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: created_until
+        in: query
+        required: false
+        description: Limite final do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: integer
+      - name: size
+        in: query
+        required: false
+        description: Quantidade de registros por página.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/charges/{charge_id}:
+    get:
+      operationId: pagarme__cobranca__obter
+      summary: Obter cobrança
+      description: Retorna uma cobrança pelo identificador ch_, com o objeto last_transaction — onde ficam QR code do Pix, linha digitável e código
+        de barras do boleto, e o retorno da adquirente no cartão.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/obter-cobran%C3%A7a
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: charge_id
+        in: path
+        required: true
+        description: Identificador da cobrança no Pagar.me (prefixo ch_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    delete:
+      operationId: pagarme__cobranca__cancelar
+      summary: Cancelar cobrança (cancelamento e estorno)
+      description: Rota única de desfazimento. Se a cobrança ainda não foi capturada, cancela a autorização; se já foi paga, executa o estorno
+        (refund) — total quando amount é omitido, parcial quando você informa o valor em centavos. Vale para cartão, Pix e boleto, com regras
+        próprias de cada meio.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/cancelar-cobran%C3%A7a
+      x-acao-canonica: cancelar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: charge_id
+        in: path
+        required: true
+        description: Identificador da cobrança no Pagar.me (prefixo ch_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: integer
+                  description: Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/charges/{charge_id}/capture:
+    post:
+      operationId: pagarme__cobranca__autorizar
+      summary: Capturar cobrança
+      description: Captura uma cobrança de cartão que foi apenas autorizada (operation_type auth_only ou pre_auth). Permite capturar valor menor
+        que o autorizado e, no modelo PSP, redefinir as regras de split no momento da captura.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/capturar-cobran%C3%A7a-com-split-1
+      x-acao-canonica: autorizar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: charge_id
+        in: path
+        required: true
+        description: Identificador da cobrança no Pagar.me (prefixo ch_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: integer
+                  description: Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990.
+                split:
+                  type: array
+                  description: Regras de divisão do valor entre recebedores. Disponível apenas no modelo PSP.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/charges/{charge_id}/due-date:
+    patch:
+      operationId: pagarme__cobranca__atualizar__vencimento
+      summary: Editar data de vencimento da cobrança
+      description: Altera a data de vencimento de uma cobrança ainda não paga (tipicamente boleto).
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/editar-data-de-vencimento-da-cobran%C3%A7a
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: charge_id
+        in: path
+        required: true
+        description: Identificador da cobrança no Pagar.me (prefixo ch_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                due_at:
+                  type: string
+                  format: date-time
+                  description: Data/hora de vencimento.
+              required:
+              - due_at
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/charges/{charge_id}/payment-method:
+    patch:
+      operationId: pagarme__cobranca__atualizar__meio_pagamento
+      summary: Editar método de pagamento da cobrança
+      description: Troca o meio de pagamento de uma cobrança não autorizada — por exemplo, de cartão recusado para boleto ou Pix — reaproveitando
+        o mesmo pedido. Com update_subscription=true, a troca vale também para a assinatura que gerou a cobrança.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/editar-m%C3%A9todo-de-pagamento
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: charge_id
+        in: path
+        required: true
+        description: Identificador da cobrança no Pagar.me (prefixo ch_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                update_subscription:
+                  type: string
+                  description: Quando true, aplica a alteração também à assinatura que originou a cobrança.
+                payment_method:
+                  type: string
+                  description: 'Meio de pagamento: credit_card, debit_card, boleto, pix, voucher, bank_transfer, cash, private_label ou checkout.'
+                credit_card:
+                  type: object
+                  description: Bloco de cartão de crédito. Obrigatório quando payment_method = credit_card.
+                voucher:
+                  type: object
+                  description: Bloco de cartão voucher (vale-refeição/alimentação). Obrigatório quando payment_method = voucher.
+                boleto:
+                  type: object
+                  description: Bloco de boleto. Obrigatório quando payment_method = boleto.
+                bank_transfer:
+                  type: object
+                  description: Bloco de transferência bancária.
+                Pix:
+                  type: object
+                  description: Bloco de Pix. Obrigatório quando payment_method = pix.
+                reuse_split:
+                  type: boolean
+                  description: Reaproveita as regras de split já gravadas na assinatura.
+              required:
+              - payment_method
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/charges/{charge_id}/card:
+    patch:
+      operationId: pagarme__cobranca__atualizar__cartao
+      summary: Editar cartão da cobrança
+      description: Substitui o cartão de uma cobrança que não foi autorizada e refaz a tentativa. Aceita card_id, card_token ou os dados abertos
+        do cartão.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/editar-cart%C3%A3o-de-cobran%C3%A7a
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: charge_id
+        in: path
+        required: true
+        description: Identificador da cobrança no Pagar.me (prefixo ch_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                update_subscription:
+                  type: string
+                  description: Quando true, aplica a alteração também à assinatura que originou a cobrança.
+                card_id:
+                  type: string
+                  description: Identificador de um cartão já salvo na carteira do cliente (prefixo card_).
+                card:
+                  type: object
+                  description: Dados do cartão. Enviar o cartão aberto exige ambiente PCI-DSS; prefira card_id ou card_token.
+                card_token:
+                  type: string
+                  description: Token do cartão gerado pelo tokenizecard.js ou por POST /tokens. Vale 60 segundos e um único uso.
+                initiated_type:
+                  type: string
+                  enum:
+                  - partial_shipment
+                  - related_or_delayed_charge
+                  - no_show
+                  - resubmission
+                  description: 'Motivo da transação iniciada pelo lojista: partial_shipment, related_or_delayed_charge, no_show ou resubmission.'
+                recurrence_model:
+                  type: string
+                  enum:
+                  - standing_order
+                  - instalment
+                  - subscription
+                  description: 'Modelo de recorrência exigido pelas bandeiras: standing_order, instalment ou subscription.'
+                payment_origin:
+                  type: object
+                  description: Referência da primeira cobrança da recorrência, usada para herdar a autenticação.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/charges/{charge_id}/retry:
+    post:
+      operationId: pagarme__cobranca__autorizar__retentativa
+      summary: Retentar uma cobrança manualmente
+      description: Dispara manualmente uma nova tentativa de pagamento de uma cobrança que falhou, sem trocar o meio nem o cartão. Complementa
+        a retentativa automática configurada na conta.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/retentar-uma-cobran%C3%A7a-manualmente
+      x-acao-canonica: autorizar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: charge_id
+        in: path
+        required: true
+        description: Identificador da cobrança no Pagar.me (prefixo ch_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/charges/{charge_id}/confirm-payment:
+    post:
+      operationId: pagarme__cobranca__liquidar
+      summary: Confirmar cobrança em dinheiro
+      description: Registra a baixa manual de uma cobrança criada com o meio de pagamento cash (dinheiro), informando ao Pagar.me que o valor
+        foi recebido fora do sistema.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/confirmar-cobran%C3%A7a-cash
+      x-acao-canonica: liquidar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: charge_id
+        in: path
+        required: true
+        description: Identificador da cobrança no Pagar.me (prefixo ch_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: integer
+                  description: Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990.
+                code:
+                  type: string
+                  description: Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me.
+                description:
+                  type: string
+                  description: Texto livre de descrição.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/paymentlinks:
+    post:
+      operationId: pagarme__cobranca__criar__link_pagamento
+      summary: Criar link de pagamento
+      description: Gera um link para o checkout hospedado pelo Pagar.me, com carrinho, meios de pagamento aceitos, prazo de expiração, limites
+        de uso, personalização visual e, opcionalmente, regras de split ou criação de assinatura ao ser pago.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/criar-link
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_building:
+                  type: boolean
+                  description: Cria o link em rascunho (status building) em vez de já ativo.
+                name:
+                  type: string
+                  description: Nome.
+                order_code:
+                  type: string
+                  description: Seu identificador do pedido, usado para correlacionar com a sua plataforma.
+                type:
+                  type: string
+                  description: Tipo do registro; os valores válidos variam por recurso.
+                expires_at:
+                  type: string
+                  format: date-time
+                  description: Data/hora de expiração.
+                expires_in:
+                  type: integer
+                  description: Prazo de expiração (em segundos no Pix; em minutos no link de pagamento).
+                max_sessions:
+                  type: integer
+                  description: Limite de pedidos que o link pode gerar, pagos ou não.
+                max_paid_sessions:
+                  type: integer
+                  description: Limite de pedidos pagos que o link pode gerar.
+                payment_settings:
+                  type: object
+                  description: Meios de pagamento e regras do checkout do link.
+                customer_settings:
+                  type: object
+                  description: Dados do comprador pré-preenchidos no checkout.
+                cart_settings:
+                  type: object
+                  description: Carrinho apresentado no checkout do link.
+                layout_settings:
+                  type: object
+                  description: Aparência do checkout (logo e cores).
+                split_settings:
+                  type: object
+                  description: Regras de split aplicadas ao link de pagamento.
+                flow_settings:
+                  type: object
+                  description: Comportamento do checkout ao final do pagamento.
+              required:
+              - type
+              - payment_settings
+              - cart_settings
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__cobranca__listar__link_pagamento
+      summary: Obter links de pagamento
+      description: Lista os links de pagamento da loja com filtros por nome, status e período de criação. A paginação usa page e per_page, com
+        no máximo 30 itens por página — diferente do resto da API.
+      tags:
+      - Cobranca
+      x-confianca: inferido
+      x-fonte-url: https://docs.pagar.me/reference/obter-links
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: name
+        in: query
+        required: false
+        description: Nome.
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro; os valores válidos variam por recurso.
+        schema:
+          type: string
+      - name: created_since
+        in: query
+        required: false
+        description: Limite inicial do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: created_until
+        in: query
+        required: false
+        description: Limite final do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        required: false
+        description: Quantidade de registros por página (máximo 30 nesta rota).
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/paymentlinks/{payment_link_id}/cancel:
+    patch:
+      operationId: pagarme__cobranca__cancelar__link_pagamento
+      summary: Cancelar link de pagamento
+      description: Cancela um link de pagamento; ele deixa de aceitar novas compras, mas os pedidos já gerados continuam válidos.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/cancelar-um-link-de-pagamento
+      x-acao-canonica: cancelar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: payment_link_id
+        in: path
+        required: true
+        description: Identificador do link de pagamento.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/plans:
+    post:
+      operationId: pagarme__plano__criar
+      summary: Criar plano
+      description: 'Cria o modelo de recorrência (plano) que servirá de base para assinaturas: periodicidade, meios de pagamento aceitos, parcelamento,
+        período de teste, itens e esquema de preço (unit, package, volume ou tier).'
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/criar-plano-1
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Nome.
+                description:
+                  type: string
+                  description: Texto livre de descrição.
+                shippable:
+                  type: boolean
+                  description: Indica se o plano envolve entrega física.
+                payment_methods:
+                  type: array
+                  description: Meios de pagamento liberados para as assinaturas geradas a partir deste plano.
+                installments:
+                  type: array
+                  description: Número de parcelas. Em recorrência deve ser 1.
+                minimum_price:
+                  type: integer
+                  description: Valor mínimo da fatura, em centavos.
+                statement_descriptor:
+                  type: string
+                  description: Texto que aparece na fatura do portador. Até 22 caracteres no modelo Gateway e 13 no modelo PSP.
+                currency:
+                  type: string
+                  enum:
+                  - BRL
+                  description: 'Moeda do valor. Único valor aceito: BRL.'
+                interval:
+                  type: string
+                  enum:
+                  - day
+                  - week
+                  - month
+                  - year
+                  description: 'Unidade do ciclo de cobrança: day, week, month ou year.'
+                interval_count:
+                  type: integer
+                  description: 'Quantos intervalos formam um ciclo (ex.: interval=month e interval_count=2 cobra a cada dois meses).'
+                trial_period_days:
+                  type: integer
+                  description: Dias de teste antes da primeira cobrança.
+                billing_type:
+                  type: string
+                  enum:
+                  - prepaid
+                  - postpaid
+                  - exact_day
+                  description: 'Momento da cobrança do ciclo: prepaid (no início), postpaid (no fim) ou exact_day (em dia fixo).'
+                billing_days:
+                  type: string
+                  format: date
+                  description: Dias do mês liberados para a cobrança das assinaturas do plano.
+                items:
+                  type: array
+                  description: Itens que compõem o registro.
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+                pricing_scheme:
+                  type: object
+                  description: Regra de formação de preço do item.
+                quantity:
+                  type: integer
+                  description: Quantidade.
+              required:
+              - name
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__plano__listar
+      summary: Listar planos
+      description: Lista os planos cadastrados, com filtros por nome, status e período de criação.
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/listar-planos-1
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: name
+        in: query
+        required: false
+        description: Nome.
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro; os valores válidos variam por recurso.
+        schema:
+          type: string
+      - name: created_since
+        in: query
+        required: false
+        description: Limite inicial do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: created_until
+        in: query
+        required: false
+        description: Limite final do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: integer
+      - name: size
+        in: query
+        required: false
+        description: Quantidade de registros por página.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/plans/{plan_id}:
+    get:
+      operationId: pagarme__plano__obter
+      summary: Obter plano
+      description: Retorna um plano pelo identificador plan_, com itens, esquema de preço e meios de pagamento aceitos.
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/obter-plano-1
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: plan_id
+        in: path
+        required: true
+        description: Identificador do plano (prefixo plan_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    put:
+      operationId: pagarme__plano__atualizar
+      summary: Editar plano
+      description: Atualiza os dados de um plano existente. Como é PUT, envie o conjunto de campos que deve permanecer.
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/editar-plano-1
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: plan_id
+        in: path
+        required: true
+        description: Identificador do plano (prefixo plan_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Nome.
+                status:
+                  type: string
+                  description: Situação do registro; os valores válidos variam por recurso.
+                description:
+                  type: string
+                  description: Texto livre de descrição.
+                shippable:
+                  type: boolean
+                  description: Indica se o plano envolve entrega física.
+                payment_methods:
+                  type: array
+                  description: Meios de pagamento liberados para as assinaturas geradas a partir deste plano.
+                installments:
+                  type: array
+                  description: Número de parcelas. Em recorrência deve ser 1.
+                minimum_price:
+                  type: integer
+                  description: Valor mínimo da fatura, em centavos.
+                statement_descriptor:
+                  type: string
+                  description: Texto que aparece na fatura do portador. Até 22 caracteres no modelo Gateway e 13 no modelo PSP.
+                currency:
+                  type: string
+                  enum:
+                  - BRL
+                  description: 'Moeda do valor. Único valor aceito: BRL.'
+                interval:
+                  type: string
+                  enum:
+                  - day
+                  - week
+                  - month
+                  - year
+                  description: 'Unidade do ciclo de cobrança: day, week, month ou year.'
+                interval_count:
+                  type: integer
+                  description: 'Quantos intervalos formam um ciclo (ex.: interval=month e interval_count=2 cobra a cada dois meses).'
+                trial_period_days:
+                  type: integer
+                  description: Dias de teste antes da primeira cobrança.
+                billing_type:
+                  type: string
+                  enum:
+                  - prepaid
+                  - postpaid
+                  - exact_day
+                  description: 'Momento da cobrança do ciclo: prepaid (no início), postpaid (no fim) ou exact_day (em dia fixo).'
+                billing_days:
+                  type: string
+                  format: date
+                  description: Dias do mês liberados para a cobrança das assinaturas do plano.
+                items:
+                  type: array
+                  description: Itens que compõem o registro.
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+              required:
+              - name
+              - status
+              - currency
+              - interval
+              - interval_count
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/subscriptions:
+    post:
+      operationId: pagarme__assinatura__criar
+      summary: Criar assinatura
+      description: Cria a recorrência de um cliente. Pode nascer de um plano (plan_id) ou ser avulsa, com os itens e o esquema de preço definidos
+        na própria requisição. Aceita cartão de crédito, débito e boleto, descontos, acréscimos, data de início futura e parcelamento.
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/criar-assinatura-de-plano-1
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Chave de idempotência gerada por você. Requisições repetidas com a mesma chave em até 24 h (5 min no ambiente de teste) devolvem
+          a mesma operação, sem duplicar.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  description: Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me.
+                plan_id:
+                  type: string
+                  description: Identificador do plano (prefixo plan_).
+                payment_method:
+                  type: string
+                  description: 'Meio de pagamento: credit_card, debit_card, boleto, pix, voucher, bank_transfer, cash, private_label ou checkout.'
+                start_at:
+                  type: string
+                  format: date-time
+                  description: Data de início.
+                customer_id:
+                  type: string
+                  description: Identificador do cliente no Pagar.me (prefixo cus_).
+                customer:
+                  type: object
+                  description: Dados do cliente criados junto com o registro. Alternativa a customer_id.
+                card:
+                  type: object
+                  description: Dados do cartão. Enviar o cartão aberto exige ambiente PCI-DSS; prefira card_id ou card_token.
+                installments:
+                  type: integer
+                  description: Número de parcelas. Em recorrência deve ser 1.
+                discounts:
+                  type: array
+                  description: Descontos aplicados à assinatura.
+                increments:
+                  type: array
+                  description: Acréscimos aplicados à assinatura.
+                boleto_due_days:
+                  type: integer
+                  description: Dias até o vencimento dos boletos gerados pela assinatura.
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+              required:
+              - plan_id
+              - payment_method
+              - customer_id
+              - customer
+              - card
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__assinatura__listar
+      summary: Listar assinaturas
+      description: Lista as assinaturas com filtros por status, plano, cliente, cartão, código externo, janela de próxima cobrança e período de
+        criação.
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/listar-assinaturas-1
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro; os valores válidos variam por recurso.
+        schema:
+          type: string
+      - name: code
+        in: query
+        required: false
+        description: Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me.
+        schema:
+          type: string
+      - name: billing_type
+        in: query
+        required: false
+        description: 'Momento da cobrança do ciclo: prepaid (no início), postpaid (no fim) ou exact_day (em dia fixo).'
+        schema:
+          type: string
+          enum:
+          - prepaid
+          - postpaid
+          - exact_day
+      - name: customer_id
+        in: query
+        required: false
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      - name: plan_id
+        in: query
+        required: false
+        description: Identificador do plano (prefixo plan_).
+        schema:
+          type: string
+      - name: card_id
+        in: query
+        required: false
+        description: Identificador de um cartão já salvo na carteira do cliente (prefixo card_).
+        schema:
+          type: string
+      - name: next_billing_since
+        in: query
+        required: false
+        description: Limite inicial do período da próxima cobrança no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: next_billing_until
+        in: query
+        required: false
+        description: Limite final do período da próxima cobrança no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: created_since
+        in: query
+        required: false
+        description: Limite inicial do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: created_until
+        in: query
+        required: false
+        description: Limite final do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: integer
+      - name: size
+        in: query
+        required: false
+        description: Quantidade de registros por página.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/subscriptions/{subscription_id}:
+    get:
+      operationId: pagarme__assinatura__obter
+      summary: Obter assinatura
+      description: Retorna uma assinatura pelo identificador sub_, com plano, cliente, ciclo atual, itens, descontos, acréscimos e as regras de
+        split, quando houver.
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/obter-assinatura-split
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: subscription_id
+        in: path
+        required: true
+        description: Identificador da assinatura (prefixo sub_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    delete:
+      operationId: pagarme__assinatura__cancelar
+      summary: Cancelar assinatura
+      description: Encerra a recorrência. Com cancel_pending_invoices=true, cancela junto as faturas e cobranças pendentes; sem isso, o que já
+        foi faturado continua a cobrar.
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/cancelar-assinatura-1
+      x-acao-canonica: cancelar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: subscription_id
+        in: path
+        required: true
+        description: Identificador da assinatura (prefixo sub_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cancel_pending_invoices:
+                  type: boolean
+                  description: Quando true, cancela junto as faturas e cobranças pendentes da assinatura.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/subscriptions/{subscription_id}/card:
+    patch:
+      operationId: pagarme__assinatura__atualizar__cartao
+      summary: Editar cartão da assinatura
+      description: Troca o cartão usado nas próximas cobranças da assinatura, por card_id, card_token ou dados do cartão.
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/editar-cart%C3%A3o-da-assinatura-1
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: subscription_id
+        in: path
+        required: true
+        description: Identificador da assinatura (prefixo sub_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                card_id:
+                  type: string
+                  description: Identificador de um cartão já salvo na carteira do cliente (prefixo card_).
+                card:
+                  type: string
+                  description: Dados do cartão. Enviar o cartão aberto exige ambiente PCI-DSS; prefira card_id ou card_token.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/subscriptions/{subscription_id}/split:
+    patch:
+      operationId: pagarme__assinatura__atualizar__split
+      summary: Editar regras de split da assinatura
+      description: Liga, desliga ou redefine as regras de divisão do valor da assinatura entre recebedores, incluindo quem paga as taxas, quem
+        fica com a sobra e quem responde por chargeback.
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/editar-ativa%C3%A7%C3%A3o-ou-regras-do-split
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: subscription_id
+        in: path
+        required: true
+        description: Identificador da assinatura (prefixo sub_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                  description: Liga (true) ou desliga (false) o recurso.
+                rules:
+                  type: array
+                  description: Regras de divisão do valor entre recebedores.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/subscriptions/{subscription_id}/cycles:
+    post:
+      operationId: pagarme__assinatura__criar__ciclo
+      summary: Renovar ciclo da assinatura
+      description: Força a renovação do ciclo da assinatura, sempre avançando para o ciclo seguinte e gerando a fatura correspondente.
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/renovar-ciclo-1
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: subscription_id
+        in: path
+        required: true
+        description: Identificador da assinatura (prefixo sub_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__assinatura__listar__ciclo
+      summary: Listar ciclos da assinatura
+      description: Lista os ciclos de uma assinatura, com data de cobrança, início, fim, duração e se o ciclo já foi faturado.
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/listar-ciclos-1
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: subscription_id
+        in: path
+        required: true
+        description: Identificador da assinatura (prefixo sub_).
+        schema:
+          type: string
+      - name: id
+        in: query
+        required: false
+        description: Identificador do registro.
+        schema:
+          type: string
+      - name: billing_at
+        in: query
+        required: false
+        description: Data de cobrança do ciclo.
+        schema:
+          type: string
+          format: date-time
+      - name: cycle
+        in: query
+        required: false
+        description: Número do ciclo dentro da assinatura.
+        schema:
+          type: string
+      - name: start_at
+        in: query
+        required: false
+        description: Data de início.
+        schema:
+          type: string
+          format: date-time
+      - name: end_at
+        in: query
+        required: false
+        description: Data de término.
+        schema:
+          type: string
+          format: date-time
+      - name: duration
+        in: query
+        required: false
+        description: Duração do ciclo.
+        schema:
+          type: string
+      - name: created_at
+        in: query
+        required: false
+        description: Data/hora de criação (UTC).
+        schema:
+          type: string
+          format: date-time
+      - name: updated_at
+        in: query
+        required: false
+        description: Data/hora da última alteração (UTC).
+        schema:
+          type: string
+          format: date-time
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro; os valores válidos variam por recurso.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/invoices:
+    get:
+      operationId: pagarme__cobranca__listar__fatura
+      summary: Listar faturas
+      description: Lista as faturas geradas pelas assinaturas, com filtros por status, cliente, assinatura, vencimento e criação. Cada fatura
+        aponta para a cobrança que a liquida.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/listar-faturas-1
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro; os valores válidos variam por recurso.
+        schema:
+          type: string
+      - name: customer_id
+        in: query
+        required: false
+        description: Identificador do cliente no Pagar.me (prefixo cus_).
+        schema:
+          type: string
+      - name: subscription_id
+        in: query
+        required: false
+        description: Identificador da assinatura (prefixo sub_).
+        schema:
+          type: string
+      - name: due_since
+        in: query
+        required: false
+        description: Limite inicial do período de vencimento no filtro.
+        schema:
+          type: string
+          format: date
+      - name: due_until
+        in: query
+        required: false
+        description: Limite final do período de vencimento no filtro.
+        schema:
+          type: string
+          format: date
+      - name: created_since
+        in: query
+        required: false
+        description: Limite inicial do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: created_until
+        in: query
+        required: false
+        description: Limite final do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: integer
+      - name: size
+        in: query
+        required: false
+        description: Quantidade de registros por página.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/invoices/{invoice_id}:
+    get:
+      operationId: pagarme__cobranca__obter__fatura
+      summary: Obter fatura
+      description: Retorna uma fatura pelo identificador in_, com itens, valor, vencimento, assinatura de origem e a cobrança vinculada.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/obter-fatura-1
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: invoice_id
+        in: path
+        required: true
+        description: Identificador da fatura (prefixo in_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    delete:
+      operationId: pagarme__cobranca__cancelar__fatura
+      summary: Cancelar fatura
+      description: Cancela uma fatura de assinatura ainda não paga, junto com a cobrança que ela originou.
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/cancelar-fatura-1
+      x-acao-canonica: cancelar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: invoice_id
+        in: path
+        required: true
+        description: Identificador da fatura (prefixo in_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/recipients:
+    post:
+      operationId: pagarme__empresa__criar__recebedor
+      summary: Criar recebedor
+      description: Cadastra um recebedor (seller/parceiro) que receberá parte das vendas via split, com dados cadastrais de PF ou PJ, conta bancária
+        de destino e regras de transferência e de antecipação automática. Cada recebedor é criado uma vez e reutilizado em quantos pedidos forem
+        necessários.
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/criar-recebedor-1
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  description: Seu identificador do registro (referência externa). Serve para localizar o objeto depois sem guardar o id do Pagar.me.
+                register_information:
+                  type: object
+                  description: Dados cadastrais do recebedor. O conjunto obrigatório muda conforme type seja individual (PF) ou company (PJ).
+                default_bank_account:
+                  type: object
+                  description: Conta bancária padrão para onde vão os pagamentos do recebedor.
+                transfer_settings:
+                  type: object
+                  description: Regras de transferência automática do saldo do recebedor.
+                automatic_anticipation_settings:
+                  type: object
+                  description: Regras de antecipação automática dos recebíveis.
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+              required:
+              - register_information
+              - default_bank_account
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__empresa__listar__recebedor
+      summary: Listar recebedores
+      description: Lista os recebedores cadastrados na conta, com dados cadastrais, conta bancária padrão e configurações de transferência. Paginação
+        por page/size.
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/listar-recebedores-1
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: integer
+      - name: size
+        in: query
+        required: false
+        description: Quantidade de registros por página.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/recipients/{recipient_id}:
+    get:
+      operationId: pagarme__empresa__obter__recebedor
+      summary: Obter recebedor
+      description: Retorna um recebedor pelo identificador, com status do cadastro, conta bancária padrão e regras de transferência e antecipação
+        automática.
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/obter-recebedor-1
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: recipient_id
+        in: path
+        required: true
+        description: Identificador do recebedor (prefixo rp_ ou re_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    put:
+      operationId: pagarme__empresa__atualizar__recebedor
+      summary: Editar recebedor
+      description: Atualiza os dados cadastrais do recebedor e, quando necessário, a conta bancária de destino dos pagamentos.
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/editar-recebedor-1
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: recipient_id
+        in: path
+        required: true
+        description: Identificador do recebedor (prefixo rp_ ou re_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                register_information:
+                  type: object
+                  description: Dados cadastrais do recebedor. O conjunto obrigatório muda conforme type seja individual (PF) ou company (PJ).
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/recipients/{recipient_id}/balance:
+    get:
+      operationId: pagarme__empresa__obter__saldo
+      summary: Obter saldo do recebedor
+      description: 'Retorna o saldo do recebedor em centavos: available_amount (disponível para saque) e waiting_funds_amount (a receber). O recebedor
+        da própria loja também é consultado por aqui.'
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/obter-saldo
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: recipient_id
+        in: path
+        required: true
+        description: Identificador do recebedor (prefixo rp_ ou re_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/recipients/{recipient_id}/withdrawals:
+    post:
+      operationId: pagarme__pagamento__criar__saque
+      summary: Criar saque do recebedor
+      description: Transfere o saldo disponível do recebedor para a conta bancária cadastrada. Sem amount, saca o total disponível.
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/cria-saque-1
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: recipient_id
+        in: path
+        required: true
+        description: Identificador do recebedor (prefixo rp_ ou re_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: integer
+                  description: Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__pagamento__listar__saque
+      summary: Listar saques do recebedor
+      description: Lista os saques do recebedor, com valor, status e conta bancária de destino. Filtra por status e por período de criação.
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/listar-saques-1
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: recipient_id
+        in: path
+        required: true
+        description: Identificador do recebedor (prefixo rp_ ou re_).
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro; os valores válidos variam por recurso.
+        schema:
+          type: string
+      - name: created_since
+        in: query
+        required: false
+        description: Limite inicial do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: created_until
+        in: query
+        required: false
+        description: Limite final do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/transfers:
+    post:
+      operationId: pagarme__pagamento__criar__transferencia
+      summary: Criar transferência bancária
+      description: Envia valor da conta (ou da conta de um recebedor) para uma conta bancária já cadastrada. É a única rota da API v5 que documenta
+        o header Idempotency-Key explicitamente.
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/criando-uma-transfer%C3%AAncia
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Chave de idempotência gerada por você. Requisições repetidas com a mesma chave em até 24 h (5 min no ambiente de teste) devolvem
+          a mesma operação, sem duplicar.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: integer
+                  description: Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990.
+                recipient_id:
+                  type: string
+                  description: Identificador do recebedor (prefixo rp_ ou re_).
+                metadata:
+                  type: string
+                  description: Pares chave/valor livres, gravados junto ao registro e devolvidos nas consultas e nos webhooks. Bom lugar para
+                    o identificador do seu ERP.
+              required:
+              - amount
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__pagamento__listar__transferencia
+      summary: Listar transferências
+      description: Lista as transferências bancárias da conta, com filtros por status, recebedor, conta bancária, valor e datas. A paginação é
+        por cursor devolvido nos headers x-cursor-nextpage / x-cursor-previouspage.
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/retornando-transfer%C3%AAncias
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: count
+        in: query
+        required: false
+        description: Quantidade de registros por página (máximo 1000 nesta rota).
+        schema:
+          type: string
+      - name: cursor
+        in: query
+        required: false
+        description: Cursor de paginação desta rota; o próximo valor vem no header x-cursor-nextpage.
+        schema:
+          type: string
+      - name: x-cursor-nextpage
+        in: query
+        required: false
+        description: Cursor da próxima página, devolvido no header da resposta.
+        schema:
+          type: string
+      - name: x-cursor-previouspage
+        in: query
+        required: false
+        description: Cursor da página anterior, devolvido no header da resposta.
+        schema:
+          type: string
+      - name: bank_account_id
+        in: query
+        required: false
+        description: Identificador da conta bancária cadastrada.
+        schema:
+          type: string
+      - name: amount
+        in: query
+        required: false
+        description: Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990.
+        schema:
+          type: string
+      - name: recipient_id
+        in: query
+        required: false
+        description: Identificador do recebedor (prefixo rp_ ou re_).
+        schema:
+          type: string
+      - name: id
+        in: query
+        required: false
+        description: Identificador do registro.
+        schema:
+          type: string
+      - name: date_created
+        in: query
+        required: false
+        description: Filtro pela data de criação do registro.
+        schema:
+          type: string
+          format: date-time
+      - name: created_at
+        in: query
+        required: false
+        description: Data/hora de criação (UTC).
+        schema:
+          type: string
+          format: date-time
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro; os valores válidos variam por recurso.
+        schema:
+          type: string
+      - name: date_updated
+        in: query
+        required: false
+        description: Filtro pela data da última atualização do registro.
+        schema:
+          type: string
+          format: date-time
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/payables:
+    get:
+      operationId: pagarme__recebivel__listar
+      summary: Obter recebíveis
+      description: 'Agenda de recebíveis da loja: cada parcela a receber, com valor bruto, taxa, taxa de antecipação, data de pagamento, cobrança
+        e recebedor de origem. Desde 28/08/2026 é a entidade única da agenda (absorveu as operações de saldo) e pagina exclusivamente por cursor.'
+      tags:
+      - Recebivel
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/retornando-receb%C3%ADveis
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: created_since
+        in: query
+        required: false
+        description: Limite inicial do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: created_until
+        in: query
+        required: false
+        description: Limite final do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro; os valores válidos variam por recurso.
+        schema:
+          type: string
+      - name: payment_date_since
+        in: query
+        required: false
+        description: Limite inicial do período de pagamento no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: payment_date_until
+        in: query
+        required: false
+        description: Limite final do período de pagamento no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: type
+        in: query
+        required: false
+        description: Tipo do registro; os valores válidos variam por recurso.
+        schema:
+          type: string
+      - name: updated_since
+        in: query
+        required: false
+        description: Limite inicial do período de atualização a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: updated_until
+        in: query
+        required: false
+        description: Limite final do período de atualização a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: charge_id
+        in: query
+        required: false
+        description: Identificador da cobrança no Pagar.me (prefixo ch_).
+        schema:
+          type: string
+      - name: recipient_id
+        in: query
+        required: false
+        description: Identificador do recebedor (prefixo rp_ ou re_).
+        schema:
+          type: string
+      - name: split_id
+        in: query
+        required: false
+        description: Identificador da regra de split.
+        schema:
+          type: string
+      - name: id
+        in: query
+        required: false
+        description: Identificador do registro.
+        schema:
+          type: string
+      - name: size
+        in: query
+        required: false
+        description: Quantidade de registros por página.
+        schema:
+          type: integer
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: integer
+      - name: forward_cursor
+        in: query
+        required: false
+        description: Cursor devolvido em paging.forward_cursor na chamada anterior; repasse-o para obter a página seguinte. Quando volta nulo,
+          a listagem acabou.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/recipients/{recipient_id}/bulk_anticipations:
+    post:
+      operationId: pagarme__recebivel__criar__antecipacao
+      summary: Criar antecipação
+      description: 'Solicita a antecipação de recebíveis do recebedor: você informa o valor líquido desejado, a data em que quer receber e de
+        qual ponta da agenda puxar os recebíveis (timeframe start ou end).'
+      tags:
+      - Recebivel
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/criando-uma-antecipa%C3%A7%C3%A3o
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: recipient_id
+        in: path
+        required: true
+        description: Identificador do recebedor (prefixo rp_ ou re_).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment_date:
+                  type: string
+                  format: date-time
+                  description: Data de pagamento.
+                timeframe:
+                  type: string
+                  enum:
+                  - start
+                  - end
+                  description: 'De onde puxar os recebíveis: start (os mais próximos de serem pagos) ou end (os mais distantes).'
+                requested_amount:
+                  type: integer
+                  description: Valor líquido desejado na antecipação, em centavos.
+                automatic_transfer:
+                  type: boolean
+                  description: Quando true, transfere o valor antecipado direto para a conta bancária do recebedor.
+              required:
+              - payment_date
+              - timeframe
+              - requested_amount
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+    get:
+      operationId: pagarme__recebivel__listar__antecipacao
+      summary: Listar antecipações
+      description: Lista as antecipações do recebedor, com valor bruto, taxas, janela usada e status.
+      tags:
+      - Recebivel
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/retornando-antecipa%C3%A7%C3%B5es
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: recipient_id
+        in: path
+        required: true
+        description: Identificador do recebedor (prefixo rp_ ou re_).
+        schema:
+          type: string
+      - name: count
+        in: query
+        required: false
+        description: Quantidade de registros por página (máximo 1000 nesta rota).
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: string
+      - name: amount
+        in: query
+        required: false
+        description: Valor em CENTAVOS (inteiro). R$ 149,90 é enviado como 14990.
+        schema:
+          type: string
+      - name: fee
+        in: query
+        required: false
+        description: Taxa cobrada, em centavos.
+        schema:
+          type: string
+      - name: anticipation_fee
+        in: query
+        required: false
+        description: Taxa de antecipação cobrada, em centavos.
+        schema:
+          type: string
+      - name: id
+        in: query
+        required: false
+        description: Identificador do registro.
+        schema:
+          type: string
+      - name: payment_date
+        in: query
+        required: false
+        description: Data de pagamento.
+        schema:
+          type: string
+          format: date-time
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/recipients/{recipient_id}/bulk_anticipations/simulate:
+    get:
+      operationId: pagarme__recebivel__calcular__antecipacao
+      summary: Simular antecipação spot
+      description: 'Simula uma antecipação sem contratá-la: devolve o valor que seria recebido, o custo da operação e a data de pagamento, a partir
+        do valor líquido desejado e da janela da agenda.'
+      tags:
+      - Recebivel
+      x-confianca: inferido
+      x-fonte-url: https://docs.pagar.me/reference/simulando-uma-antecipa%C3%A7%C3%A3o-spot
+      x-acao-canonica: calcular
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: recipient_id
+        in: path
+        required: true
+        description: Identificador do recebedor (prefixo rp_ ou re_).
+        schema:
+          type: string
+      - name: timeframe
+        in: query
+        required: true
+        description: 'De onde puxar os recebíveis: start (os mais próximos de serem pagos) ou end (os mais distantes).'
+        schema:
+          type: string
+          enum:
+          - start
+          - end
+      - name: requested_amount
+        in: query
+        required: true
+        description: Valor líquido desejado na antecipação, em centavos.
+        schema:
+          type: integer
+      - name: payment_date
+        in: query
+        required: true
+        description: Data de pagamento.
+        schema:
+          type: string
+          format: date-time
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/settlements:
+    get:
+      operationId: pagarme__pagamento__listar__liquidacao
+      summary: Listar liquidações (settlements)
+      description: 'Lista as liquidações de cartão pagas no período: o dinheiro que o Pagar.me efetivamente enviou, por produto (crédito, débito
+        ou antecipação), bandeira e recebedor. Com a descontinuação das operações de saldo, virou a fonte oficial de conciliação do que foi liquidado.'
+      tags:
+      - Pagamento
+      x-confianca: inferido
+      x-fonte-url: https://docs.pagar.me/reference/retornando-pagamentos
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: payment_date_start
+        in: query
+        required: true
+        description: Data inicial do período de pagamento (AAAA-MM-DD). Obrigatória.
+        schema:
+          type: string
+          format: date
+      - name: payment_date_end
+        in: query
+        required: true
+        description: Data final do período de pagamento (AAAA-MM-DD). Obrigatória.
+        schema:
+          type: string
+          format: date
+      - name: liquidation_arrangement_id
+        in: query
+        required: false
+        description: Identificador do arranjo de liquidação.
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Quantidade de registros por página (máximo 2000 nesta rota).
+        schema:
+          type: integer
+      - name: get_ispb
+        in: query
+        required: false
+        description: Quando true, inclui os dados de ISPB das liquidações.
+        schema:
+          type: boolean
+      - name: settlement_id
+        in: query
+        required: false
+        description: Identificador da liquidação (settlement).
+        schema:
+          type: string
+      - name: external_engine_payment_id
+        in: query
+        required: false
+        description: Identificador interno do motor de liquidação.
+        schema:
+          type: string
+      - name: order
+        in: query
+        required: false
+        description: 'Ordem de retorno pela data de criação: asc ou desc.'
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/hooks:
+    get:
+      operationId: pagarme__webhook__listar
+      summary: Listar webhooks
+      description: Lista as notificações enviadas pelo Pagar.me, com evento, URL de destino, status da entrega, número de tentativas, código HTTP
+        devolvido pelo seu servidor e o payload enviado.
+      tags:
+      - Webhook
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/listar-webhooks
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        description: Situação do registro; os valores válidos variam por recurso.
+        schema:
+          type: string
+      - name: webhook_event
+        in: query
+        required: false
+        description: 'Nome do evento do webhook (ex.: charge.paid, order.paid).'
+        schema:
+          type: string
+      - name: created_since
+        in: query
+        required: false
+        description: Limite inicial do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: created_until
+        in: query
+        required: false
+        description: Limite final do período de criação a considerar no filtro.
+        schema:
+          type: string
+          format: date-time
+      - name: page
+        in: query
+        required: false
+        description: Número da página a recuperar, começando em 1.
+        schema:
+          type: integer
+      - name: size
+        in: query
+        required: false
+        description: Quantidade de registros por página.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/hooks/{hook_id}:
+    get:
+      operationId: pagarme__webhook__obter
+      summary: Obter webhook
+      description: Retorna uma notificação específica pelo identificador hook_, com o payload enviado e a resposta que o seu servidor devolveu.
+      tags:
+      - Webhook
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/obter-webhook
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - basicAuth: []
+      parameters:
+      - name: hook_id
+        in: path
+        required: true
+        description: Identificador do webhook (prefixo hook_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+  /core/v5/hooks/{hook_id}/retry:
+    post:
+      operationId: pagarme__webhook__enviar
+      summary: Reenviar webhook
+      description: Reenvia uma notificação ao seu endpoint. É o caminho para recuperar eventos perdidos enquanto o seu servidor esteve fora do
+        ar.
+      tags:
+      - Webhook
+      x-confianca: verificado
+      x-fonte-url: https://docs.pagar.me/reference/enviar-webhook
+      x-acao-canonica: enviar
+      x-seguro-para-executar: false
+      security:
+      - basicAuth: []
+      parameters:
+      - name: hook_id
+        in: path
+        required: true
+        description: Identificador do webhook (prefixo hook_).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'

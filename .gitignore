@@ -30,3 +30,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Catalogo de APIs (assistente)
+catalogo/.venv/
+catalogo/credenciais/
+catalogo/saida/
+**/__pycache__/

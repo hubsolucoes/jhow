@@ -1,0 +1,10 @@
+{
+  "sistema": "Focus NFe",
+  "linhas": [
+    { "Chave": "Ambiente", "Valor": "sandbox", "Descricao": "sandbox = homologacao (sem validade fiscal); producao = notas reais. Troque junto com o Token." },
+    { "Chave": "Token", "Valor": "<<SEU_TOKEN_FOCUS_NFE>>", "Descricao": "Obrigatorio. Token da empresa no painel Focus NFe, do MESMO ambiente escolhido acima" },
+    { "Chave": "Cnpj", "Valor": "<<CNPJ_DA_EMPRESA>>", "Descricao": "CNPJ da empresa (14 digitos, sem pontuacao) para notas recebidas, inutilizacoes e backups" },
+    { "Chave": "UF", "Valor": "SP", "Descricao": "Sigla da UF usada na consulta MunicipiosNfse" },
+    { "Chave": "Refs", "Valor": "", "Descricao": "Opcional: referencias (ref) de NF-e emitidas, separadas por virgula, para a consulta StatusNfeEmitidas" }
+  ]
+}

@@ -1,0 +1,4426 @@
+{
+  "sistema": "asaas",
+  "tools": [
+    {
+      "name": "asaas__cliente__criar",
+      "title": "Asaas: Criar novo cliente",
+      "description": "Asaas — Criar novo cliente (POST /v3/customers). Cadastra o pagador (pessoa física ou jurídica) na conta Asaas e devolve o identificador cus_... usado em cobranças, parcelamentos e assinaturas. Quando usar: Antes da primeira cobrança de um pagador ainda não cadastrado. Consulte a listagem filtrando por cpfCnpj ou externalReference para não duplicar. Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: Chave de API do ambiente (sandbox ou produção); CPF/CNPJ válido do pagador. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Nome ou razão social do pagador.",
+            "type": "string"
+          },
+          "cpfCnpj": {
+            "description": "CPF (11 dígitos) ou CNPJ (14) sem pontuação.",
+            "type": "string"
+          },
+          "email": {
+            "description": "Endereço de e-mail.",
+            "type": "string"
+          },
+          "phone": {
+            "description": "Telefone fixo com DDD.",
+            "type": "string"
+          },
+          "mobilePhone": {
+            "description": "Celular com DDD.",
+            "type": "string"
+          },
+          "address": {
+            "description": "Logradouro (rua/avenida).",
+            "type": "string"
+          },
+          "addressNumber": {
+            "description": "Número do endereço.",
+            "type": "string"
+          },
+          "complement": {
+            "description": "Complemento do endereço (até 255 caracteres).",
+            "type": "string"
+          },
+          "province": {
+            "description": "Bairro.",
+            "type": "string"
+          },
+          "postalCode": {
+            "description": "CEP, somente dígitos.",
+            "type": "string"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          },
+          "notificationDisabled": {
+            "description": "Quando true, o Asaas não envia avisos de cobrança a este cliente.",
+            "type": "boolean"
+          },
+          "additionalEmails": {
+            "description": "E-mails extras para avisos, separados por vírgula.",
+            "type": "string"
+          },
+          "municipalInscription": {
+            "description": "Inscrição municipal do cliente.",
+            "type": "string"
+          },
+          "stateInscription": {
+            "description": "Inscrição estadual do cliente.",
+            "type": "string"
+          },
+          "observations": {
+            "description": "Texto livre de observações.",
+            "type": "string"
+          },
+          "groupName": {
+            "description": "Grupo de clientes (um único nome).",
+            "type": "string"
+          },
+          "groupNames": {
+            "description": "Lista de grupos do cliente (até 20 por chamada).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "company": {
+            "description": "Nome da empresa do cliente.",
+            "type": "string"
+          },
+          "foreignCustomer": {
+            "description": "Marque true para pagador estrangeiro.",
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "cpfCnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cliente__listar",
+      "title": "Asaas: Listar clientes",
+      "description": "Asaas — Listar clientes (GET /v3/customers). Retorna a lista paginada de clientes com filtros por nome, e-mail, CPF/CNPJ, grupo e externalReference. Quando usar: Para achar um cliente antes de criar (evitar duplicidade), sincronizar cadastro ou carregar a base em BI. Não use para acompanhar mudanças de status em tempo real (prefira webhooks) nem em loops frequentes (cota de 25.000 req/12h). Pré-requisitos: Chave de API. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "offset": {
+            "description": "Posição inicial da página (começa em 0).",
+            "type": "integer"
+          },
+          "limit": {
+            "description": "Tamanho da página; 1 a 100, padrão 10.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "name": {
+            "description": "Filtra por nome.",
+            "type": "string"
+          },
+          "email": {
+            "description": "Filtra por e-mail.",
+            "type": "string"
+          },
+          "cpfCnpj": {
+            "description": "Filtra por CPF/CNPJ.",
+            "type": "string"
+          },
+          "groupName": {
+            "description": "Filtra por grupo.",
+            "type": "string"
+          },
+          "externalReference": {
+            "description": "Filtra pelo seu identificador.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cliente__obter",
+      "title": "Asaas: Recuperar um único cliente",
+      "description": "Asaas — Recuperar um único cliente (GET /v3/customers/{id}). Busca os dados cadastrais de um cliente pelo id cus_...; clientes removidos aparecem com deleted=true. Quando usar: Quando já tem o id (por exemplo, vindo de um webhook de cobrança) e precisa dos dados do pagador. Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: id do cliente. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cliente__atualizar",
+      "title": "Asaas: Atualizar cliente existente",
+      "description": "Asaas — Atualizar cliente existente (PUT /v3/customers/{id}). Altera dados cadastrais do cliente; somente os campos enviados são modificados (comportamento parcial inferido pela ausência de campos obrigatórios no body). Quando usar: Quando o cadastro mudou no ERP/CRM (endereço, e-mail, flag de notificações). Não use para criar registros nem para devolver dinheiro. Pré-requisitos: id do cliente. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Nome ou razão social do pagador.",
+            "type": "string"
+          },
+          "cpfCnpj": {
+            "description": "CPF (11 dígitos) ou CNPJ (14) sem pontuação.",
+            "type": "string"
+          },
+          "email": {
+            "description": "Endereço de e-mail.",
+            "type": "string"
+          },
+          "phone": {
+            "description": "Telefone fixo com DDD.",
+            "type": "string"
+          },
+          "mobilePhone": {
+            "description": "Celular com DDD.",
+            "type": "string"
+          },
+          "address": {
+            "description": "Logradouro (rua/avenida).",
+            "type": "string"
+          },
+          "addressNumber": {
+            "description": "Número do endereço.",
+            "type": "string"
+          },
+          "complement": {
+            "description": "Complemento do endereço (até 255 caracteres).",
+            "type": "string"
+          },
+          "province": {
+            "description": "Bairro.",
+            "type": "string"
+          },
+          "postalCode": {
+            "description": "CEP, somente dígitos.",
+            "type": "string"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          },
+          "notificationDisabled": {
+            "description": "Quando true, o Asaas não envia avisos de cobrança a este cliente.",
+            "type": "boolean"
+          },
+          "additionalEmails": {
+            "description": "E-mails extras para avisos, separados por vírgula.",
+            "type": "string"
+          },
+          "municipalInscription": {
+            "description": "Inscrição municipal do cliente.",
+            "type": "string"
+          },
+          "stateInscription": {
+            "description": "Inscrição estadual do cliente.",
+            "type": "string"
+          },
+          "observations": {
+            "description": "Texto livre de observações.",
+            "type": "string"
+          },
+          "groupName": {
+            "description": "Grupo de clientes (um único nome).",
+            "type": "string"
+          },
+          "groupNames": {
+            "description": "Lista de grupos do cliente (até 20 por chamada).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "company": {
+            "description": "Nome da empresa do cliente.",
+            "type": "string"
+          },
+          "foreignCustomer": {
+            "description": "Marque true para pagador estrangeiro.",
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cliente__excluir",
+      "title": "Asaas: Remover cliente",
+      "description": "Asaas — Remover cliente (DELETE /v3/customers/{id}). Remove o cliente da conta. A remoção é lógica: existe o endpoint POST /v3/customers/{id}/restore para restaurar. Quando usar: Para limpar cadastros criados por engano. Não use para 'inativar' clientes que ainda têm cobranças em aberto sem avaliar o impacto. Ação de remoção: confirme com o usuário antes. Pré-requisitos: id do cliente. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__criar",
+      "title": "Asaas: Criar nova cobrança",
+      "description": "Asaas — Criar nova cobrança (POST /v3/payments). Emite uma cobrança avulsa ou parcelada por boleto (BOLETO), Pix (PIX), cartão (CREDIT_CARD) ou deixando o pagador escolher (UNDEFINED). Retorna invoiceUrl, bankSlipUrl e nossoNumero. Quando usar: Para cobrar um cliente já cadastrado. Para cartão com dados do cartão na mesma chamada, veja asaas.cobranca.criar.cartao_credito. Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: Cliente criado (customer = cus_...); Para Pix: recomenda-se chave Pix cadastrada na conta. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer": {
+            "description": "Id do cliente no Asaas (cus_...).",
+            "type": "string"
+          },
+          "billingType": {
+            "description": "Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).",
+            "type": "string",
+            "enum": [
+              "UNDEFINED",
+              "BOLETO",
+              "CREDIT_CARD",
+              "PIX"
+            ]
+          },
+          "value": {
+            "description": "Valor em reais, com ponto decimal.",
+            "type": "number"
+          },
+          "dueDate": {
+            "description": "Data de vencimento (AAAA-MM-DD).",
+            "type": "string",
+            "format": "date"
+          },
+          "description": {
+            "description": "Texto descritivo (até 500 caracteres onde aplicável).",
+            "type": "string"
+          },
+          "daysAfterDueDateToRegistrationCancellation": {
+            "description": "Boleto: quantos dias após o vencimento o registro é baixado.",
+            "type": "integer"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          },
+          "installmentCount": {
+            "description": "Quantidade de parcelas.",
+            "type": "integer"
+          },
+          "totalValue": {
+            "description": "Valor total a ser dividido entre as parcelas.",
+            "type": "number"
+          },
+          "installmentValue": {
+            "description": "Valor de cada parcela (alternativa a totalValue).",
+            "type": "number"
+          },
+          "discount": {
+            "description": "Objeto de desconto por pagamento antecipado.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual do desconto.",
+                "type": "number"
+              },
+              "dueDateLimitDays": {
+                "description": "Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).",
+                "type": "integer"
+              },
+              "type": {
+                "description": "FIXED (valor) ou PERCENTAGE (percentual).",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "interest": {
+            "description": "Objeto de juros por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Percentual de juros ao mês após o vencimento.",
+                "type": "number"
+              }
+            }
+          },
+          "fine": {
+            "description": "Objeto de multa por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual da multa.",
+                "type": "number"
+              },
+              "type": {
+                "description": "FIXED ou PERCENTAGE.",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "postalService": {
+            "description": "true para envio do boleto por Correios (serviço tarifado).",
+            "type": "boolean"
+          },
+          "split": {
+            "description": "Lista de divisões do valor recebido entre carteiras Asaas.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "walletId": {
+                  "description": "walletId da conta que recebe a parte.",
+                  "type": "string"
+                },
+                "fixedValue": {
+                  "description": "Parte em valor fixo.",
+                  "type": "number"
+                },
+                "percentualValue": {
+                  "description": "Parte em percentual do valor líquido.",
+                  "type": "number"
+                },
+                "totalFixedValue": {
+                  "description": "Somente parcelamentos: valor fixo sobre o total parcelado.",
+                  "type": "number"
+                },
+                "externalReference": {
+                  "description": "Seu identificador para esta divisão.",
+                  "type": "string"
+                },
+                "description": {
+                  "description": "Descrição da divisão.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "walletId"
+              ]
+            }
+          },
+          "callback": {
+            "description": "Redirecionamento do pagador após pagar a fatura.",
+            "type": "object",
+            "properties": {
+              "successUrl": {
+                "description": "URL de retorno após pagamento aprovado.",
+                "type": "string"
+              },
+              "autoRedirect": {
+                "description": "true redireciona automaticamente; false mostra botão.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "successUrl"
+            ]
+          },
+          "pixAutomaticAuthorizationId": {
+            "description": "Id de uma autorização de Pix Automático a vincular.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "customer",
+          "billingType",
+          "value",
+          "dueDate"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__criar__cartao_credito",
+      "title": "Asaas: Criar cobrança com cartão de crédito",
+      "description": "Asaas — Criar cobrança com cartão de crédito (POST /v3/payments/). Cria e já tenta autorizar uma cobrança no cartão, enviando os dados do cartão (creditCard + creditCardHolderInfo) ou um creditCardToken. Suporta pré-autorização (authorizeOnly) e 3D Secure. Quando usar: Checkout transparente com cartão no seu sistema. Se não for PCI, prefira o invoiceUrl/checkout hospedado do Asaas ou tokenização. Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: Cliente criado; remoteIp do comprador; Ambiente PCI-DSS para trafegar dados de cartão. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer": {
+            "description": "Id do cliente no Asaas (cus_...).",
+            "type": "string"
+          },
+          "billingType": {
+            "description": "Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).",
+            "type": "string",
+            "enum": [
+              "UNDEFINED",
+              "BOLETO",
+              "CREDIT_CARD",
+              "PIX"
+            ]
+          },
+          "value": {
+            "description": "Valor em reais, com ponto decimal.",
+            "type": "number"
+          },
+          "dueDate": {
+            "description": "Data de vencimento (AAAA-MM-DD).",
+            "type": "string",
+            "format": "date"
+          },
+          "description": {
+            "description": "Texto descritivo (até 500 caracteres onde aplicável).",
+            "type": "string"
+          },
+          "daysAfterDueDateToRegistrationCancellation": {
+            "description": "Boleto: quantos dias após o vencimento o registro é baixado.",
+            "type": "integer"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          },
+          "installmentCount": {
+            "description": "Quantidade de parcelas.",
+            "type": "integer"
+          },
+          "totalValue": {
+            "description": "Valor total a ser dividido entre as parcelas.",
+            "type": "number"
+          },
+          "installmentValue": {
+            "description": "Valor de cada parcela (alternativa a totalValue).",
+            "type": "number"
+          },
+          "discount": {
+            "description": "Objeto de desconto por pagamento antecipado.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual do desconto.",
+                "type": "number"
+              },
+              "dueDateLimitDays": {
+                "description": "Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).",
+                "type": "integer"
+              },
+              "type": {
+                "description": "FIXED (valor) ou PERCENTAGE (percentual).",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "interest": {
+            "description": "Objeto de juros por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Percentual de juros ao mês após o vencimento.",
+                "type": "number"
+              }
+            }
+          },
+          "fine": {
+            "description": "Objeto de multa por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual da multa.",
+                "type": "number"
+              },
+              "type": {
+                "description": "FIXED ou PERCENTAGE.",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "postalService": {
+            "description": "true para envio do boleto por Correios (serviço tarifado).",
+            "type": "boolean"
+          },
+          "split": {
+            "description": "Lista de divisões do valor recebido entre carteiras Asaas.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "walletId": {
+                  "description": "walletId da conta que recebe a parte.",
+                  "type": "string"
+                },
+                "fixedValue": {
+                  "description": "Parte em valor fixo.",
+                  "type": "number"
+                },
+                "percentualValue": {
+                  "description": "Parte em percentual do valor líquido.",
+                  "type": "number"
+                },
+                "totalFixedValue": {
+                  "description": "Somente parcelamentos: valor fixo sobre o total parcelado.",
+                  "type": "number"
+                },
+                "externalReference": {
+                  "description": "Seu identificador para esta divisão.",
+                  "type": "string"
+                },
+                "description": {
+                  "description": "Descrição da divisão.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "walletId"
+              ]
+            }
+          },
+          "callback": {
+            "description": "Redirecionamento do pagador após pagar a fatura.",
+            "type": "object",
+            "properties": {
+              "successUrl": {
+                "description": "URL de retorno após pagamento aprovado.",
+                "type": "string"
+              },
+              "autoRedirect": {
+                "description": "true redireciona automaticamente; false mostra botão.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "successUrl"
+            ]
+          },
+          "pixAutomaticAuthorizationId": {
+            "description": "Id de uma autorização de Pix Automático a vincular.",
+            "type": "string"
+          },
+          "creditCard": {
+            "description": "Dados do cartão (tráfego exige ambiente PCI-DSS).",
+            "type": "object",
+            "properties": {
+              "holderName": {
+                "description": "Nome como impresso no cartão.",
+                "type": "string"
+              },
+              "number": {
+                "description": "Número do cartão.",
+                "type": "string"
+              },
+              "expiryMonth": {
+                "description": "Mês de validade com 2 dígitos.",
+                "type": "string"
+              },
+              "expiryYear": {
+                "description": "Ano de validade com 4 dígitos.",
+                "type": "string"
+              },
+              "ccv": {
+                "description": "Código de segurança.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "holderName",
+              "number",
+              "expiryMonth",
+              "expiryYear",
+              "ccv"
+            ]
+          },
+          "creditCardHolderInfo": {
+            "description": "Dados do titular do cartão para antifraude.",
+            "type": "object",
+            "properties": {
+              "name": {
+                "description": "Nome do titular.",
+                "type": "string"
+              },
+              "email": {
+                "description": "E-mail do titular.",
+                "type": "string"
+              },
+              "cpfCnpj": {
+                "description": "CPF/CNPJ do titular.",
+                "type": "string"
+              },
+              "postalCode": {
+                "description": "CEP do titular.",
+                "type": "string"
+              },
+              "addressNumber": {
+                "description": "Número do endereço do titular.",
+                "type": "string"
+              },
+              "addressComplement": {
+                "description": "Complemento do endereço do titular.",
+                "type": "string"
+              },
+              "phone": {
+                "description": "Telefone com DDD do titular.",
+                "type": "string"
+              },
+              "mobilePhone": {
+                "description": "Celular do titular.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "email",
+              "cpfCnpj",
+              "postalCode",
+              "addressNumber",
+              "phone"
+            ]
+          },
+          "creditCardToken": {
+            "description": "Token de cartão obtido na tokenização (substitui os dados do cartão).",
+            "type": "string"
+          },
+          "authorizeOnly": {
+            "description": "true faz só a pré-autorização; a captura é feita depois.",
+            "type": "boolean"
+          },
+          "remoteIp": {
+            "description": "IP público do comprador (não o do servidor).",
+            "type": "string"
+          },
+          "threeDSecure": {
+            "description": "Ativa autenticação 3D Secure na cobrança.",
+            "type": "object",
+            "properties": {
+              "callbackUrl": {
+                "description": "URL de retorno após o desafio 3DS.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "callbackUrl"
+            ]
+          },
+          "deviceInfo": {
+            "description": "Dados do navegador/dispositivo exigidos pelo 3DS.",
+            "type": "object",
+            "properties": {
+              "colorDepth": {
+                "description": "Profundidade de cor da tela (bits).",
+                "type": "integer"
+              },
+              "screenHeight": {
+                "description": "Altura da tela em pixels.",
+                "type": "integer"
+              },
+              "screenWidth": {
+                "description": "Largura da tela em pixels.",
+                "type": "integer"
+              },
+              "timeZoneOffset": {
+                "description": "Diferença em horas para o UTC.",
+                "type": "integer"
+              },
+              "language": {
+                "description": "Idioma do navegador.",
+                "type": "string"
+              },
+              "userAgent": {
+                "description": "User-Agent do navegador do comprador.",
+                "type": "string"
+              },
+              "remoteIp": {
+                "description": "IP do dispositivo do comprador.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "colorDepth",
+              "screenHeight",
+              "screenWidth",
+              "timeZoneOffset",
+              "language",
+              "userAgent",
+              "remoteIp"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "customer",
+          "billingType",
+          "value",
+          "dueDate",
+          "remoteIp"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__listar",
+      "title": "Asaas: Listar cobranças",
+      "description": "Asaas — Listar cobranças (GET /v3/payments). Lista cobranças com paginação e filtros por cliente, forma de pagamento, status, assinatura, parcelamento, datas (dateCreated/paymentDate/dueDate com [ge]/[le]) e QR Code estático. Quando usar: Conciliação, relatórios de recebíveis e cargas em BI. Para reagir a mudanças em tempo real use webhooks. Não use para acompanhar mudanças de status em tempo real (prefira webhooks) nem em loops frequentes (cota de 25.000 req/12h). Pré-requisitos: Chave de API. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "offset": {
+            "description": "Posição inicial da página (começa em 0).",
+            "type": "integer"
+          },
+          "limit": {
+            "description": "Tamanho da página; 1 a 100, padrão 10.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "customer": {
+            "description": "Filtra pelo id do cliente.",
+            "type": "string"
+          },
+          "customerGroupName": {
+            "description": "Filtra pelo grupo de clientes.",
+            "type": "string"
+          },
+          "billingType": {
+            "description": "Filtra por meio de pagamento.",
+            "type": "string",
+            "enum": [
+              "UNDEFINED",
+              "BOLETO",
+              "CREDIT_CARD",
+              "PIX"
+            ]
+          },
+          "status": {
+            "description": "Situação do registro (valores no enum).",
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "RECEIVED",
+              "CONFIRMED",
+              "OVERDUE",
+              "REFUNDED",
+              "RECEIVED_IN_CASH",
+              "REFUND_REQUESTED",
+              "REFUND_IN_PROGRESS",
+              "CHARGEBACK_REQUESTED",
+              "CHARGEBACK_DISPUTE",
+              "AWAITING_CHARGEBACK_REVERSAL",
+              "DUNNING_REQUESTED",
+              "DUNNING_RECEIVED",
+              "AWAITING_RISK_ANALYSIS"
+            ]
+          },
+          "subscription": {
+            "description": "Filtra pelo id da assinatura.",
+            "type": "string"
+          },
+          "installment": {
+            "description": "Filtra pelo id do parcelamento.",
+            "type": "string"
+          },
+          "externalReference": {
+            "description": "Filtra pelo seu identificador.",
+            "type": "string"
+          },
+          "paymentDate": {
+            "description": "Filtra pela data de pagamento.",
+            "type": "string"
+          },
+          "invoiceStatus": {
+            "description": "Filtra cobranças pela situação da nota fiscal.",
+            "type": "string",
+            "enum": [
+              "SCHEDULED",
+              "AUTHORIZED",
+              "PROCESSING_CANCELLATION",
+              "CANCELED",
+              "CANCELLATION_DENIED",
+              "ERROR"
+            ]
+          },
+          "estimatedCreditDate": {
+            "description": "Filtra pela data prevista de crédito.",
+            "type": "string"
+          },
+          "pixQrCodeId": {
+            "description": "Filtra cobranças geradas por um QR Code estático.",
+            "type": "string"
+          },
+          "anticipated": {
+            "description": "Filtra cobranças antecipadas (true/false).",
+            "type": "boolean"
+          },
+          "anticipable": {
+            "description": "Filtra cobranças passíveis de antecipação.",
+            "type": "boolean"
+          },
+          "dateCreated[ge]": {
+            "description": "Criadas a partir desta data (AAAA-MM-DD).",
+            "type": "string"
+          },
+          "dateCreated[le]": {
+            "description": "Criadas até esta data.",
+            "type": "string"
+          },
+          "paymentDate[ge]": {
+            "description": "Pagas a partir desta data.",
+            "type": "string"
+          },
+          "paymentDate[le]": {
+            "description": "Pagas até esta data.",
+            "type": "string"
+          },
+          "estimatedCreditDate[ge]": {
+            "description": "Crédito previsto a partir desta data.",
+            "type": "string"
+          },
+          "estimatedCreditDate[le]": {
+            "description": "Crédito previsto até esta data.",
+            "type": "string"
+          },
+          "dueDate[ge]": {
+            "description": "Vencimento a partir desta data.",
+            "type": "string"
+          },
+          "dueDate[le]": {
+            "description": "Vencimento até esta data.",
+            "type": "string"
+          },
+          "user": {
+            "description": "Filtra pelo e-mail do usuário que criou a cobrança.",
+            "type": "string"
+          },
+          "checkoutSession": {
+            "description": "Filtra pelo id de sessão de checkout.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__obter",
+      "title": "Asaas: Recuperar uma única cobrança",
+      "description": "Asaas — Recuperar uma única cobrança (GET /v3/payments/{id}). Retorna a cobrança completa: status, valores líquidos, datas de pagamento/crédito, links de fatura/boleto, split, estornos (refunds) e chargeback. Quando usar: Depois de receber um webhook, para confirmar o estado atual antes de dar baixa no ERP. Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: id da cobrança (pay_...). Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__atualizar",
+      "title": "Asaas: Atualizar cobrança existente",
+      "description": "Asaas — Atualizar cobrança existente (PUT /v3/payments/{id}). Altera forma de pagamento, valor, vencimento, descrição, juros/multa/desconto e split de uma cobrança ainda não paga. Quando usar: Renegociação de vencimento/valor antes do pagamento. Não use para criar registros nem para devolver dinheiro. Pré-requisitos: id da cobrança; Cobrança não recebida (restrição inferida). Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          },
+          "billingType": {
+            "description": "Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).",
+            "type": "string",
+            "enum": [
+              "UNDEFINED",
+              "BOLETO",
+              "CREDIT_CARD",
+              "PIX"
+            ]
+          },
+          "value": {
+            "description": "Valor em reais, com ponto decimal.",
+            "type": "number"
+          },
+          "dueDate": {
+            "description": "Data de vencimento (AAAA-MM-DD).",
+            "type": "string",
+            "format": "date"
+          },
+          "description": {
+            "description": "Texto descritivo (até 500 caracteres onde aplicável).",
+            "type": "string"
+          },
+          "daysAfterDueDateToRegistrationCancellation": {
+            "description": "Boleto: quantos dias após o vencimento o registro é baixado.",
+            "type": "integer"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          },
+          "discount": {
+            "description": "Objeto de desconto por pagamento antecipado.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual do desconto.",
+                "type": "number"
+              },
+              "dueDateLimitDays": {
+                "description": "Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).",
+                "type": "integer"
+              },
+              "type": {
+                "description": "FIXED (valor) ou PERCENTAGE (percentual).",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "interest": {
+            "description": "Objeto de juros por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Percentual de juros ao mês após o vencimento.",
+                "type": "number"
+              }
+            }
+          },
+          "fine": {
+            "description": "Objeto de multa por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual da multa.",
+                "type": "number"
+              },
+              "type": {
+                "description": "FIXED ou PERCENTAGE.",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "postalService": {
+            "description": "true para envio do boleto por Correios (serviço tarifado).",
+            "type": "boolean"
+          },
+          "split": {
+            "description": "Lista de divisões do valor recebido entre carteiras Asaas.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "walletId": {
+                  "description": "walletId da conta que recebe a parte.",
+                  "type": "string"
+                },
+                "fixedValue": {
+                  "description": "Parte em valor fixo.",
+                  "type": "number"
+                },
+                "percentualValue": {
+                  "description": "Parte em percentual do valor líquido.",
+                  "type": "number"
+                },
+                "totalFixedValue": {
+                  "description": "Somente parcelamentos: valor fixo sobre o total parcelado.",
+                  "type": "number"
+                },
+                "externalReference": {
+                  "description": "Seu identificador para esta divisão.",
+                  "type": "string"
+                },
+                "description": {
+                  "description": "Descrição da divisão.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "walletId"
+              ]
+            }
+          },
+          "callback": {
+            "description": "Redirecionamento do pagador após pagar a fatura.",
+            "type": "object",
+            "properties": {
+              "successUrl": {
+                "description": "URL de retorno após pagamento aprovado.",
+                "type": "string"
+              },
+              "autoRedirect": {
+                "description": "true redireciona automaticamente; false mostra botão.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "successUrl"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "billingType",
+          "value",
+          "dueDate"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__cancelar",
+      "title": "Asaas: Excluir cobrança",
+      "description": "Asaas — Excluir cobrança (DELETE /v3/payments/{id}). Remove (cancela) uma cobrança; a remoção é lógica e pode ser desfeita por POST /v3/payments/{id}/restore. Quando usar: Pedido cancelado antes do pagamento. Para devolver valor já pago use asaas.cobranca.estornar. Não use para devolver valores já pagos (use estornar). Efeito relevante: confirme com o usuário antes. Pré-requisitos: id da cobrança. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__consultar_status",
+      "title": "Asaas: Recuperar status de uma cobrança",
+      "description": "Asaas — Recuperar status de uma cobrança (GET /v3/payments/{id}/status). Retorna somente o campo status da cobrança — resposta leve para checagens pontuais. Quando usar: Checagem pontual (ex.: tela de 'aguardando pagamento'). Não use em loop: prefira webhook. Não use em polling contínuo; assine os webhooks PAYMENT_*. Pré-requisitos: id da cobrança. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__obter__pix_qrcode",
+      "title": "Asaas: Obter QR Code para pagamentos via Pix",
+      "description": "Asaas — Obter QR Code para pagamentos via Pix (GET /v3/payments/{id}/pixQrCode). Devolve o QR Code dinâmico da cobrança: imagem em Base64 (encodedImage), código copia-e-cola (payload) e expirationDate. Quando usar: Logo após criar uma cobrança PIX (ou UNDEFINED) para exibir o QR Code no seu checkout. Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: Cobrança criada; Chave Pix cadastrada recomendada. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__obter__linha_digitavel",
+      "title": "Asaas: Obter linha digitável do boleto",
+      "description": "Asaas — Obter linha digitável do boleto (GET /v3/payments/{id}/identificationField). Retorna identificationField (linha digitável), nossoNumero e barCode (código de barras) do boleto da cobrança. Quando usar: Para exibir/enviar a linha digitável em canais próprios (e-mail, WhatsApp, ERP). Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: Cobrança com billingType BOLETO (ou UNDEFINED). Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__autorizar__captura",
+      "title": "Asaas: Capturar cobrança com Pré-Autorização",
+      "description": "Asaas — Capturar cobrança com Pré-Autorização (POST /v3/payments/{id}/captureAuthorizedPayment). Captura uma cobrança de cartão criada com authorizeOnly=true (pré-autorização), efetivando o débito. Quando usar: Fluxos em que o valor é reservado e confirmado depois (ex.: após separação do pedido). Só para cobranças pré-autorizadas; confirme com o usuário. Pré-requisitos: Cobrança de cartão pré-autorizada (status AUTHORIZED, inferido). Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__estornar",
+      "title": "Asaas: Estornar cobrança",
+      "description": "Asaas — Estornar cobrança (POST /v3/payments/{id}/refund). Devolve total ou parcialmente o valor de uma cobrança recebida (Pix ou cartão), podendo indicar quanto estornar de cada split. Quando usar: Devolução ao cliente de cobrança já paga. Para boleto use asaas.cobranca.estornar.boleto. Movimenta dinheiro: confirme valor e cobrança com o usuário antes. Não use para cobranças ainda não pagas (use cancelar). Pré-requisitos: Cobrança recebida/confirmada; Saldo suficiente para débito (inferido). Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          },
+          "value": {
+            "description": "Quanto estornar; omitido = valor total (inferido).",
+            "type": "number"
+          },
+          "description": {
+            "description": "Motivo do estorno.",
+            "type": "string"
+          },
+          "splitRefunds": {
+            "description": "Quanto devolver de cada split.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "description": "Id do split a estornar.",
+                  "type": "string"
+                },
+                "value": {
+                  "description": "Valor a estornar desse split.",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "value"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__estornar__boleto",
+      "title": "Asaas: Estornar boleto",
+      "description": "Asaas — Estornar boleto (POST /v3/payments/{id}/bankSlip/refund). Inicia o estorno de uma cobrança paga por boleto; a resposta traz requestUrl, link onde os dados bancários para devolução são informados. Quando usar: Devolução de boleto já pago. Movimenta dinheiro: confirme valor e cobrança com o usuário antes. Não use para cobranças ainda não pagas (use cancelar). Pré-requisitos: Cobrança paga por boleto. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__listar__estornos",
+      "title": "Asaas: Listar estornos de uma cobrança",
+      "description": "Asaas — Listar estornos de uma cobrança (GET /v3/payments/{id}/refunds). Lista os estornos vinculados a uma cobrança, com valor, status (PENDING, CANCELLED, DONE), endToEndIdentifier e comprovante. Quando usar: Conciliação de devoluções parciais ou múltiplas. Não use para acompanhar mudanças de status em tempo real (prefira webhooks) nem em loops frequentes (cota de 25.000 req/12h). Pré-requisitos: id da cobrança. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__criar__parcelamento",
+      "title": "Asaas: Criar parcelamento",
+      "description": "Asaas — Criar parcelamento (POST /v3/installments). Gera um parcelamento: N cobranças (installmentCount) do mesmo cliente com vencimentos mensais a partir de dueDate, com split opcional por parcela. Quando usar: Venda parcelada em boleto/Pix/cartão quando se quer um objeto de parcelamento agrupador (id de installment). Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: Cliente criado. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "installmentCount": {
+            "description": "Quantidade de parcelas.",
+            "type": "integer"
+          },
+          "customer": {
+            "description": "Id do cliente no Asaas (cus_...).",
+            "type": "string"
+          },
+          "value": {
+            "description": "Valor de CADA parcela.",
+            "type": "number"
+          },
+          "totalValue": {
+            "description": "Valor total a ser dividido entre as parcelas.",
+            "type": "number"
+          },
+          "billingType": {
+            "description": "Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).",
+            "type": "string",
+            "enum": [
+              "UNDEFINED",
+              "BOLETO",
+              "CREDIT_CARD",
+              "PIX"
+            ]
+          },
+          "dueDate": {
+            "description": "Vencimento da primeira parcela.",
+            "type": "string",
+            "format": "date"
+          },
+          "description": {
+            "description": "Texto descritivo (até 500 caracteres onde aplicável).",
+            "type": "string"
+          },
+          "postalService": {
+            "description": "true para envio do boleto por Correios (serviço tarifado).",
+            "type": "boolean"
+          },
+          "daysAfterDueDateToRegistrationCancellation": {
+            "description": "Boleto: quantos dias após o vencimento o registro é baixado.",
+            "type": "integer"
+          },
+          "paymentExternalReference": {
+            "description": "Seu identificador aplicado às cobranças do parcelamento.",
+            "type": "string"
+          },
+          "discount": {
+            "description": "Objeto de desconto por pagamento antecipado.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual do desconto.",
+                "type": "number"
+              },
+              "dueDateLimitDays": {
+                "description": "Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).",
+                "type": "integer"
+              },
+              "type": {
+                "description": "FIXED (valor) ou PERCENTAGE (percentual).",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "interest": {
+            "description": "Objeto de juros por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Percentual de juros ao mês após o vencimento.",
+                "type": "number"
+              }
+            }
+          },
+          "fine": {
+            "description": "Objeto de multa por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual da multa.",
+                "type": "number"
+              },
+              "type": {
+                "description": "FIXED ou PERCENTAGE.",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "splits": {
+            "description": "Lista de divisões aplicadas às parcelas.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "walletId": {
+                  "description": "walletId da conta que recebe a parte.",
+                  "type": "string"
+                },
+                "fixedValue": {
+                  "description": "Parte em valor fixo por parcela.",
+                  "type": "number"
+                },
+                "percentualValue": {
+                  "description": "Parte em percentual do valor líquido.",
+                  "type": "number"
+                },
+                "totalFixedValue": {
+                  "description": "Valor fixo sobre o total do parcelamento.",
+                  "type": "number"
+                },
+                "externalReference": {
+                  "description": "Seu identificador para esta divisão.",
+                  "type": "string"
+                },
+                "description": {
+                  "description": "Descrição da divisão.",
+                  "type": "string"
+                },
+                "installmentNumber": {
+                  "description": "Parcela específica à qual a divisão se aplica.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "walletId"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "installmentCount",
+          "customer",
+          "value",
+          "billingType",
+          "dueDate"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__obter__parcelamento",
+      "title": "Asaas: Recuperar um único parcelamento",
+      "description": "Asaas — Recuperar um único parcelamento (GET /v3/installments/{id}). Retorna o parcelamento (valor total, líquido, número de parcelas, forma de pagamento, estornos). Quando usar: Para consultar o agrupador após criar ou ao receber cobrança com campo installment. Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: id do parcelamento. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__cancelar__parcelamento",
+      "title": "Asaas: Remover parcelamento",
+      "description": "Asaas — Remover parcelamento (DELETE /v3/installments/{id}). Remove o parcelamento e suas cobranças ainda não pagas (efeito exato sobre parcelas pagas não detalhado). Quando usar: Venda parcelada desfeita antes do pagamento. Para devolver valores pagos no cartão use asaas.cobranca.estornar.parcelamento. Não use para devolver valores já pagos (use estornar). Efeito relevante: confirme com o usuário antes. Pré-requisitos: id do parcelamento. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__estornar__parcelamento",
+      "title": "Asaas: Estornar parcelamento",
+      "description": "Asaas — Estornar parcelamento (POST /v3/installments/{id}/refund). Estorna, total ou parcialmente (value), um parcelamento pago no cartão de crédito já confirmado ou recebido. Quando usar: Cancelamento de venda parcelada no cartão. Movimenta dinheiro: confirme valor e cobrança com o usuário antes. Não use para cobranças ainda não pagas (use cancelar). Pré-requisitos: Parcelamento em cartão confirmado/recebido; Saldo para débito. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          },
+          "value": {
+            "description": "Quanto estornar do parcelamento.",
+            "type": "number"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__assinatura__criar",
+      "title": "Asaas: Criar nova assinatura",
+      "description": "Asaas — Criar nova assinatura (POST /v3/subscriptions). Cria uma recorrência para o cliente: valor, ciclo (WEEKLY a YEARLY), primeiro vencimento (nextDueDate) e limites opcionais (endDate, maxPayments). O Asaas gera as cobranças automaticamente. Quando usar: Planos/mensalidades em boleto ou Pix (para cartão com dados na chamada use asaas.assinatura.criar.cartao_credito). Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: Cliente criado. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer": {
+            "description": "Id do cliente no Asaas (cus_...).",
+            "type": "string"
+          },
+          "billingType": {
+            "description": "Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).",
+            "type": "string",
+            "enum": [
+              "UNDEFINED",
+              "BOLETO",
+              "CREDIT_CARD",
+              "PIX"
+            ]
+          },
+          "value": {
+            "description": "Valor em reais, com ponto decimal.",
+            "type": "number"
+          },
+          "nextDueDate": {
+            "description": "Vencimento da primeira (ou próxima) cobrança.",
+            "type": "string",
+            "format": "date"
+          },
+          "discount": {
+            "description": "Objeto de desconto por pagamento antecipado.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual do desconto.",
+                "type": "number"
+              },
+              "dueDateLimitDays": {
+                "description": "Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).",
+                "type": "integer"
+              },
+              "type": {
+                "description": "FIXED (valor) ou PERCENTAGE (percentual).",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "interest": {
+            "description": "Objeto de juros por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Percentual de juros ao mês após o vencimento.",
+                "type": "number"
+              }
+            }
+          },
+          "fine": {
+            "description": "Objeto de multa por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual da multa.",
+                "type": "number"
+              },
+              "type": {
+                "description": "FIXED ou PERCENTAGE.",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "cycle": {
+            "description": "Periodicidade: WEEKLY, BIWEEKLY, MONTHLY, BIMONTHLY, QUARTERLY, SEMIANNUALLY ou YEARLY.",
+            "type": "string",
+            "enum": [
+              "WEEKLY",
+              "BIWEEKLY",
+              "MONTHLY",
+              "BIMONTHLY",
+              "QUARTERLY",
+              "SEMIANNUALLY",
+              "YEARLY"
+            ]
+          },
+          "description": {
+            "description": "Texto descritivo (até 500 caracteres onde aplicável).",
+            "type": "string"
+          },
+          "endDate": {
+            "description": "Último vencimento permitido para a recorrência.",
+            "type": "string",
+            "format": "date"
+          },
+          "maxPayments": {
+            "description": "Limite de cobranças que a assinatura pode gerar.",
+            "type": "integer"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          },
+          "split": {
+            "description": "Lista de divisões do valor recebido entre carteiras Asaas.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "walletId": {
+                  "description": "walletId da conta que recebe a parte.",
+                  "type": "string"
+                },
+                "fixedValue": {
+                  "description": "Parte em valor fixo.",
+                  "type": "number"
+                },
+                "percentualValue": {
+                  "description": "Parte em percentual do valor líquido.",
+                  "type": "number"
+                },
+                "externalReference": {
+                  "description": "Seu identificador para esta divisão.",
+                  "type": "string"
+                },
+                "description": {
+                  "description": "Descrição da divisão.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "walletId"
+              ]
+            }
+          },
+          "callback": {
+            "description": "Redirecionamento do pagador após pagar a fatura.",
+            "type": "object",
+            "properties": {
+              "successUrl": {
+                "description": "URL de retorno após pagamento aprovado.",
+                "type": "string"
+              },
+              "autoRedirect": {
+                "description": "true redireciona automaticamente; false mostra botão.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "successUrl"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "customer",
+          "billingType",
+          "value",
+          "nextDueDate",
+          "cycle"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__assinatura__criar__cartao_credito",
+      "title": "Asaas: Criar assinatura com cartão de crédito",
+      "description": "Asaas — Criar assinatura com cartão de crédito (POST /v3/subscriptions/). Cria a assinatura já vinculando o cartão (creditCard + creditCardHolderInfo ou creditCardToken); a primeira cobrança é processada no cartão. Quando usar: Recorrência no cartão com checkout transparente. Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: Cliente criado; remoteIp do comprador; Ambiente PCI-DSS ou tokenização. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer": {
+            "description": "Id do cliente no Asaas (cus_...).",
+            "type": "string"
+          },
+          "billingType": {
+            "description": "Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).",
+            "type": "string",
+            "enum": [
+              "UNDEFINED",
+              "BOLETO",
+              "CREDIT_CARD",
+              "PIX"
+            ]
+          },
+          "value": {
+            "description": "Valor em reais, com ponto decimal.",
+            "type": "number"
+          },
+          "nextDueDate": {
+            "description": "Vencimento da primeira (ou próxima) cobrança.",
+            "type": "string",
+            "format": "date"
+          },
+          "discount": {
+            "description": "Objeto de desconto por pagamento antecipado.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual do desconto.",
+                "type": "number"
+              },
+              "dueDateLimitDays": {
+                "description": "Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).",
+                "type": "integer"
+              },
+              "type": {
+                "description": "FIXED (valor) ou PERCENTAGE (percentual).",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "interest": {
+            "description": "Objeto de juros por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Percentual de juros ao mês após o vencimento.",
+                "type": "number"
+              }
+            }
+          },
+          "fine": {
+            "description": "Objeto de multa por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual da multa.",
+                "type": "number"
+              },
+              "type": {
+                "description": "FIXED ou PERCENTAGE.",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "cycle": {
+            "description": "Periodicidade: WEEKLY, BIWEEKLY, MONTHLY, BIMONTHLY, QUARTERLY, SEMIANNUALLY ou YEARLY.",
+            "type": "string",
+            "enum": [
+              "WEEKLY",
+              "BIWEEKLY",
+              "MONTHLY",
+              "BIMONTHLY",
+              "QUARTERLY",
+              "SEMIANNUALLY",
+              "YEARLY"
+            ]
+          },
+          "description": {
+            "description": "Texto descritivo (até 500 caracteres onde aplicável).",
+            "type": "string"
+          },
+          "endDate": {
+            "description": "Último vencimento permitido para a recorrência.",
+            "type": "string",
+            "format": "date"
+          },
+          "maxPayments": {
+            "description": "Limite de cobranças que a assinatura pode gerar.",
+            "type": "integer"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          },
+          "split": {
+            "description": "Lista de divisões do valor recebido entre carteiras Asaas.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "walletId": {
+                  "description": "walletId da conta que recebe a parte.",
+                  "type": "string"
+                },
+                "fixedValue": {
+                  "description": "Parte em valor fixo.",
+                  "type": "number"
+                },
+                "percentualValue": {
+                  "description": "Parte em percentual do valor líquido.",
+                  "type": "number"
+                },
+                "externalReference": {
+                  "description": "Seu identificador para esta divisão.",
+                  "type": "string"
+                },
+                "description": {
+                  "description": "Descrição da divisão.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "walletId"
+              ]
+            }
+          },
+          "callback": {
+            "description": "Redirecionamento do pagador após pagar a fatura.",
+            "type": "object",
+            "properties": {
+              "successUrl": {
+                "description": "URL de retorno após pagamento aprovado.",
+                "type": "string"
+              },
+              "autoRedirect": {
+                "description": "true redireciona automaticamente; false mostra botão.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "successUrl"
+            ]
+          },
+          "creditCard": {
+            "description": "Dados do cartão (tráfego exige ambiente PCI-DSS).",
+            "type": "object",
+            "properties": {
+              "holderName": {
+                "description": "Nome como impresso no cartão.",
+                "type": "string"
+              },
+              "number": {
+                "description": "Número do cartão.",
+                "type": "string"
+              },
+              "expiryMonth": {
+                "description": "Mês de validade com 2 dígitos.",
+                "type": "string"
+              },
+              "expiryYear": {
+                "description": "Ano de validade com 4 dígitos.",
+                "type": "string"
+              },
+              "ccv": {
+                "description": "Código de segurança.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "holderName",
+              "number",
+              "expiryMonth",
+              "expiryYear",
+              "ccv"
+            ]
+          },
+          "creditCardHolderInfo": {
+            "description": "Dados do titular do cartão para antifraude.",
+            "type": "object",
+            "properties": {
+              "name": {
+                "description": "Nome do titular.",
+                "type": "string"
+              },
+              "email": {
+                "description": "E-mail do titular.",
+                "type": "string"
+              },
+              "cpfCnpj": {
+                "description": "CPF/CNPJ do titular.",
+                "type": "string"
+              },
+              "postalCode": {
+                "description": "CEP do titular.",
+                "type": "string"
+              },
+              "addressNumber": {
+                "description": "Número do endereço do titular.",
+                "type": "string"
+              },
+              "addressComplement": {
+                "description": "Complemento do endereço do titular.",
+                "type": "string"
+              },
+              "phone": {
+                "description": "Telefone com DDD do titular.",
+                "type": "string"
+              },
+              "mobilePhone": {
+                "description": "Celular do titular.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "email",
+              "cpfCnpj",
+              "postalCode",
+              "addressNumber",
+              "phone"
+            ]
+          },
+          "creditCardToken": {
+            "description": "Token de cartão obtido na tokenização (substitui os dados do cartão).",
+            "type": "string"
+          },
+          "remoteIp": {
+            "description": "IP público do comprador (não o do servidor).",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "customer",
+          "billingType",
+          "value",
+          "nextDueDate",
+          "cycle",
+          "creditCard",
+          "creditCardHolderInfo",
+          "remoteIp"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__assinatura__listar",
+      "title": "Asaas: Listar assinaturas",
+      "description": "Asaas — Listar assinaturas (GET /v3/subscriptions). Lista assinaturas com filtros por cliente, grupo, forma de pagamento, status (ACTIVE, EXPIRED, INACTIVE), removidas e externalReference. Quando usar: Relatórios de MRR/base ativa e sincronização com CRM/ERP. Não use para acompanhar mudanças de status em tempo real (prefira webhooks) nem em loops frequentes (cota de 25.000 req/12h). Pré-requisitos: Chave de API. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "offset": {
+            "description": "Posição inicial da página (começa em 0).",
+            "type": "integer"
+          },
+          "limit": {
+            "description": "Tamanho da página; 1 a 100, padrão 10.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "customer": {
+            "description": "Filtra pelo cliente.",
+            "type": "string"
+          },
+          "customerGroupName": {
+            "description": "Filtra pelo grupo de clientes.",
+            "type": "string"
+          },
+          "billingType": {
+            "description": "Filtra por meio de pagamento.",
+            "type": "string",
+            "enum": [
+              "UNDEFINED",
+              "BOLETO",
+              "CREDIT_CARD",
+              "DEBIT_CARD",
+              "TRANSFER",
+              "DEPOSIT",
+              "PIX"
+            ]
+          },
+          "status": {
+            "description": "Situação do registro (valores no enum).",
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "EXPIRED",
+              "INACTIVE"
+            ]
+          },
+          "deletedOnly": {
+            "description": "'true' retorna só assinaturas removidas.",
+            "type": "string"
+          },
+          "includeDeleted": {
+            "description": "'true' inclui assinaturas removidas.",
+            "type": "string"
+          },
+          "externalReference": {
+            "description": "Filtra pelo seu identificador.",
+            "type": "string"
+          },
+          "order": {
+            "description": "Direção da ordenação (asc/desc).",
+            "type": "string"
+          },
+          "sort": {
+            "description": "Campo usado na ordenação.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__assinatura__obter",
+      "title": "Asaas: Recuperar uma única assinatura",
+      "description": "Asaas — Recuperar uma única assinatura (GET /v3/subscriptions/{id}). Retorna a assinatura com ciclo, valor, próximo vencimento, status e split. Quando usar: Consultar o estado de um contrato recorrente. Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: id da assinatura (sub_...). Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__assinatura__atualizar",
+      "title": "Asaas: Atualizar assinatura existente",
+      "description": "Asaas — Atualizar assinatura existente (PUT /v3/subscriptions/{id}). Altera valor, ciclo, forma de pagamento, próximo vencimento, status (ACTIVE/INACTIVE) e split; com updatePendingPayments=true propaga para cobranças pendentes. Quando usar: Upgrade/downgrade de plano, pausa (INACTIVE) ou troca de forma de pagamento. Não use para criar registros nem para devolver dinheiro. Pré-requisitos: id da assinatura. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          },
+          "billingType": {
+            "description": "Meio de pagamento: BOLETO, PIX, CREDIT_CARD ou UNDEFINED (o pagador escolhe na fatura).",
+            "type": "string",
+            "enum": [
+              "UNDEFINED",
+              "BOLETO",
+              "CREDIT_CARD",
+              "PIX"
+            ]
+          },
+          "status": {
+            "description": "Situação do registro (valores no enum).",
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ]
+          },
+          "nextDueDate": {
+            "description": "Vencimento da primeira (ou próxima) cobrança.",
+            "type": "string",
+            "format": "date"
+          },
+          "discount": {
+            "description": "Objeto de desconto por pagamento antecipado.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual do desconto.",
+                "type": "number"
+              },
+              "dueDateLimitDays": {
+                "description": "Até quantos dias antes do vencimento o desconto vale (0 = até o vencimento).",
+                "type": "integer"
+              },
+              "type": {
+                "description": "FIXED (valor) ou PERCENTAGE (percentual).",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "interest": {
+            "description": "Objeto de juros por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Percentual de juros ao mês após o vencimento.",
+                "type": "number"
+              }
+            }
+          },
+          "fine": {
+            "description": "Objeto de multa por atraso.",
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "Valor ou percentual da multa.",
+                "type": "number"
+              },
+              "type": {
+                "description": "FIXED ou PERCENTAGE.",
+                "type": "string",
+                "enum": [
+                  "FIXED",
+                  "PERCENTAGE"
+                ]
+              }
+            }
+          },
+          "cycle": {
+            "description": "Periodicidade: WEEKLY, BIWEEKLY, MONTHLY, BIMONTHLY, QUARTERLY, SEMIANNUALLY ou YEARLY.",
+            "type": "string",
+            "enum": [
+              "WEEKLY",
+              "BIWEEKLY",
+              "MONTHLY",
+              "BIMONTHLY",
+              "QUARTERLY",
+              "SEMIANNUALLY",
+              "YEARLY"
+            ]
+          },
+          "description": {
+            "description": "Texto descritivo (até 500 caracteres onde aplicável).",
+            "type": "string"
+          },
+          "endDate": {
+            "description": "Último vencimento permitido para a recorrência.",
+            "type": "string",
+            "format": "date"
+          },
+          "updatePendingPayments": {
+            "description": "true aplica a alteração também às cobranças pendentes.",
+            "type": "boolean"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          },
+          "split": {
+            "description": "Lista de divisões do valor recebido entre carteiras Asaas.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "walletId": {
+                  "description": "walletId da conta que recebe a parte.",
+                  "type": "string"
+                },
+                "fixedValue": {
+                  "description": "Parte em valor fixo.",
+                  "type": "number"
+                },
+                "percentualValue": {
+                  "description": "Parte em percentual do valor líquido.",
+                  "type": "number"
+                },
+                "externalReference": {
+                  "description": "Seu identificador para esta divisão.",
+                  "type": "string"
+                },
+                "description": {
+                  "description": "Descrição da divisão.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "walletId"
+              ]
+            }
+          },
+          "callback": {
+            "description": "Redirecionamento do pagador após pagar a fatura.",
+            "type": "object",
+            "properties": {
+              "successUrl": {
+                "description": "URL de retorno após pagamento aprovado.",
+                "type": "string"
+              },
+              "autoRedirect": {
+                "description": "true redireciona automaticamente; false mostra botão.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "successUrl"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__assinatura__cancelar",
+      "title": "Asaas: Remover assinatura",
+      "description": "Asaas — Remover assinatura (DELETE /v3/subscriptions/{id}). Remove a assinatura, interrompendo a geração de novas cobranças. Quando usar: Cancelamento definitivo do plano. Para pausar, prefira atualizar status para INACTIVE. Não use para devolver valores já pagos (use estornar). Efeito relevante: confirme com o usuário antes. Pré-requisitos: id da assinatura. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__listar__assinatura",
+      "title": "Asaas: Listar cobranças de uma assinatura",
+      "description": "Asaas — Listar cobranças de uma assinatura (GET /v3/subscriptions/{id}/payments). Lista as cobranças geradas por uma assinatura, com filtro por status. Quando usar: Histórico de pagamentos de um assinante (inadimplência, portal do cliente). Não use para acompanhar mudanças de status em tempo real (prefira webhooks) nem em loops frequentes (cota de 25.000 req/12h). Pré-requisitos: id da assinatura. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          },
+          "status": {
+            "description": "Filtra as cobranças por status.",
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "RECEIVED",
+              "CONFIRMED",
+              "OVERDUE",
+              "REFUNDED",
+              "RECEIVED_IN_CASH",
+              "REFUND_REQUESTED",
+              "REFUND_IN_PROGRESS",
+              "CHARGEBACK_REQUESTED",
+              "CHARGEBACK_DISPUTE",
+              "AWAITING_CHARGEBACK_REVERSAL",
+              "DUNNING_REQUESTED",
+              "DUNNING_RECEIVED",
+              "AWAITING_RISK_ANALYSIS"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__empresa__criar__chave_pix",
+      "title": "Asaas: Criar uma chave",
+      "description": "Asaas — Criar uma chave (POST /v3/pix/addressKeys). Cadastra uma chave Pix aleatória (type=EVP) na conta Asaas. Quando usar: Onboarding da conta/subconta para emitir QR Codes Pix duradouros. Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: Conta aprovada. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "type": {
+            "description": "Tipo da chave; só EVP (aleatória) é aceito.",
+            "type": "string",
+            "enum": [
+              "EVP"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "type"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__empresa__listar__chave_pix",
+      "title": "Asaas: Listar chaves",
+      "description": "Asaas — Listar chaves (GET /v3/pix/addressKeys). Lista as chaves Pix da conta com filtro de status. Quando usar: Verificar se a conta tem chave ativa antes de emitir cobranças Pix. Não use para acompanhar mudanças de status em tempo real (prefira webhooks) nem em loops frequentes (cota de 25.000 req/12h). Pré-requisitos: Chave de API. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "offset": {
+            "description": "Posição inicial da página (começa em 0).",
+            "type": "integer"
+          },
+          "limit": {
+            "description": "Tamanho da página; 1 a 100, padrão 10.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "status": {
+            "description": "Filtra pelo status da chave.",
+            "type": "string",
+            "enum": [
+              "AWAITING_ACTIVATION",
+              "ACTIVE",
+              "AWAITING_DELETION",
+              "AWAITING_ACCOUNT_DELETION",
+              "DELETED",
+              "ERROR"
+            ]
+          },
+          "statusList": {
+            "description": "Um ou mais status separados por vírgula.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__empresa__obter__chave_pix",
+      "title": "Asaas: Recuperar uma única chave",
+      "description": "Asaas — Recuperar uma única chave (GET /v3/pix/addressKeys/{id}). Consulta uma chave Pix da conta pelo id, incluindo status e se pode ser removida. Quando usar: Acompanhar a ativação de uma chave recém-criada. Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: id da chave. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__empresa__excluir__chave_pix",
+      "title": "Asaas: Remover chave",
+      "description": "Asaas — Remover chave (DELETE /v3/pix/addressKeys/{id}). Solicita a remoção de uma chave Pix da conta. Quando usar: Descontinuar uma chave. Ação de remoção: confirme com o usuário antes. Pré-requisitos: id da chave; canBeDeleted=true. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__cobranca__criar__pix_qrcode_estatico",
+      "title": "Asaas: Criar QR Code estático",
+      "description": "Asaas — Criar QR Code estático (POST /v3/pix/qrCodes/static). Gera um QR Code Pix estático para uma chave da conta, com valor fixo ou livre, que pode receber vários pagamentos; cada pagamento vira uma cobrança automaticamente. Quando usar: Balcão, doações, eventos — quando não há cliente/cobrança prévia. Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: Chave Pix ativa (addressKey). Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "addressKey": {
+            "description": "Chave Pix da conta que receberá os pagamentos.",
+            "type": "string"
+          },
+          "description": {
+            "description": "Descrição exibida ao pagador.",
+            "type": "string"
+          },
+          "value": {
+            "description": "Valor fixo; omitido = pagador define.",
+            "type": "number"
+          },
+          "format": {
+            "description": "Formato retornado: ALL, IMAGE ou PAYLOAD.",
+            "type": "string",
+            "enum": [
+              "ALL",
+              "IMAGE",
+              "PAYLOAD"
+            ]
+          },
+          "expirationDate": {
+            "description": "Data/hora após a qual pagamentos são recusados.",
+            "type": "string"
+          },
+          "expirationSeconds": {
+            "description": "Expiração em segundos (alternativa à data).",
+            "type": "integer"
+          },
+          "allowsMultiplePayments": {
+            "description": "Se o QR aceita vários pagamentos (padrão true).",
+            "type": "boolean"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__pagamento__criar__pix_qrcode",
+      "title": "Asaas: Pagar um QRCode",
+      "description": "Asaas — Pagar um QRCode (POST /v3/pix/qrCodes/pay). Paga um QR Code Pix de terceiros (copia-e-cola) usando o saldo da conta, com opção de agendamento. Quando usar: Contas a pagar via Pix a partir do saldo Asaas. Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: Saldo disponível; Payload decodificado e validado (recomendado); Mecanismo de autorização de saque configurado. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "qrCode": {
+            "description": "QR Code a pagar.",
+            "type": "object",
+            "properties": {
+              "payload": {
+                "description": "Código Pix copia-e-cola.",
+                "type": "string"
+              },
+              "changeValue": {
+                "description": "Valor de troco (QR Code Troco).",
+                "type": "number"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          },
+          "value": {
+            "description": "Valor a pagar.",
+            "type": "number"
+          },
+          "description": {
+            "description": "Descrição do pagamento.",
+            "type": "string"
+          },
+          "scheduleDate": {
+            "description": "Data de agendamento; vazio = imediato.",
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "qrCode",
+          "value"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__pagamento__validar__pix_qrcode",
+      "title": "Asaas: Decodificar um QRCode para pagamento",
+      "description": "Asaas — Decodificar um QRCode para pagamento (POST /v3/pix/qrCodes/decode). Lê um payload Pix e devolve recebedor, valor, juros/multa/desconto, vencimento e se pode ser pago (canBePaid), sem movimentar dinheiro. Quando usar: Antes de pagar um QR Code, para mostrar ao usuário quem vai receber e quanto. Não paga nada; para pagar use a ferramenta de pagamento correspondente. Pré-requisitos: Payload copia-e-cola. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "payload": {
+            "description": "Código Pix copia-e-cola a decodificar.",
+            "type": "string"
+          },
+          "changeValue": {
+            "description": "Valor de troco (QR Code Troco).",
+            "type": "number"
+          },
+          "expectedPaymentDate": {
+            "description": "Data em que pretende pagar (afeta juros/multa calculados).",
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "payload"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__transacao__listar__pix",
+      "title": "Asaas: Listar transações",
+      "description": "Asaas — Listar transações (GET /v3/pix/transactions). Lista transações Pix (débitos, créditos e devoluções) com filtros por status, tipo e endToEndIdentifier. Quando usar: Conciliação de Pix pelo E2E ID e auditoria de saídas. Não use para acompanhar mudanças de status em tempo real (prefira webhooks) nem em loops frequentes (cota de 25.000 req/12h). Pré-requisitos: Chave de API. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "offset": {
+            "description": "Posição inicial da página (começa em 0).",
+            "type": "integer"
+          },
+          "limit": {
+            "description": "Tamanho da página; 1 a 100, padrão 10.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "status": {
+            "description": "Filtra pelo status da transação.",
+            "type": "string",
+            "enum": [
+              "AWAITING_BALANCE_VALIDATION",
+              "AWAITING_INSTANT_PAYMENT_ACCOUNT_BALANCE",
+              "AWAITING_CRITICAL_ACTION_AUTHORIZATION",
+              "AWAITING_CHECKOUT_RISK_ANALYSIS_REQUEST",
+              "AWAITING_CASH_IN_RISK_ANALYSIS_REQUEST",
+              "SCHEDULED",
+              "AWAITING_REQUEST",
+              "REQUESTED",
+              "DONE",
+              "REFUSED",
+              "CANCELLED"
+            ]
+          },
+          "type": {
+            "description": "DEBIT, CREDIT ou tipos de devolução.",
+            "type": "string",
+            "enum": [
+              "DEBIT",
+              "CREDIT",
+              "CREDIT_REFUND",
+              "DEBIT_REFUND",
+              "DEBIT_REFUND_CANCELLATION"
+            ]
+          },
+          "endToEndIdentifier": {
+            "description": "Filtra pelo EndToEndId.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__transacao__obter__pix",
+      "title": "Asaas: Recuperar uma única transação",
+      "description": "Asaas — Recuperar uma única transação (GET /v3/pix/transactions/{id}). Retorna uma transação Pix com status, E2E, comprovante, motivo de recusa e se pode ser cancelada/estornada. Quando usar: Acompanhar um pagamento Pix feito pela API. Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: id da transação. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__pagamento__cancelar__pix_agendado",
+      "title": "Asaas: Cancelar uma transação agendada",
+      "description": "Asaas — Cancelar uma transação agendada (POST /v3/pix/transactions/{id}/cancel). Cancela uma transação Pix agendada que ainda não foi efetivada. Quando usar: Desistência de um pagamento Pix agendado. Não use para devolver valores já pagos (use estornar). Efeito relevante: confirme com o usuário antes. Pré-requisitos: Transação com canBeCanceled=true. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__pagamento__criar__transferencia",
+      "title": "Asaas: Transferir para conta de outra Instituição ou chave Pix",
+      "description": "Asaas — Transferir para conta de outra Instituição ou chave Pix (POST /v3/transfers). Envia dinheiro do saldo para chave Pix (pixAddressKey + pixAddressKeyType) ou conta bancária (bankAccount) via PIX ou TED, com agendamento e recorrência Pix opcionais. Quando usar: Repasses, saques para conta própria, pagamento de fornecedores. Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: Saldo; Mecanismo de autorização de saque (token, whitelist ou webhook de validação). Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "value": {
+            "description": "Valor a transferir.",
+            "type": "number"
+          },
+          "bankAccount": {
+            "description": "Conta bancária de destino (quando não for chave Pix).",
+            "type": "object",
+            "properties": {
+              "bank": {
+                "description": "Objeto com o banco de destino (código COMPE).",
+                "type": "object"
+              },
+              "accountName": {
+                "description": "Apelido da conta.",
+                "type": "string"
+              },
+              "ownerName": {
+                "description": "Titular da conta de destino.",
+                "type": "string"
+              },
+              "ownerBirthDate": {
+                "description": "Nascimento do titular (quando a conta não é do mesmo CPF/CNPJ).",
+                "type": "string",
+                "format": "date"
+              },
+              "cpfCnpj": {
+                "description": "CPF/CNPJ do titular da conta de destino.",
+                "type": "string"
+              },
+              "agency": {
+                "description": "Agência sem dígito.",
+                "type": "string"
+              },
+              "account": {
+                "description": "Conta sem dígito.",
+                "type": "string"
+              },
+              "accountDigit": {
+                "description": "Dígito da conta.",
+                "type": "string"
+              },
+              "bankAccountType": {
+                "description": "CONTA_CORRENTE ou CONTA_POUPANCA.",
+                "type": "string",
+                "enum": [
+                  "CONTA_CORRENTE",
+                  "CONTA_POUPANCA"
+                ]
+              },
+              "ispb": {
+                "description": "ISPB da instituição de destino.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "ownerName",
+              "cpfCnpj",
+              "agency",
+              "account",
+              "accountDigit"
+            ]
+          },
+          "operationType": {
+            "description": "PIX ou TED; se omitido o Asaas escolhe conforme o banco destino.",
+            "type": "string",
+            "enum": [
+              "PIX",
+              "TED"
+            ]
+          },
+          "pixAddressKey": {
+            "description": "Chave Pix de destino.",
+            "type": "string"
+          },
+          "pixAddressKeyType": {
+            "description": "Tipo da chave: CPF, CNPJ, EMAIL, PHONE ou EVP.",
+            "type": "string",
+            "enum": [
+              "CPF",
+              "CNPJ",
+              "EMAIL",
+              "PHONE",
+              "EVP"
+            ]
+          },
+          "description": {
+            "description": "Descrição (aceita em Pix).",
+            "type": "string"
+          },
+          "scheduleDate": {
+            "description": "Data de agendamento; vazio = imediato.",
+            "type": "string",
+            "format": "date"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          },
+          "recurring": {
+            "description": "Repetição da transferência (só Pix).",
+            "type": "object",
+            "properties": {
+              "frequency": {
+                "description": "WEEKLY ou MONTHLY.",
+                "type": "string",
+                "enum": [
+                  "WEEKLY",
+                  "MONTHLY"
+                ]
+              },
+              "quantity": {
+                "description": "Quantas vezes repetir.",
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "value"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__pagamento__criar__transferencia_asaas",
+      "title": "Asaas: Transferir para conta Asaas",
+      "description": "Asaas — Transferir para conta Asaas (POST /v3/transfers/). Transfere saldo para outra conta Asaas identificada pelo walletId (ex.: subconta). Quando usar: Movimentações entre conta-pai e subcontas ou parceiros Asaas. Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: walletId de destino; Saldo. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "value": {
+            "description": "Valor a transferir.",
+            "type": "number"
+          },
+          "walletId": {
+            "description": "walletId da conta Asaas de destino.",
+            "type": "string"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "value",
+          "walletId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__pagamento__listar__transferencia",
+      "title": "Asaas: Listar transferências",
+      "description": "Asaas — Listar transferências (GET /v3/transfers). Lista transferências com filtros de data de criação, data de efetivação e tipo. Quando usar: Conciliação de saídas e relatórios de repasse. Não use para acompanhar mudanças de status em tempo real (prefira webhooks) nem em loops frequentes (cota de 25.000 req/12h). Pré-requisitos: Chave de API. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "dateCreated[ge]": {
+            "description": "Criadas a partir desta data (AAAA-MM-DD).",
+            "type": "string"
+          },
+          "dateCreated[le]": {
+            "description": "Criadas até esta data.",
+            "type": "string"
+          },
+          "transferDate[ge]": {
+            "description": "Efetivadas a partir desta data.",
+            "type": "string"
+          },
+          "transferDate[le]": {
+            "description": "Efetivadas até esta data.",
+            "type": "string"
+          },
+          "type": {
+            "description": "Filtra por tipo de transferência.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__pagamento__obter__transferencia",
+      "title": "Asaas: Recuperar uma única transferência",
+      "description": "Asaas — Recuperar uma única transferência (GET /v3/transfers/{id}). Consulta status, taxa, E2E, motivo de falha e comprovante de uma transferência. Quando usar: Acompanhar uma transferência após o POST ou webhook. Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: id da transferência. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__pagamento__cancelar__transferencia",
+      "title": "Asaas: Cancelar uma transferência",
+      "description": "Asaas — Cancelar uma transferência (DELETE /v3/transfers/{id}/cancel). Cancela uma transferência ainda não efetivada (ex.: agendada ou pendente). Quando usar: Desistir de uma transferência antes da efetivação. Não use para devolver valores já pagos (use estornar). Efeito relevante: confirme com o usuário antes. Pré-requisitos: Transferência cancelável. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__transacao__listar",
+      "title": "Asaas: Recuperar extrato",
+      "description": "Asaas — Recuperar extrato (GET /v3/financialTransactions). Retorna o extrato da conta (lançamentos de entrada e saída) entre startDate e finishDate, paginado. Quando usar: Conciliação contábil e cargas diárias no BI/ERP. Não use para acompanhar mudanças de status em tempo real (prefira webhooks) nem em loops frequentes (cota de 25.000 req/12h). Pré-requisitos: Chave de API. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "offset": {
+            "description": "Posição inicial da página (começa em 0).",
+            "type": "integer"
+          },
+          "limit": {
+            "description": "Tamanho da página; 1 a 100, padrão 10.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "startDate": {
+            "description": "Início do período (AAAA-MM-DD).",
+            "type": "string"
+          },
+          "finishDate": {
+            "description": "Fim do período (AAAA-MM-DD).",
+            "type": "string"
+          },
+          "order": {
+            "description": "Direção da ordenação (asc/desc).",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__empresa__obter__saldo",
+      "title": "Asaas: Recuperar saldo da conta",
+      "description": "Asaas — Recuperar saldo da conta (GET /v3/finance/balance). Retorna o saldo disponível (balance) da conta autenticada. Quando usar: Antes de transferências/pagamentos e em painéis financeiros. Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: Chave de API. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__nota_fiscal__criar__nfse",
+      "title": "Asaas: Agendar nota fiscal",
+      "description": "Asaas — Agendar nota fiscal (POST /v3/invoices). Agenda a emissão de uma NFS-e vinculada a uma cobrança, parcelamento ou apenas a um cliente, com descrição do serviço, valor, deduções, data de emissão e impostos. Quando usar: Emitir NFS-e dos serviços cobrados pelo Asaas sem integrar um emissor separado. Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: Informações fiscais da conta configuradas; payment, installment ou customer. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "payment": {
+            "description": "Id da cobrança (pay_...).",
+            "type": "string"
+          },
+          "installment": {
+            "description": "Id do parcelamento a que a nota se refere.",
+            "type": "string"
+          },
+          "customer": {
+            "description": "Id do cliente tomador (quando não há cobrança).",
+            "type": "string"
+          },
+          "serviceDescription": {
+            "description": "Descrição do serviço prestado na NFS-e.",
+            "type": "string"
+          },
+          "observations": {
+            "description": "Texto livre de observações.",
+            "type": "string"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          },
+          "value": {
+            "description": "Valor total dos serviços.",
+            "type": "number"
+          },
+          "deductions": {
+            "description": "Deduções da base de cálculo (não mudam o valor total).",
+            "type": "number"
+          },
+          "effectiveDate": {
+            "description": "Data de emissão da nota.",
+            "type": "string",
+            "format": "date"
+          },
+          "municipalServiceId": {
+            "description": "Id do serviço municipal (lista de serviços da prefeitura).",
+            "type": "string"
+          },
+          "municipalServiceCode": {
+            "description": "Código do serviço municipal (LC 116).",
+            "type": "string"
+          },
+          "municipalServiceName": {
+            "description": "Nome do serviço municipal.",
+            "type": "string"
+          },
+          "updatePayment": {
+            "description": "true desconta os impostos no valor da cobrança vinculada.",
+            "type": "boolean"
+          },
+          "taxes": {
+            "description": "Objeto de tributos da nota.",
+            "type": "object",
+            "properties": {
+              "nbsCode": {
+                "description": "Código NBS do serviço.",
+                "type": "string"
+              },
+              "taxSituationCode": {
+                "description": "Código de situação tributária (Reforma Tributária).",
+                "type": "string"
+              },
+              "taxClassificationCode": {
+                "description": "Código de classificação tributária.",
+                "type": "string"
+              },
+              "operationIndicatorCode": {
+                "description": "Código do indicador de operação.",
+                "type": "string"
+              },
+              "retainIss": {
+                "description": "Se o tomador retém o ISS.",
+                "type": "boolean"
+              },
+              "iss": {
+                "description": "Alíquota de ISS (%).",
+                "type": "number"
+              },
+              "pisCofinsRetentionType": {
+                "description": "Calculado pelo Asaas; não enviar.",
+                "type": "string"
+              },
+              "pisCofinsTaxStatus": {
+                "description": "Situação tributária de PIS/COFINS.",
+                "type": "string"
+              },
+              "operationPis": {
+                "description": "Alíquota PIS de apuração própria.",
+                "type": "number"
+              },
+              "operationCofins": {
+                "description": "Alíquota COFINS de apuração própria.",
+                "type": "number"
+              },
+              "pis": {
+                "description": "Alíquota PIS retida (%).",
+                "type": "number"
+              },
+              "cofins": {
+                "description": "Alíquota COFINS retida (%).",
+                "type": "number"
+              },
+              "csll": {
+                "description": "Alíquota CSLL (%).",
+                "type": "number"
+              },
+              "inss": {
+                "description": "Alíquota INSS (%).",
+                "type": "number"
+              },
+              "ir": {
+                "description": "Alíquota IR (%).",
+                "type": "number"
+              },
+              "operationTypeCode": {
+                "description": "Tipo de operação da Reforma Tributária (exigido em alguns serviços).",
+                "type": "integer"
+              },
+              "referencedInvoiceAccessKeyList": {
+                "description": "Chaves de NFS-e referenciadas.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "realEstateInfo": {
+                "description": "Dados do imóvel para operações imobiliárias.",
+                "type": "object"
+              }
+            },
+            "required": [
+              "retainIss",
+              "iss",
+              "pis",
+              "cofins",
+              "csll",
+              "inss",
+              "ir"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "serviceDescription",
+          "observations",
+          "value",
+          "deductions",
+          "effectiveDate",
+          "municipalServiceName",
+          "taxes"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__nota_fiscal__listar__nfse",
+      "title": "Asaas: Listar notas fiscais",
+      "description": "Asaas — Listar notas fiscais (GET /v3/invoices). Lista NFS-e com filtros por data de emissão (effectiveDate[Ge]/[Le]), cobrança, parcelamento, cliente, status e externalReference. Quando usar: Relatório fiscal e conciliação nota x cobrança. Não use para acompanhar mudanças de status em tempo real (prefira webhooks) nem em loops frequentes (cota de 25.000 req/12h). Pré-requisitos: Chave de API. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "offset": {
+            "description": "Posição inicial da página (começa em 0).",
+            "type": "integer"
+          },
+          "limit": {
+            "description": "Tamanho da página; 1 a 100, padrão 10.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "effectiveDate[Ge]": {
+            "description": "Emitidas a partir desta data.",
+            "type": "string"
+          },
+          "effectiveDate[Le]": {
+            "description": "Emitidas até esta data.",
+            "type": "string"
+          },
+          "payment": {
+            "description": "Filtra pela cobrança.",
+            "type": "string"
+          },
+          "installment": {
+            "description": "Filtra pelo parcelamento.",
+            "type": "string"
+          },
+          "externalReference": {
+            "description": "Filtra pelo seu identificador.",
+            "type": "string"
+          },
+          "status": {
+            "description": "Situação do registro (valores no enum).",
+            "type": "string",
+            "enum": [
+              "SCHEDULED",
+              "AUTHORIZED",
+              "PROCESSING_CANCELLATION",
+              "CANCELED",
+              "CANCELLATION_DENIED",
+              "ERROR"
+            ]
+          },
+          "customer": {
+            "description": "Filtra pelo cliente.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__nota_fiscal__obter__nfse",
+      "title": "Asaas: Recuperar uma única nota fiscal",
+      "description": "Asaas — Recuperar uma única nota fiscal (GET /v3/invoices/{id}). Retorna a NFS-e com status, número, código de verificação, links de PDF/XML e impostos. Quando usar: Buscar pdfUrl/xmlUrl após INVOICE_AUTHORIZED. Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: id da nota. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__nota_fiscal__atualizar__nfse",
+      "title": "Asaas: Atualizar nota fiscal",
+      "description": "Asaas — Atualizar nota fiscal (PUT /v3/invoices/{id}). Altera uma nota agendada (descrição, valor, deduções, data, impostos). Quando usar: Correção antes da emissão. Não use para criar registros nem para devolver dinheiro. Pré-requisitos: Nota em SCHEDULED (inferido). Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          },
+          "serviceDescription": {
+            "description": "Descrição do serviço prestado na NFS-e.",
+            "type": "string"
+          },
+          "observations": {
+            "description": "Texto livre de observações.",
+            "type": "string"
+          },
+          "externalReference": {
+            "description": "Seu identificador interno para este registro; útil em buscas e conciliação.",
+            "type": "string"
+          },
+          "value": {
+            "description": "Valor total dos serviços.",
+            "type": "number"
+          },
+          "deductions": {
+            "description": "Deduções da base de cálculo (não mudam o valor total).",
+            "type": "number"
+          },
+          "effectiveDate": {
+            "description": "Data de emissão da nota.",
+            "type": "string",
+            "format": "date"
+          },
+          "updatePayment": {
+            "description": "true desconta os impostos no valor da cobrança vinculada.",
+            "type": "boolean"
+          },
+          "taxes": {
+            "description": "Objeto de tributos da nota.",
+            "type": "object",
+            "properties": {
+              "nbsCode": {
+                "description": "Código NBS do serviço.",
+                "type": "string"
+              },
+              "taxSituationCode": {
+                "description": "Código de situação tributária (Reforma Tributária).",
+                "type": "string"
+              },
+              "taxClassificationCode": {
+                "description": "Código de classificação tributária.",
+                "type": "string"
+              },
+              "operationIndicatorCode": {
+                "description": "Código do indicador de operação.",
+                "type": "string"
+              },
+              "retainIss": {
+                "description": "Se o tomador retém o ISS.",
+                "type": "boolean"
+              },
+              "iss": {
+                "description": "Alíquota de ISS (%).",
+                "type": "number"
+              },
+              "pisCofinsRetentionType": {
+                "description": "Calculado pelo Asaas; não enviar.",
+                "type": "string"
+              },
+              "pisCofinsTaxStatus": {
+                "description": "Situação tributária de PIS/COFINS.",
+                "type": "string"
+              },
+              "operationPis": {
+                "description": "Alíquota PIS de apuração própria.",
+                "type": "number"
+              },
+              "operationCofins": {
+                "description": "Alíquota COFINS de apuração própria.",
+                "type": "number"
+              },
+              "pis": {
+                "description": "Alíquota PIS retida (%).",
+                "type": "number"
+              },
+              "cofins": {
+                "description": "Alíquota COFINS retida (%).",
+                "type": "number"
+              },
+              "csll": {
+                "description": "Alíquota CSLL (%).",
+                "type": "number"
+              },
+              "inss": {
+                "description": "Alíquota INSS (%).",
+                "type": "number"
+              },
+              "ir": {
+                "description": "Alíquota IR (%).",
+                "type": "number"
+              },
+              "operationTypeCode": {
+                "description": "Tipo de operação da Reforma Tributária (exigido em alguns serviços).",
+                "type": "integer"
+              },
+              "referencedInvoiceAccessKeyList": {
+                "description": "Chaves de NFS-e referenciadas.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "realEstateInfo": {
+                "description": "Dados do imóvel para operações imobiliárias.",
+                "type": "object"
+              }
+            },
+            "required": [
+              "retainIss",
+              "iss",
+              "pis",
+              "cofins",
+              "csll",
+              "inss",
+              "ir"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__nota_fiscal__emitir__nfse",
+      "title": "Asaas: Emitir uma nota fiscal",
+      "description": "Asaas — Emitir uma nota fiscal (POST /v3/invoices/{id}/authorize). Solicita a emissão imediata de uma nota agendada junto à prefeitura/portal nacional. Quando usar: Quando não quer esperar a effectiveDate. Gera documento fiscal com efeito legal: confirme com o usuário. Pré-requisitos: Nota agendada; Informações fiscais válidas. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__nota_fiscal__cancelar__nfse",
+      "title": "Asaas: Cancelar uma nota fiscal",
+      "description": "Asaas — Cancelar uma nota fiscal (POST /v3/invoices/{id}/cancel). Solicita o cancelamento de uma NFS-e; com cancelOnlyOnAsaas=true cancela apenas o registro no Asaas. Quando usar: Serviço não prestado ou nota emitida com erro. Não use para devolver valores já pagos (use estornar). Efeito relevante: confirme com o usuário antes. Pré-requisitos: Nota emitida ou agendada. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          },
+          "cancelOnlyOnAsaas": {
+            "description": "true cancela só no Asaas, sem pedir cancelamento à prefeitura.",
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__empresa__criar__subconta",
+      "title": "Asaas: Criar subconta",
+      "description": "Asaas — Criar subconta (POST /v3/accounts). Cria uma subconta vinculada (marketplace, SaaS, filiais). A resposta traz walletId e a apiKey da subconta, exibida só nesse momento; webhooks podem ser configurados no mesmo POST. Quando usar: Onboarding de sellers/parceiros que terão saldo e cobranças próprios. Não use se o registro pode já existir — consulte antes; a API não tem idempotência e a chamada não deve ser repetida às cegas. Pré-requisitos: Conta-pai pessoa jurídica (CNPJ); Período de avaliação regulatória para novos integradores. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Nome/razão social da subconta.",
+            "type": "string"
+          },
+          "email": {
+            "description": "E-mail da subconta.",
+            "type": "string"
+          },
+          "loginEmail": {
+            "description": "E-mail de login da subconta (padrão: email).",
+            "type": "string"
+          },
+          "cpfCnpj": {
+            "description": "CPF/CNPJ do titular da subconta.",
+            "type": "string"
+          },
+          "birthDate": {
+            "description": "Data de nascimento (pessoa física).",
+            "type": "string",
+            "format": "date"
+          },
+          "companyType": {
+            "description": "Natureza jurídica: MEI, LIMITED, INDIVIDUAL ou ASSOCIATION.",
+            "type": "string",
+            "enum": [
+              "MEI",
+              "LIMITED",
+              "INDIVIDUAL",
+              "ASSOCIATION"
+            ]
+          },
+          "phone": {
+            "description": "Telefone fixo com DDD.",
+            "type": "string"
+          },
+          "mobilePhone": {
+            "description": "Celular com DDD.",
+            "type": "string"
+          },
+          "site": {
+            "description": "Site da subconta.",
+            "type": "string"
+          },
+          "incomeValue": {
+            "description": "Faturamento ou renda mensal declarada.",
+            "type": "number"
+          },
+          "address": {
+            "description": "Logradouro (rua/avenida).",
+            "type": "string"
+          },
+          "addressNumber": {
+            "description": "Número do endereço.",
+            "type": "string"
+          },
+          "complement": {
+            "description": "Complemento do endereço (até 255 caracteres).",
+            "type": "string"
+          },
+          "province": {
+            "description": "Bairro.",
+            "type": "string"
+          },
+          "postalCode": {
+            "description": "CEP, somente dígitos.",
+            "type": "string"
+          },
+          "webhooks": {
+            "description": "Webhooks a criar junto com a subconta (mesmos campos de POST /v3/webhooks).",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "description": "Nome do webhook.",
+                  "type": "string"
+                },
+                "url": {
+                  "description": "URL que recebe os eventos.",
+                  "type": "string"
+                },
+                "email": {
+                  "description": "E-mail para alertas de falha.",
+                  "type": "string"
+                },
+                "enabled": {
+                  "description": "Webhook ativo.",
+                  "type": "boolean"
+                },
+                "interrupted": {
+                  "description": "Estado da fila (false = ativa).",
+                  "type": "boolean"
+                },
+                "apiVersion": {
+                  "description": "Versão da API (3).",
+                  "type": "integer"
+                },
+                "authToken": {
+                  "description": "Token enviado no header asaas-access-token.",
+                  "type": "string"
+                },
+                "sendType": {
+                  "description": "SEQUENTIALLY ou NON_SEQUENTIALLY.",
+                  "type": "string",
+                  "enum": [
+                    "NON_SEQUENTIALLY",
+                    "SEQUENTIALLY"
+                  ]
+                },
+                "events": {
+                  "description": "Eventos assinados.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "PAYMENT_AUTHORIZED",
+                      "PAYMENT_AWAITING_RISK_ANALYSIS",
+                      "PAYMENT_APPROVED_BY_RISK_ANALYSIS",
+                      "PAYMENT_REPROVED_BY_RISK_ANALYSIS",
+                      "PAYMENT_CREATED",
+                      "PAYMENT_UPDATED",
+                      "PAYMENT_CONFIRMED",
+                      "PAYMENT_RECEIVED",
+                      "PAYMENT_ANTICIPATED",
+                      "PAYMENT_OVERDUE",
+                      "PAYMENT_DELETED",
+                      "PAYMENT_RESTORED",
+                      "PAYMENT_REFUNDED",
+                      "PAYMENT_REFUND_IN_PROGRESS",
+                      "PAYMENT_REFUND_DENIED",
+                      "PAYMENT_RECEIVED_IN_CASH_UNDONE",
+                      "PAYMENT_CHARGEBACK_REQUESTED",
+                      "PAYMENT_CHARGEBACK_DISPUTE",
+                      "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
+                      "PAYMENT_DUNNING_RECEIVED",
+                      "PAYMENT_DUNNING_REQUESTED",
+                      "PAYMENT_BANK_SLIP_CANCELLED",
+                      "PAYMENT_BANK_SLIP_VIEWED",
+                      "PAYMENT_CHECKOUT_VIEWED",
+                      "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED",
+                      "PAYMENT_PARTIALLY_REFUNDED",
+                      "PAYMENT_SPLIT_CANCELLED",
+                      "PAYMENT_SPLIT_DIVERGENCE_BLOCK",
+                      "PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED",
+                      "PAYMENT_SPLIT_DONE",
+                      "INVOICE_CREATED",
+                      "INVOICE_UPDATED",
+                      "INVOICE_SYNCHRONIZED",
+                      "INVOICE_AUTHORIZED",
+                      "INVOICE_PROCESSING_CANCELLATION",
+                      "INVOICE_CANCELED",
+                      "INVOICE_CANCELLATION_DENIED",
+                      "INVOICE_ERROR",
+                      "TRANSFER_CREATED",
+                      "TRANSFER_PENDING",
+                      "TRANSFER_IN_BANK_PROCESSING",
+                      "TRANSFER_BLOCKED",
+                      "TRANSFER_DONE",
+                      "TRANSFER_FAILED",
+                      "TRANSFER_CANCELLED",
+                      "BILL_CREATED",
+                      "BILL_PENDING",
+                      "BILL_BANK_PROCESSING",
+                      "BILL_PAID",
+                      "BILL_CANCELLED",
+                      "BILL_FAILED",
+                      "BILL_REFUNDED",
+                      "RECEIVABLE_ANTICIPATION_CANCELLED",
+                      "RECEIVABLE_ANTICIPATION_SCHEDULED",
+                      "RECEIVABLE_ANTICIPATION_PENDING",
+                      "RECEIVABLE_ANTICIPATION_CREDITED",
+                      "RECEIVABLE_ANTICIPATION_DEBITED",
+                      "RECEIVABLE_ANTICIPATION_DENIED",
+                      "RECEIVABLE_ANTICIPATION_OVERDUE",
+                      "MOBILE_PHONE_RECHARGE_PENDING",
+                      "MOBILE_PHONE_RECHARGE_CANCELLED",
+                      "MOBILE_PHONE_RECHARGE_CONFIRMED",
+                      "MOBILE_PHONE_RECHARGE_REFUNDED",
+                      "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_APPROVED",
+                      "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_AWAITING_APPROVAL",
+                      "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_PENDING",
+                      "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_REJECTED",
+                      "ACCOUNT_STATUS_COMMERCIAL_INFO_APPROVED",
+                      "ACCOUNT_STATUS_COMMERCIAL_INFO_AWAITING_APPROVAL",
+                      "ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRED",
+                      "ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRING_SOON",
+                      "ACCOUNT_STATUS_COMMERCIAL_INFO_PENDING",
+                      "ACCOUNT_STATUS_COMMERCIAL_INFO_REJECTED",
+                      "ACCOUNT_STATUS_DOCUMENT_APPROVED",
+                      "ACCOUNT_STATUS_DOCUMENT_AWAITING_APPROVAL",
+                      "ACCOUNT_STATUS_DOCUMENT_PENDING",
+                      "ACCOUNT_STATUS_DOCUMENT_REJECTED",
+                      "ACCOUNT_STATUS_GENERAL_APPROVAL_APPROVED",
+                      "ACCOUNT_STATUS_GENERAL_APPROVAL_AWAITING_APPROVAL",
+                      "ACCOUNT_STATUS_GENERAL_APPROVAL_PENDING",
+                      "ACCOUNT_STATUS_GENERAL_APPROVAL_REJECTED",
+                      "SUBSCRIPTION_CREATED",
+                      "SUBSCRIPTION_UPDATED",
+                      "SUBSCRIPTION_INACTIVATED",
+                      "SUBSCRIPTION_DELETED",
+                      "SUBSCRIPTION_SPLIT_DISABLED",
+                      "SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK",
+                      "SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK_FINISHED",
+                      "CHECKOUT_CREATED",
+                      "CHECKOUT_CANCELED",
+                      "CHECKOUT_EXPIRED",
+                      "CHECKOUT_PAID",
+                      "BALANCE_VALUE_BLOCKED",
+                      "BALANCE_VALUE_UNBLOCKED",
+                      "INTERNAL_TRANSFER_CREDIT",
+                      "INTERNAL_TRANSFER_DEBIT",
+                      "ACCESS_TOKEN_CREATED",
+                      "ACCESS_TOKEN_DELETED",
+                      "ACCESS_TOKEN_DISABLED",
+                      "ACCESS_TOKEN_ENABLED",
+                      "ACCESS_TOKEN_EXPIRED",
+                      "ACCESS_TOKEN_EXPIRING_SOON",
+                      "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CREATED",
+                      "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED",
+                      "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CANCELLED",
+                      "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_EXPIRED",
+                      "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_REFUSED",
+                      "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CREATED",
+                      "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_SCHEDULED",
+                      "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_REFUSED",
+                      "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CANCELLED",
+                      "PIX_AUTOMATIC_RECURRING_ELIGIBILITY_UPDATED"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "url",
+                "email",
+                "enabled",
+                "interrupted",
+                "apiVersion",
+                "authToken",
+                "sendType",
+                "events"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "email",
+          "cpfCnpj",
+          "mobilePhone",
+          "incomeValue",
+          "address",
+          "addressNumber",
+          "province",
+          "postalCode"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__empresa__listar__subconta",
+      "title": "Asaas: Listar subcontas",
+      "description": "Asaas — Listar subcontas (GET /v3/accounts). Lista subcontas com filtros por CPF/CNPJ, e-mail, nome e walletId. Quando usar: Gestão da rede de subcontas. Não use para acompanhar mudanças de status em tempo real (prefira webhooks) nem em loops frequentes (cota de 25.000 req/12h). Pré-requisitos: Chave da conta-pai. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "offset": {
+            "description": "Posição inicial da página (começa em 0).",
+            "type": "integer"
+          },
+          "limit": {
+            "description": "Tamanho da página; 1 a 100, padrão 10.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "cpfCnpj": {
+            "description": "Filtra por CPF/CNPJ.",
+            "type": "string"
+          },
+          "email": {
+            "description": "Filtra por e-mail.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Filtra por nome.",
+            "type": "string"
+          },
+          "walletId": {
+            "description": "Filtra por walletId.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__empresa__obter__subconta",
+      "title": "Asaas: Recuperar uma única subconta",
+      "description": "Asaas — Recuperar uma única subconta (GET /v3/accounts/{id}). Retorna os dados cadastrais e o walletId de uma subconta. Quando usar: Obter walletId para split/transferência. Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: id da subconta. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__autenticacao__autenticar__chave_subconta",
+      "title": "Asaas: Criar chave de API para uma subconta",
+      "description": "Asaas — Criar chave de API para uma subconta (POST /v3/accounts/{id}/accessTokens). A conta-pai gera uma nova chave de API para uma subconta, com nome e expiração opcionais — útil para substituir chaves expiradas por inatividade. Quando usar: Rotação de credenciais de subcontas. A API do Asaas não tem endpoint de login/token para a conta principal: a chave é criada no painel. Gera credencial sensível: nunca exiba a chave retornada em logs ou no chat. Pré-requisitos: Chave da conta-pai; Operação BaaS ou subcontas de filiais com mesmo prefixo de CNPJ (após o período de avaliação). Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Nome de identificação da nova chave.",
+            "type": "string"
+          },
+          "expirationDate": {
+            "description": "Data/hora de expiração da chave.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__webhook__assinar_webhook",
+      "title": "Asaas: Criar novo webhook",
+      "description": "Asaas — Criar novo webhook (POST /v3/webhooks). Registra uma URL para receber eventos escolhidos (events), com token de autenticação (authToken enviado no header asaas-access-token) e modo de envio sequencial ou paralelo. Quando usar: Na implantação da integração, em cada ambiente (sandbox e produção são independentes) e em cada subconta. Limite de 10 webhooks por conta; verifique os existentes antes de criar. Pré-requisitos: URL pública HTTPS; authToken com 32 a 255 caracteres, sem espaços e que não seja uma API Key. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Nome da configuração.",
+            "type": "string"
+          },
+          "url": {
+            "description": "URL pública que receberá os POSTs de eventos.",
+            "type": "string"
+          },
+          "email": {
+            "description": "E-mail que recebe alertas de falha/fila.",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "Liga/desliga o envio.",
+            "type": "boolean"
+          },
+          "interrupted": {
+            "description": "Estado da fila; false reativa uma fila interrompida.",
+            "type": "boolean"
+          },
+          "apiVersion": {
+            "description": "Versão da API dos payloads (3).",
+            "type": "integer"
+          },
+          "authToken": {
+            "description": "Segredo (32–255 caracteres, sem espaços, não pode ser API Key) enviado em asaas-access-token.",
+            "type": "string"
+          },
+          "sendType": {
+            "description": "SEQUENTIALLY (preserva ordem) ou NON_SEQUENTIALLY (paralelo, sem ordem).",
+            "type": "string",
+            "enum": [
+              "NON_SEQUENTIALLY",
+              "SEQUENTIALLY"
+            ]
+          },
+          "events": {
+            "description": "Lista de eventos a receber.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "PAYMENT_AUTHORIZED",
+                "PAYMENT_AWAITING_RISK_ANALYSIS",
+                "PAYMENT_APPROVED_BY_RISK_ANALYSIS",
+                "PAYMENT_REPROVED_BY_RISK_ANALYSIS",
+                "PAYMENT_CREATED",
+                "PAYMENT_UPDATED",
+                "PAYMENT_CONFIRMED",
+                "PAYMENT_RECEIVED",
+                "PAYMENT_ANTICIPATED",
+                "PAYMENT_OVERDUE",
+                "PAYMENT_DELETED",
+                "PAYMENT_RESTORED",
+                "PAYMENT_REFUNDED",
+                "PAYMENT_REFUND_IN_PROGRESS",
+                "PAYMENT_REFUND_DENIED",
+                "PAYMENT_RECEIVED_IN_CASH_UNDONE",
+                "PAYMENT_CHARGEBACK_REQUESTED",
+                "PAYMENT_CHARGEBACK_DISPUTE",
+                "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
+                "PAYMENT_DUNNING_RECEIVED",
+                "PAYMENT_DUNNING_REQUESTED",
+                "PAYMENT_BANK_SLIP_CANCELLED",
+                "PAYMENT_BANK_SLIP_VIEWED",
+                "PAYMENT_CHECKOUT_VIEWED",
+                "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED",
+                "PAYMENT_PARTIALLY_REFUNDED",
+                "PAYMENT_SPLIT_CANCELLED",
+                "PAYMENT_SPLIT_DIVERGENCE_BLOCK",
+                "PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED",
+                "PAYMENT_SPLIT_DONE",
+                "INVOICE_CREATED",
+                "INVOICE_UPDATED",
+                "INVOICE_SYNCHRONIZED",
+                "INVOICE_AUTHORIZED",
+                "INVOICE_PROCESSING_CANCELLATION",
+                "INVOICE_CANCELED",
+                "INVOICE_CANCELLATION_DENIED",
+                "INVOICE_ERROR",
+                "TRANSFER_CREATED",
+                "TRANSFER_PENDING",
+                "TRANSFER_IN_BANK_PROCESSING",
+                "TRANSFER_BLOCKED",
+                "TRANSFER_DONE",
+                "TRANSFER_FAILED",
+                "TRANSFER_CANCELLED",
+                "BILL_CREATED",
+                "BILL_PENDING",
+                "BILL_BANK_PROCESSING",
+                "BILL_PAID",
+                "BILL_CANCELLED",
+                "BILL_FAILED",
+                "BILL_REFUNDED",
+                "RECEIVABLE_ANTICIPATION_CANCELLED",
+                "RECEIVABLE_ANTICIPATION_SCHEDULED",
+                "RECEIVABLE_ANTICIPATION_PENDING",
+                "RECEIVABLE_ANTICIPATION_CREDITED",
+                "RECEIVABLE_ANTICIPATION_DEBITED",
+                "RECEIVABLE_ANTICIPATION_DENIED",
+                "RECEIVABLE_ANTICIPATION_OVERDUE",
+                "MOBILE_PHONE_RECHARGE_PENDING",
+                "MOBILE_PHONE_RECHARGE_CANCELLED",
+                "MOBILE_PHONE_RECHARGE_CONFIRMED",
+                "MOBILE_PHONE_RECHARGE_REFUNDED",
+                "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_APPROVED",
+                "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_AWAITING_APPROVAL",
+                "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_PENDING",
+                "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_REJECTED",
+                "ACCOUNT_STATUS_COMMERCIAL_INFO_APPROVED",
+                "ACCOUNT_STATUS_COMMERCIAL_INFO_AWAITING_APPROVAL",
+                "ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRED",
+                "ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRING_SOON",
+                "ACCOUNT_STATUS_COMMERCIAL_INFO_PENDING",
+                "ACCOUNT_STATUS_COMMERCIAL_INFO_REJECTED",
+                "ACCOUNT_STATUS_DOCUMENT_APPROVED",
+                "ACCOUNT_STATUS_DOCUMENT_AWAITING_APPROVAL",
+                "ACCOUNT_STATUS_DOCUMENT_PENDING",
+                "ACCOUNT_STATUS_DOCUMENT_REJECTED",
+                "ACCOUNT_STATUS_GENERAL_APPROVAL_APPROVED",
+                "ACCOUNT_STATUS_GENERAL_APPROVAL_AWAITING_APPROVAL",
+                "ACCOUNT_STATUS_GENERAL_APPROVAL_PENDING",
+                "ACCOUNT_STATUS_GENERAL_APPROVAL_REJECTED",
+                "SUBSCRIPTION_CREATED",
+                "SUBSCRIPTION_UPDATED",
+                "SUBSCRIPTION_INACTIVATED",
+                "SUBSCRIPTION_DELETED",
+                "SUBSCRIPTION_SPLIT_DISABLED",
+                "SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK",
+                "SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK_FINISHED",
+                "CHECKOUT_CREATED",
+                "CHECKOUT_CANCELED",
+                "CHECKOUT_EXPIRED",
+                "CHECKOUT_PAID",
+                "BALANCE_VALUE_BLOCKED",
+                "BALANCE_VALUE_UNBLOCKED",
+                "INTERNAL_TRANSFER_CREDIT",
+                "INTERNAL_TRANSFER_DEBIT",
+                "ACCESS_TOKEN_CREATED",
+                "ACCESS_TOKEN_DELETED",
+                "ACCESS_TOKEN_DISABLED",
+                "ACCESS_TOKEN_ENABLED",
+                "ACCESS_TOKEN_EXPIRED",
+                "ACCESS_TOKEN_EXPIRING_SOON",
+                "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CREATED",
+                "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED",
+                "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CANCELLED",
+                "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_EXPIRED",
+                "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_REFUSED",
+                "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CREATED",
+                "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_SCHEDULED",
+                "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_REFUSED",
+                "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CANCELLED",
+                "PIX_AUTOMATIC_RECURRING_ELIGIBILITY_UPDATED"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "url",
+          "email",
+          "enabled",
+          "interrupted",
+          "apiVersion",
+          "authToken",
+          "sendType",
+          "events"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__webhook__listar",
+      "title": "Asaas: Listar webhooks",
+      "description": "Asaas — Listar webhooks (GET /v3/webhooks). Lista as configurações de webhook da conta, com estado da fila (interrupted) e contagem de requisições penalizadas. Quando usar: Monitorar filas interrompidas/penalizadas (ex.: job diário de saúde da integração). Não use para acompanhar mudanças de status em tempo real (prefira webhooks) nem em loops frequentes (cota de 25.000 req/12h). Pré-requisitos: Chave de API. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "offset": {
+            "description": "Posição inicial da página (começa em 0).",
+            "type": "integer"
+          },
+          "limit": {
+            "description": "Tamanho da página; 1 a 100, padrão 10.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__webhook__obter",
+      "title": "Asaas: Recuperar um único webhook",
+      "description": "Asaas — Recuperar um único webhook (GET /v3/webhooks/{id}). Consulta uma configuração de webhook pelo id. Quando usar: Verificar eventos assinados e estado da fila. Não use em polling contínuo; para mudanças de estado assine webhooks. Pré-requisitos: id do webhook. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__webhook__atualizar",
+      "title": "Asaas: Atualizar webhook existente",
+      "description": "Asaas — Atualizar webhook existente (PUT /v3/webhooks/{id}). Altera URL, eventos, token, modo de envio e estado; enviar interrupted=false reativa uma fila interrompida. Quando usar: Reativar fila após corrigir o endpoint, trocar URL ou incluir eventos. Não use para criar registros nem para devolver dinheiro. Pré-requisitos: id do webhook; Causa da falha corrigida. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Nome da configuração.",
+            "type": "string"
+          },
+          "url": {
+            "description": "URL pública que receberá os POSTs de eventos.",
+            "type": "string"
+          },
+          "sendType": {
+            "description": "SEQUENTIALLY (preserva ordem) ou NON_SEQUENTIALLY (paralelo, sem ordem).",
+            "type": "string",
+            "enum": [
+              "NON_SEQUENTIALLY",
+              "SEQUENTIALLY"
+            ]
+          },
+          "enabled": {
+            "description": "Liga/desliga o envio.",
+            "type": "boolean"
+          },
+          "interrupted": {
+            "description": "Estado da fila; false reativa uma fila interrompida.",
+            "type": "boolean"
+          },
+          "authToken": {
+            "description": "Segredo (32–255 caracteres, sem espaços, não pode ser API Key) enviado em asaas-access-token.",
+            "type": "string"
+          },
+          "events": {
+            "description": "Lista de eventos a receber.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "PAYMENT_AUTHORIZED",
+                "PAYMENT_AWAITING_RISK_ANALYSIS",
+                "PAYMENT_APPROVED_BY_RISK_ANALYSIS",
+                "PAYMENT_REPROVED_BY_RISK_ANALYSIS",
+                "PAYMENT_CREATED",
+                "PAYMENT_UPDATED",
+                "PAYMENT_CONFIRMED",
+                "PAYMENT_RECEIVED",
+                "PAYMENT_ANTICIPATED",
+                "PAYMENT_OVERDUE",
+                "PAYMENT_DELETED",
+                "PAYMENT_RESTORED",
+                "PAYMENT_REFUNDED",
+                "PAYMENT_REFUND_IN_PROGRESS",
+                "PAYMENT_REFUND_DENIED",
+                "PAYMENT_RECEIVED_IN_CASH_UNDONE",
+                "PAYMENT_CHARGEBACK_REQUESTED",
+                "PAYMENT_CHARGEBACK_DISPUTE",
+                "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
+                "PAYMENT_DUNNING_RECEIVED",
+                "PAYMENT_DUNNING_REQUESTED",
+                "PAYMENT_BANK_SLIP_CANCELLED",
+                "PAYMENT_BANK_SLIP_VIEWED",
+                "PAYMENT_CHECKOUT_VIEWED",
+                "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED",
+                "PAYMENT_PARTIALLY_REFUNDED",
+                "PAYMENT_SPLIT_CANCELLED",
+                "PAYMENT_SPLIT_DIVERGENCE_BLOCK",
+                "PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED",
+                "PAYMENT_SPLIT_DONE",
+                "INVOICE_CREATED",
+                "INVOICE_UPDATED",
+                "INVOICE_SYNCHRONIZED",
+                "INVOICE_AUTHORIZED",
+                "INVOICE_PROCESSING_CANCELLATION",
+                "INVOICE_CANCELED",
+                "INVOICE_CANCELLATION_DENIED",
+                "INVOICE_ERROR",
+                "TRANSFER_CREATED",
+                "TRANSFER_PENDING",
+                "TRANSFER_IN_BANK_PROCESSING",
+                "TRANSFER_BLOCKED",
+                "TRANSFER_DONE",
+                "TRANSFER_FAILED",
+                "TRANSFER_CANCELLED",
+                "BILL_CREATED",
+                "BILL_PENDING",
+                "BILL_BANK_PROCESSING",
+                "BILL_PAID",
+                "BILL_CANCELLED",
+                "BILL_FAILED",
+                "BILL_REFUNDED",
+                "RECEIVABLE_ANTICIPATION_CANCELLED",
+                "RECEIVABLE_ANTICIPATION_SCHEDULED",
+                "RECEIVABLE_ANTICIPATION_PENDING",
+                "RECEIVABLE_ANTICIPATION_CREDITED",
+                "RECEIVABLE_ANTICIPATION_DEBITED",
+                "RECEIVABLE_ANTICIPATION_DENIED",
+                "RECEIVABLE_ANTICIPATION_OVERDUE",
+                "MOBILE_PHONE_RECHARGE_PENDING",
+                "MOBILE_PHONE_RECHARGE_CANCELLED",
+                "MOBILE_PHONE_RECHARGE_CONFIRMED",
+                "MOBILE_PHONE_RECHARGE_REFUNDED",
+                "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_APPROVED",
+                "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_AWAITING_APPROVAL",
+                "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_PENDING",
+                "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_REJECTED",
+                "ACCOUNT_STATUS_COMMERCIAL_INFO_APPROVED",
+                "ACCOUNT_STATUS_COMMERCIAL_INFO_AWAITING_APPROVAL",
+                "ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRED",
+                "ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRING_SOON",
+                "ACCOUNT_STATUS_COMMERCIAL_INFO_PENDING",
+                "ACCOUNT_STATUS_COMMERCIAL_INFO_REJECTED",
+                "ACCOUNT_STATUS_DOCUMENT_APPROVED",
+                "ACCOUNT_STATUS_DOCUMENT_AWAITING_APPROVAL",
+                "ACCOUNT_STATUS_DOCUMENT_PENDING",
+                "ACCOUNT_STATUS_DOCUMENT_REJECTED",
+                "ACCOUNT_STATUS_GENERAL_APPROVAL_APPROVED",
+                "ACCOUNT_STATUS_GENERAL_APPROVAL_AWAITING_APPROVAL",
+                "ACCOUNT_STATUS_GENERAL_APPROVAL_PENDING",
+                "ACCOUNT_STATUS_GENERAL_APPROVAL_REJECTED",
+                "SUBSCRIPTION_CREATED",
+                "SUBSCRIPTION_UPDATED",
+                "SUBSCRIPTION_INACTIVATED",
+                "SUBSCRIPTION_DELETED",
+                "SUBSCRIPTION_SPLIT_DISABLED",
+                "SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK",
+                "SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK_FINISHED",
+                "CHECKOUT_CREATED",
+                "CHECKOUT_CANCELED",
+                "CHECKOUT_EXPIRED",
+                "CHECKOUT_PAID",
+                "BALANCE_VALUE_BLOCKED",
+                "BALANCE_VALUE_UNBLOCKED",
+                "INTERNAL_TRANSFER_CREDIT",
+                "INTERNAL_TRANSFER_DEBIT",
+                "ACCESS_TOKEN_CREATED",
+                "ACCESS_TOKEN_DELETED",
+                "ACCESS_TOKEN_DISABLED",
+                "ACCESS_TOKEN_ENABLED",
+                "ACCESS_TOKEN_EXPIRED",
+                "ACCESS_TOKEN_EXPIRING_SOON",
+                "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CREATED",
+                "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED",
+                "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CANCELLED",
+                "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_EXPIRED",
+                "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_REFUSED",
+                "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CREATED",
+                "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_SCHEDULED",
+                "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_REFUSED",
+                "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CANCELLED",
+                "PIX_AUTOMATIC_RECURRING_ELIGIBILITY_UPDATED"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__webhook__excluir",
+      "title": "Asaas: Remover um webhook",
+      "description": "Asaas — Remover um webhook (DELETE /v3/webhooks/{id}). Apaga uma configuração de webhook. Quando usar: Desativar definitivamente um destino de eventos. Ação de remoção: confirme com o usuário antes. Pré-requisitos: id do webhook. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "asaas__webhook__atualizar__remover_penalizacao",
+      "title": "Asaas: Remover penalização de webhook",
+      "description": "Asaas — Remover penalização de webhook (POST /v3/webhooks/{id}/removeBackoff). Zera o intervalo de espera (backoff) de todas as entregas penalizadas de uma configuração, para reenvio sem aguardar o próximo ciclo. Quando usar: Somente depois de corrigir o endpoint, com a fila ainda não interrompida. Não use para criar registros nem para devolver dinheiro. Pré-requisitos: id do webhook. Autenticação: header access_token; sandbox https://api-sandbox.asaas.com/v3, produção https://api.asaas.com/v3.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Identificador do recurso no Asaas, enviado no caminho da URL.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

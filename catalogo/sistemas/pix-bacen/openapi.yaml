@@ -1,0 +1,4867 @@
+openapi: 3.1.0
+info:
+  title: API Pix — padrão do Banco Central (reconstruída para o catálogo)
+  version: 2.10.0
+  summary: Contrato que todo PSP recebedor expõe ao usuário recebedor no arranjo Pix.
+  description: 'Reconstrução, para uso do catálogo, da API Pix especificada pelo Banco Central do Brasil (repositório oficial
+    bacen/pix-api, release 2.10.0 de 19/08/2026). Não substitui a especificação oficial: use-a como referência de integração.
+
+
+    Base URL: o padrão do Banco Central define caminhos e schemas, não host. Quem hospeda a API é o PSP recebedor (banco ou
+    instituição de pagamento) do cliente, e a especificação usa servidores fictícios (pix.example.com). Use a base publicada
+    pelo seu PSP, com o major v2 no caminho, e uma base separada para homologação.
+
+
+    Autenticação: OAuth 2.0 no fluxo client credentials sobre TLS mútuo obrigatório (RFC 8705). O certificado cliente emitido
+    pelo PSP vai no handshake da chamada de token e de toda chamada da API; o access_token fica vinculado ao thumbprint desse
+    certificado, e o token viaja em Authorization: Bearer. Não há refresh token: expirou, peça outro.
+
+
+    Modelo de erro: RFC 7807 (application/problem+json) com type no padrão https://pix.bcb.gov.br/api/v2/error/<TipoErro>,
+    mais title, status, detail, correlationId e, em erro de campo, o array violacoes[] com razao, propriedade e valor.
+
+
+    O endpoint POST /oauth/token descrito aqui é ilustrativo: fica no Authorization Server do PSP, cujo caminho e TTL de token
+    não são padronizados pelo arranjo.'
+  contact:
+    name: Suporte Pix — Banco Central do Brasil
+    url: https://www.bcb.gov.br/estabilidadefinanceira/pix
+  license:
+    name: Apache 2.0
+    identifier: Apache-2.0
+externalDocs:
+  description: Especificação oficial da API Pix (bacen/pix-api 2.10.0)
+  url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+servers:
+- url: https://{hostProducao}/{basePath}
+  description: Produção — host definido por cada PSP recebedor; não existe base URL do Banco Central.
+  variables:
+    hostProducao:
+      default: api.seupsp.com.br
+      description: Host de produção publicado pelo seu PSP.
+    basePath:
+      default: pix/v2
+      description: Caminho base; o major v2 do padrão aparece aqui.
+- url: https://{hostHomologacao}/{basePath}
+  description: Homologação/sandbox — ofertada por cada PSP; o Banco Central não publica sandbox.
+  variables:
+    hostHomologacao:
+      default: api-h.seupsp.com.br
+      description: Host de homologação publicado pelo seu PSP.
+    basePath:
+      default: pix/v2
+      description: Caminho base de homologação.
+tags:
+- name: Cobranca
+  description: cob, cobv, lotecobv, loc e cobr do Pix Automático
+- name: Transacao
+  description: Pix recebidos e devoluções
+- name: Webhook
+  description: webhook, webhookrec e webhookcobr
+- name: Assinatura
+  description: rec, solicrec e locrec do Pix Automático
+- name: Autenticacao
+  description: token OAuth2 no Authorization Server do PSP
+paths:
+  /cob/{txid}:
+    put:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__criar
+      summary: Criar cobrança imediata (txid definido pelo recebedor)
+      description: 'Cria uma cobrança Pix imediata (QR dinâmico sem vencimento) com um txid escolhido pelo usuário recebedor.
+        Se o txid já existir e a cobrança estiver ATIVA, a chamada atualiza os campos enviados e incrementa a revisão.
+
+
+        Quando usar: Forma recomendada de criar cobrança: como o txid é seu, a operação vira idempotente — repetir o PUT com
+        o mesmo txid e o mesmo corpo não gera uma segunda cobrança, o que salva a integração em timeout e retry. Use o número
+        do pedido/título do ERP dentro do txid para conciliar depois.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - cob.write
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"calendario": {"criacao": "datetime", "expiracao": "integer"}, "txid": "string", "revisao":
+                  "integer", "status": "CobStatus", "devedor": "objeto opcional", "valor": {"original": "string decimal"},
+                  "chave": "string", "loc": "objeto location", "location": "string", "pixCopiaECola": "string (BR Code)"}'
+              example: &id006
+                calendario: &id001
+                  criacao: '2026-08-12T14:02:11.358Z'
+                  expiracao: 3600
+                txid: pedido2026081200000000000042
+                revisao: 0
+                status: ATIVA
+                devedor: &id002
+                  cnpj: 00000000000191
+                  nome: Comercio Exemplo Ltda
+                valor: &id005
+                  original: '149.90'
+                  modalidadeAlteracao: 0
+                chave: 00000000-0000-4000-8000-000000000000
+                solicitacaoPagador: Pedido 4210
+                loc: &id003
+                  id: 7788
+                  location: pix.example.com/qr/v2/2353c790eefb11eaadc10242ac120002
+                  tipoCob: cob
+                  criacao: '2026-08-12T14:02:11.001Z'
+                location: pix.example.com/qr/v2/2353c790eefb11eaadc10242ac120002
+                pixCopiaECola: 00020101021226870014br.gov.bcb.pix...6304ABCD
+        '400':
+          description: CobOperacaoInvalida — A requisição que cria ou altera a cobrança imediata não respeita o schema ou
+            está semanticamente errada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: CobNaoEncontrado — Cobrança não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '500':
+          description: ErroInternoDoServidor — Condição inesperada ao processar a requisição.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: txid
+        in: path
+        required: true
+        description: Identificador da transação definido pelo usuário recebedor. Escolha um valor derivado do seu documento
+          de origem, por exemplo o número do pedido com prefixo e padding.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{26,35}'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                calendario.expiracao:
+                  type: integer
+                  minimum: 1
+                  default: 3600
+                  description: 'Tempo de vida da cobrança em segundos, contado da criação. Padrão do arranjo: 3600.'
+                devedor.cpf:
+                  type: string
+                  pattern: ^[0-9]{11}$
+                  description: CPF do devedor. Exclusivo com devedor.cnpj.
+                devedor.cnpj:
+                  type: string
+                  pattern: ^[0-9A-Z]{14}$
+                  description: CNPJ do devedor. Exclusivo com devedor.cpf.
+                devedor.nome:
+                  type: string
+                  maxLength: 200
+                  description: Nome ou razão social do devedor.
+                valor.original:
+                  type: string
+                  description: Valor da cobrança em reais, como texto com duas casas decimais.
+                valor.modalidadeAlteracao:
+                  type: integer
+                  enum: &id004
+                  - 0
+                  - 1
+                  default: 0
+                  description: 0 (padrão) não deixa o pagador alterar o valor; 1 permite valor aberto no app do pagador.
+                chave:
+                  type: string
+                  maxLength: 77
+                  description: Chave Pix do recebedor, registrada no DICT, que receberá o crédito.
+                solicitacaoPagador:
+                  type: string
+                  maxLength: 140
+                  description: 'Texto exibido ao pagador pedindo uma informação (ex.: número do pedido).'
+                infoAdicionais:
+                  type: array
+                  description: Lista de pares {nome, valor} mostrados ao pagador no app. nome até 50 e valor até 200 caracteres.
+                loc.id:
+                  type: integer
+                  description: Id de uma location criada em POST /loc, para servir o QR dinâmico nessa URL.
+              required:
+              - valor.original
+            example:
+              calendario:
+                expiracao: 3600
+              devedor:
+                cnpj: 00000000000191
+                nome: Comercio Exemplo Ltda
+              valor:
+                original: '149.90'
+              chave: 00000000-0000-4000-8000-000000000000
+              solicitacaoPagador: Pedido 4210
+              infoAdicionais:
+              - nome: Pedido
+                valor: '4210'
+    patch:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__atualizar
+      summary: Revisar cobrança imediata
+      description: 'Altera campos de uma cobrança imediata ATIVA, incrementando revisao, ou remove a cobrança enviando status
+        REMOVIDA_PELO_USUARIO_RECEBEDOR.
+
+
+        Quando usar: Use para corrigir valor, devedor ou informações adicionais antes do pagamento, e para cancelar uma cobrança
+        que não será mais paga — no Pix, cancelar é justamente este PATCH com status REMOVIDA_PELO_USUARIO_RECEBEDOR.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - cob.write
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"txid": "string", "revisao": "integer incrementado", "status": "CobStatus", "valor": "objeto"}'
+              example:
+                calendario: *id001
+                txid: pedido2026081200000000000042
+                revisao: 1
+                status: ATIVA
+                devedor: *id002
+                valor:
+                  original: '159.90'
+                  modalidadeAlteracao: 0
+                chave: 00000000-0000-4000-8000-000000000000
+                solicitacaoPagador: Pedido 4210
+                loc: *id003
+                location: pix.example.com/qr/v2/2353c790eefb11eaadc10242ac120002
+                pixCopiaECola: 00020101021226870014br.gov.bcb.pix...6304ABCD
+        '400':
+          description: CobOperacaoInvalida — Cobrança não está ATIVA, ou a remoção veio junto com outras alterações.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: CobNaoEncontrado — Cobrança não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: txid
+        in: path
+        required: true
+        description: Identificador da transação definido pelo usuário recebedor.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{26,35}'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - REMOVIDA_PELO_USUARIO_RECEBEDOR
+                  description: Envie REMOVIDA_PELO_USUARIO_RECEBEDOR para cancelar a cobrança.
+                devedor.cpf:
+                  type: string
+                  pattern: ^[0-9]{11}$
+                  description: CPF do devedor. Exclusivo com devedor.cnpj.
+                devedor.cnpj:
+                  type: string
+                  pattern: ^[0-9A-Z]{14}$
+                  description: CNPJ do devedor. Exclusivo com devedor.cpf.
+                devedor.nome:
+                  type: string
+                  maxLength: 200
+                  description: Nome ou razão social do devedor.
+                valor.original:
+                  type: string
+                  description: Valor da cobrança em reais, como texto com duas casas decimais.
+                valor.modalidadeAlteracao:
+                  type: integer
+                  enum: *id004
+                  default: 0
+                  description: 0 (padrão) não deixa o pagador alterar o valor; 1 permite valor aberto no app do pagador.
+                chave:
+                  type: string
+                  maxLength: 77
+                  description: Chave Pix do recebedor, registrada no DICT, que receberá o crédito.
+                solicitacaoPagador:
+                  type: string
+                  maxLength: 140
+                  description: 'Texto exibido ao pagador pedindo uma informação (ex.: número do pedido).'
+                infoAdicionais:
+                  type: array
+                  description: Lista de pares {nome, valor} mostrados ao pagador no app. nome até 50 e valor até 200 caracteres.
+                loc.id:
+                  type: integer
+                  description: Id de uma location criada em POST /loc, para servir o QR dinâmico nessa URL.
+              required:
+              - valor.original
+            example:
+              valor:
+                original: '159.90'
+              solicitacaoPagador: Pedido 4210 - revisado
+    get:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__obter
+      summary: Consultar cobrança imediata
+      description: 'Devolve uma cobrança imediata pelo txid, com status, valores, BR Code e o array pix[] com os pagamentos
+        já liquidados e suas devoluções.
+
+
+        Quando usar: É a confirmação oficial de que um Pix foi recebido: o webhook é só um aviso sem assinatura, então consulte
+        aqui (ou GET /pix) antes de liberar pedido ou dar baixa no título. Também serve para recuperar uma revisão anterior.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - cob.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"calendario": "objeto", "txid": "string", "revisao": "integer", "status": "CobStatus", "valor":
+                  "objeto", "chave": "string", "pixCopiaECola": "string", "pix": "array de Pix liquidados, com endToEndId,
+                  valor, horario e devolucoes[]"}'
+              example:
+                calendario: *id001
+                txid: pedido2026081200000000000042
+                revisao: 0
+                status: CONCLUIDA
+                devedor: *id002
+                valor: *id005
+                chave: 00000000-0000-4000-8000-000000000000
+                solicitacaoPagador: Pedido 4210
+                loc: *id003
+                location: pix.example.com/qr/v2/2353c790eefb11eaadc10242ac120002
+                pixCopiaECola: 00020101021226870014br.gov.bcb.pix...6304ABCD
+                pix:
+                - endToEndId: E00000000202608121402abcdef123456
+                  txid: pedido2026081200000000000042
+                  valor: '149.90'
+                  horario: '2026-08-12T14:09:52.771Z'
+                  infoPagador: Pedido 4210
+        '404':
+          description: CobNaoEncontrado — Cobrança não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '400':
+          description: CobConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '410':
+          description: PermanentementeRemovido — A entidade existiu e foi removida em definitivo.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: txid
+        in: path
+        required: true
+        description: Identificador da transação definido pelo usuário recebedor.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{26,35}'
+      - name: revisao
+        in: query
+        required: false
+        description: Recupera uma revisão específica da cobrança. Sem o parâmetro, vem a revisão corrente.
+        schema:
+          type: integer
+          minimum: 0
+  /cob:
+    post:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__criar__cob_txid_psp
+      summary: Criar cobrança imediata com txid gerado pelo PSP
+      description: 'Cria uma cobrança Pix imediata deixando a geração do txid a cargo do PSP recebedor. O txid gerado volta
+        no corpo da resposta.
+
+
+        Quando usar: Use quando não houver um identificador próprio para amarrar à cobrança — carrinho anônimo, totem, doação.
+        Para qualquer fluxo com pedido/título no ERP, prefira o PUT /cob/{txid}: o POST não é idempotente e uma retentativa
+        por timeout cria uma segunda cobrança.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - cob.write
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"txid": "string gerado pelo PSP", "revisao": "integer", "status": "CobStatus", "calendario":
+                  "objeto", "valor": "objeto", "location": "string", "pixCopiaECola": "string"}'
+              example:
+                calendario: *id001
+                txid: 7978c0c97ea847e78e8849634473c1f1
+                revisao: 0
+                status: ATIVA
+                devedor: *id002
+                valor:
+                  original: '45.00'
+                  modalidadeAlteracao: 0
+                chave: 00000000-0000-4000-8000-000000000000
+                solicitacaoPagador: Doacao campanha 2026
+                loc: *id003
+                location: pix.example.com/qr/v2/2353c790eefb11eaadc10242ac120002
+                pixCopiaECola: 00020101021226870014br.gov.bcb.pix...6304ABCD
+        '400':
+          description: CobOperacaoInvalida — Corpo fora do schema ou semanticamente inválido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '500':
+          description: ErroInternoDoServidor — Condição inesperada ao processar a requisição.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                calendario.expiracao:
+                  type: integer
+                  minimum: 1
+                  default: 3600
+                  description: Tempo de vida da cobrança em segundos a partir da criação.
+                devedor.cpf:
+                  type: string
+                  pattern: ^[0-9]{11}$
+                  description: CPF do devedor. Exclusivo com devedor.cnpj.
+                devedor.cnpj:
+                  type: string
+                  pattern: ^[0-9A-Z]{14}$
+                  description: CNPJ do devedor. Exclusivo com devedor.cpf.
+                devedor.nome:
+                  type: string
+                  maxLength: 200
+                  description: Nome ou razão social do devedor.
+                valor.original:
+                  type: string
+                  description: Valor da cobrança em reais, como texto com duas casas decimais.
+                valor.modalidadeAlteracao:
+                  type: integer
+                  enum: *id004
+                  default: 0
+                  description: 0 (padrão) não deixa o pagador alterar o valor; 1 permite valor aberto no app do pagador.
+                chave:
+                  type: string
+                  maxLength: 77
+                  description: Chave Pix do recebedor, registrada no DICT, que receberá o crédito.
+                solicitacaoPagador:
+                  type: string
+                  maxLength: 140
+                  description: 'Texto exibido ao pagador pedindo uma informação (ex.: número do pedido).'
+                infoAdicionais:
+                  type: array
+                  description: Lista de pares {nome, valor} mostrados ao pagador no app. nome até 50 e valor até 200 caracteres.
+                loc.id:
+                  type: integer
+                  description: Id de uma location criada em POST /loc, para servir o QR dinâmico nessa URL.
+              required:
+              - valor.original
+            example:
+              calendario:
+                expiracao: 900
+              valor:
+                original: '45.00'
+              chave: 00000000-0000-4000-8000-000000000000
+              solicitacaoPagador: Doacao campanha 2026
+    get:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__listar
+      summary: Consultar lista de cobranças imediatas
+      description: 'Lista cobranças imediatas criadas dentro de um período, com filtros por CPF/CNPJ do devedor, status e
+        presença de location, e paginação por página.
+
+
+        Quando usar: É a consulta que alimenta planilha de cobranças emitidas: quantas foram geradas no mês, quais continuam
+        ATIVA e quais já foram pagas. Para extrato de dinheiro recebido, use GET /pix — aqui aparecem cobranças, inclusive
+        as nunca pagas.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - cob.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"parametros": {"inicio": "datetime", "fim": "datetime", "paginacao": {"paginaAtual": "integer",
+                  "itensPorPagina": "integer", "quantidadeDePaginas": "integer", "quantidadeTotalDeItens": "integer"}}, "cobs":
+                  "array de CobCompleta"}'
+              example:
+                parametros:
+                  inicio: '2026-08-01T00:00:00Z'
+                  fim: '2026-08-31T23:59:59Z'
+                  paginacao:
+                    paginaAtual: 0
+                    itensPorPagina: 100
+                    quantidadeDePaginas: 3
+                    quantidadeTotalDeItens: 214
+                cobs:
+                - *id006
+        '400':
+          description: CobConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '504':
+          description: IndisponibilidadePorTempoEsgotado — O serviço demorou além do esperado para retornar.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: inicio
+        in: query
+        required: true
+        description: 'Limite inferior do período: devolve registros cuja data de criação da cobrança seja maior ou igual a
+          este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: fim
+        in: query
+        required: true
+        description: 'Limite superior do período: devolve registros cuja data de criação da cobrança seja menor ou igual a
+          este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: cpf
+        in: query
+        required: false
+        description: Filtra pelo CPF do devedor. Não pode ser combinado com cnpj.
+        schema:
+          type: string
+          pattern: ^[0-9]{11}$
+      - name: cnpj
+        in: query
+        required: false
+        description: Filtra pelo CNPJ do devedor. Não pode ser combinado com cpf.
+        schema:
+          type: string
+          pattern: ^[0-9A-Z]{14}$
+      - name: status
+        in: query
+        required: false
+        description: Filtra pelo status do registro da cobrança.
+        schema:
+          type: string
+          enum:
+          - ATIVA
+          - CONCLUIDA
+          - REMOVIDA_PELO_USUARIO_RECEBEDOR
+          - REMOVIDA_PELO_PSP
+      - name: locationPresente
+        in: query
+        required: false
+        description: true devolve só cobranças com location vinculada; false, só as sem location.
+        schema:
+          type: boolean
+      - name: paginacao.paginaAtual
+        in: query
+        required: false
+        description: Página a recuperar. Começa em 0; se omitida, o PSP assume 0.
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: paginacao.itensPorPagina
+        in: query
+        required: false
+        description: Quantidade de registros por página. Só a última página pode vir com menos.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+  /cobv/{txid}:
+    put:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__criar__cobv
+      summary: Criar cobrança com vencimento
+      description: 'Cria uma cobrança Pix com vencimento (o substituto do boleto no arranjo): data de vencimento, prazo de
+        validade após o vencimento e regras de multa, juros, abatimento e desconto calculadas pelo PSP.
+
+
+        Quando usar: Use quando o documento tem vencimento e encargos — mensalidade, fatura, carnê, parcela. O PSP calcula
+        o valor final no momento do pagamento, e o pagador vê no app o valor já com juros e multa. Para pagamento na hora,
+        use /cob.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - cobv.write
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"calendario": {"criacao": "datetime", "dataDeVencimento": "date", "validadeAposVencimento":
+                  "integer"}, "txid": "string", "revisao": "integer", "status": "CobVStatus", "devedor": "objeto", "recebedor":
+                  "objeto preenchido pelo PSP", "valor": "objeto com multa/juros/abatimento/desconto", "pixCopiaECola": "string"}'
+              example: &id015
+                calendario: &id014
+                  criacao: '2026-08-01T09:00:00.000Z'
+                  dataDeVencimento: '2026-08-20'
+                  validadeAposVencimento: 30
+                txid: mensalidade20260800000000042
+                revisao: 0
+                status: ATIVA
+                devedor: &id007
+                  cpf: '00000000000'
+                  nome: Fulano de Tal
+                  cidade: Sao Paulo
+                  uf: SP
+                  cep: '01001000'
+                recebedor: &id008
+                  cnpj: 00000000000191
+                  nome: Escola Exemplo Ltda
+                  logradouro: Rua Exemplo 100
+                  cidade: Sao Paulo
+                  uf: SP
+                  cep: '01001000'
+                valor: &id009
+                  original: '480.00'
+                  multa:
+                    modalidade: 2
+                    valorPerc: '2.00'
+                  juros:
+                    modalidade: 2
+                    valorPerc: '1.00'
+                chave: 00000000-0000-4000-8000-000000000000
+                pixCopiaECola: 00020101021226870014br.gov.bcb.pix...6304EF01
+        '400':
+          description: CobVOperacaoInvalida — A requisição que cria ou altera a cobrança com vencimento não respeita o schema
+            ou está semanticamente errada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: CobVNaoEncontrada — Cobrança com vencimento não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '500':
+          description: ErroInternoDoServidor — Condição inesperada ao processar a requisição.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: txid
+        in: path
+        required: true
+        description: Identificador da transação definido pelo usuário recebedor.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{26,35}'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                calendario.dataDeVencimento:
+                  type: string
+                  format: date
+                  description: Data de vencimento do documento, em YYYY-MM-DD.
+                calendario.validadeAposVencimento:
+                  type: integer
+                  minimum: 0
+                  description: Dias corridos depois do vencimento em que a cobrança ainda pode ser paga.
+                devedor.cpf:
+                  type: string
+                  pattern: ^[0-9]{11}$
+                  description: CPF do devedor. Exclusivo com cnpj.
+                devedor.cnpj:
+                  type: string
+                  pattern: ^[0-9A-Z]{14}$
+                  description: CNPJ do devedor. Exclusivo com cpf.
+                devedor.nome:
+                  type: string
+                  maxLength: 200
+                  description: Nome ou razão social do devedor.
+                devedor.email:
+                  type: string
+                  description: E-mail do devedor.
+                devedor.logradouro:
+                  type: string
+                  maxLength: 200
+                  description: Logradouro do devedor.
+                devedor.cidade:
+                  type: string
+                  maxLength: 200
+                  description: Cidade do devedor.
+                devedor.uf:
+                  type: string
+                  maxLength: 2
+                  description: UF do devedor.
+                devedor.cep:
+                  type: string
+                  maxLength: 8
+                  description: CEP do devedor, só dígitos.
+                valor.original:
+                  type: string
+                  description: Valor base do documento, como texto com duas casas.
+                valor.multa.modalidade:
+                  type: integer
+                  enum: &id010
+                  - 1
+                  - 2
+                  description: Modalidade da multa conforme tabela de domínios do arranjo (valor fixo ou percentual).
+                valor.multa.valorPerc:
+                  type: string
+                  description: Multa em reais ou em percentual, conforme a modalidade.
+                valor.juros.modalidade:
+                  type: integer
+                  enum: &id011
+                  - 1
+                  - 2
+                  - 3
+                  - 4
+                  - 5
+                  - 6
+                  - 7
+                  - 8
+                  description: Modalidade dos juros conforme tabela de domínios (valor/dia, percentual ao dia, ao mês, ao
+                    ano).
+                valor.juros.valorPerc:
+                  type: string
+                  description: Juros em reais ou percentual, conforme a modalidade.
+                valor.abatimento.modalidade:
+                  type: integer
+                  enum: &id012
+                  - 1
+                  - 2
+                  description: Modalidade do abatimento (fixo ou percentual).
+                valor.abatimento.valorPerc:
+                  type: string
+                  description: Abatimento em reais ou percentual.
+                valor.desconto.modalidade:
+                  type: integer
+                  enum: &id013
+                  - 1
+                  - 2
+                  - 3
+                  - 4
+                  - 5
+                  - 6
+                  description: 'Modalidade do desconto: fixo/percentual até a data informada, ou por antecipação diária.'
+                valor.desconto.descontoDataFixa:
+                  type: array
+                  description: Lista de {data, valorPerc} com os descontos por data, quando a modalidade é por data fixa.
+                chave:
+                  type: string
+                  maxLength: 77
+                  description: Chave Pix do recebedor registrada no DICT.
+                solicitacaoPagador:
+                  type: string
+                  maxLength: 140
+                  description: Texto exibido ao pagador.
+                infoAdicionais:
+                  type: array
+                  description: Lista de pares {nome, valor} exibidos ao pagador.
+                loc.id:
+                  type: integer
+                  description: Id de uma location do tipo cobv, criada em POST /loc.
+              required:
+              - calendario.dataDeVencimento
+              - valor.original
+              - chave
+            example:
+              calendario:
+                dataDeVencimento: '2026-08-20'
+                validadeAposVencimento: 30
+              devedor:
+                cpf: '00000000000'
+                nome: Fulano de Tal
+                cidade: Sao Paulo
+                uf: SP
+                cep: '01001000'
+                logradouro: Rua Exemplo 100
+              valor:
+                original: '480.00'
+                multa:
+                  modalidade: 2
+                  valorPerc: '2.00'
+                juros:
+                  modalidade: 2
+                  valorPerc: '1.00'
+              chave: 00000000-0000-4000-8000-000000000000
+              solicitacaoPagador: Mensalidade agosto/2026
+    patch:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__atualizar__cobv
+      summary: Revisar cobrança com vencimento
+      description: 'Altera campos de uma cobrança com vencimento ATIVA ou a remove enviando status REMOVIDA_PELO_USUARIO_RECEBEDOR.
+
+
+        Quando usar: Use para prorrogar vencimento, aplicar abatimento negociado ou cancelar um documento que não será mais
+        cobrado.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - cobv.write
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"txid": "string", "revisao": "integer incrementado", "status": "CobVStatus", "valor": "objeto"}'
+              example:
+                calendario:
+                  criacao: '2026-08-01T09:00:00.000Z'
+                  dataDeVencimento: '2026-08-30'
+                  validadeAposVencimento: 30
+                txid: mensalidade20260800000000042
+                revisao: 1
+                status: ATIVA
+                devedor: *id007
+                recebedor: *id008
+                valor: *id009
+                chave: 00000000-0000-4000-8000-000000000000
+                pixCopiaECola: 00020101021226870014br.gov.bcb.pix...6304EF01
+        '400':
+          description: CobVOperacaoInvalida — Cobrança não está mais ATIVA, ou os campos enviados violam o schema.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: CobVNaoEncontrada — Cobrança com vencimento não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: txid
+        in: path
+        required: true
+        description: Identificador da transação definido pelo usuário recebedor.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{26,35}'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - REMOVIDA_PELO_USUARIO_RECEBEDOR
+                  description: REMOVIDA_PELO_USUARIO_RECEBEDOR para cancelar o documento.
+                calendario.dataDeVencimento:
+                  type: string
+                  format: date
+                  description: Data de vencimento do documento, em YYYY-MM-DD.
+                calendario.validadeAposVencimento:
+                  type: integer
+                  minimum: 0
+                  description: Dias corridos depois do vencimento em que a cobrança ainda pode ser paga.
+                devedor.cpf:
+                  type: string
+                  pattern: ^[0-9]{11}$
+                  description: CPF do devedor. Exclusivo com cnpj.
+                devedor.cnpj:
+                  type: string
+                  pattern: ^[0-9A-Z]{14}$
+                  description: CNPJ do devedor. Exclusivo com cpf.
+                devedor.nome:
+                  type: string
+                  maxLength: 200
+                  description: Nome ou razão social do devedor.
+                devedor.email:
+                  type: string
+                  description: E-mail do devedor.
+                devedor.logradouro:
+                  type: string
+                  maxLength: 200
+                  description: Logradouro do devedor.
+                devedor.cidade:
+                  type: string
+                  maxLength: 200
+                  description: Cidade do devedor.
+                devedor.uf:
+                  type: string
+                  maxLength: 2
+                  description: UF do devedor.
+                devedor.cep:
+                  type: string
+                  maxLength: 8
+                  description: CEP do devedor, só dígitos.
+                valor.original:
+                  type: string
+                  description: Valor base do documento, como texto com duas casas.
+                valor.multa.modalidade:
+                  type: integer
+                  enum: *id010
+                  description: Modalidade da multa conforme tabela de domínios do arranjo (valor fixo ou percentual).
+                valor.multa.valorPerc:
+                  type: string
+                  description: Multa em reais ou em percentual, conforme a modalidade.
+                valor.juros.modalidade:
+                  type: integer
+                  enum: *id011
+                  description: Modalidade dos juros conforme tabela de domínios (valor/dia, percentual ao dia, ao mês, ao
+                    ano).
+                valor.juros.valorPerc:
+                  type: string
+                  description: Juros em reais ou percentual, conforme a modalidade.
+                valor.abatimento.modalidade:
+                  type: integer
+                  enum: *id012
+                  description: Modalidade do abatimento (fixo ou percentual).
+                valor.abatimento.valorPerc:
+                  type: string
+                  description: Abatimento em reais ou percentual.
+                valor.desconto.modalidade:
+                  type: integer
+                  enum: *id013
+                  description: 'Modalidade do desconto: fixo/percentual até a data informada, ou por antecipação diária.'
+                valor.desconto.descontoDataFixa:
+                  type: array
+                  description: Lista de {data, valorPerc} com os descontos por data, quando a modalidade é por data fixa.
+                chave:
+                  type: string
+                  maxLength: 77
+                  description: Chave Pix do recebedor registrada no DICT.
+                solicitacaoPagador:
+                  type: string
+                  maxLength: 140
+                  description: Texto exibido ao pagador.
+                infoAdicionais:
+                  type: array
+                  description: Lista de pares {nome, valor} exibidos ao pagador.
+                loc.id:
+                  type: integer
+                  description: Id de uma location do tipo cobv, criada em POST /loc.
+              required:
+              - calendario.dataDeVencimento
+              - valor.original
+              - chave
+            example:
+              calendario:
+                dataDeVencimento: '2026-08-30'
+              valor:
+                abatimento:
+                  modalidade: 1
+                  valorPerc: '30.00'
+    get:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__obter__cobv
+      summary: Consultar cobrança com vencimento
+      description: 'Devolve uma cobrança com vencimento pelo txid, com encargos configurados, BR Code, status e os pagamentos
+        liquidados no array pix[].
+
+
+        Quando usar: Confirmação de pagamento de fatura/mensalidade antes da baixa no contas a receber, e consulta de revisões
+        anteriores quando é preciso provar qual era o valor no momento do pagamento.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - cobv.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"calendario": "objeto com dataDeVencimento e validadeAposVencimento", "txid": "string", "status":
+                  "CobVStatus", "devedor": "objeto", "recebedor": "objeto", "valor": "objeto com multa/juros/abatimento/desconto",
+                  "pixCopiaECola": "string", "pix": "array de pagamentos, com componentesValor detalhando juros, multa e descontos"}'
+              example:
+                calendario: *id014
+                txid: mensalidade20260800000000042
+                revisao: 0
+                status: CONCLUIDA
+                devedor: *id007
+                recebedor: *id008
+                valor: *id009
+                chave: 00000000-0000-4000-8000-000000000000
+                pixCopiaECola: 00020101021226870014br.gov.bcb.pix...6304EF01
+                pix:
+                - endToEndId: E00000000202608211030abcdef987654
+                  txid: mensalidade20260800000000042
+                  valor: '489.60'
+                  horario: '2026-08-21T10:30:15.114Z'
+                  componentesValor:
+                    original:
+                      valor: '480.00'
+                    multa:
+                      valor: '9.60'
+        '404':
+          description: CobVNaoEncontrada — Cobrança com vencimento não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '400':
+          description: CobVConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '410':
+          description: PermanentementeRemovido — A entidade existiu e foi removida em definitivo.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: txid
+        in: path
+        required: true
+        description: Identificador da transação definido pelo usuário recebedor.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{26,35}'
+      - name: revisao
+        in: query
+        required: false
+        description: Recupera uma revisão específica; sem o parâmetro vem a corrente.
+        schema:
+          type: integer
+          minimum: 0
+  /cobv:
+    get:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__listar__cobv
+      summary: Consultar lista de cobranças com vencimento
+      description: 'Lista cobranças com vencimento criadas no período, com filtros por devedor, status, presença de location
+        e pelo id do lote que as originou.
+
+
+        Quando usar: Base da planilha de carteira: o que foi emitido, o que está em aberto e o que foi pago, por mês e por
+        aluno/cliente. O filtro loteCobVId é o caminho para trazer todas as cobranças geradas por um carnê.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - cobv.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"parametros": "objeto com o eco dos filtros e paginacao", "cobs": "array de CobVCompleta"}'
+              example:
+                parametros:
+                  inicio: '2026-08-01T00:00:00Z'
+                  fim: '2026-08-31T23:59:59Z'
+                  paginacao:
+                    paginaAtual: 0
+                    itensPorPagina: 100
+                    quantidadeDePaginas: 1
+                    quantidadeTotalDeItens: 38
+                cobs:
+                - *id015
+        '400':
+          description: CobVConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '504':
+          description: IndisponibilidadePorTempoEsgotado — O serviço demorou além do esperado para retornar.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: inicio
+        in: query
+        required: true
+        description: 'Limite inferior do período: devolve registros cuja data de criação da cobrança seja maior ou igual a
+          este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: fim
+        in: query
+        required: true
+        description: 'Limite superior do período: devolve registros cuja data de criação da cobrança seja menor ou igual a
+          este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: cpf
+        in: query
+        required: false
+        description: Filtra pelo CPF do devedor. Não pode ser combinado com cnpj.
+        schema:
+          type: string
+          pattern: ^[0-9]{11}$
+      - name: cnpj
+        in: query
+        required: false
+        description: Filtra pelo CNPJ do devedor. Não pode ser combinado com cpf.
+        schema:
+          type: string
+          pattern: ^[0-9A-Z]{14}$
+      - name: status
+        in: query
+        required: false
+        description: Filtra pelo status do registro.
+        schema:
+          type: string
+          enum:
+          - ATIVA
+          - CONCLUIDA
+          - REMOVIDA_PELO_USUARIO_RECEBEDOR
+          - REMOVIDA_PELO_PSP
+      - name: locationPresente
+        in: query
+        required: false
+        description: Filtra pela existência de location vinculada.
+        schema:
+          type: boolean
+      - name: loteCobVId
+        in: query
+        required: false
+        description: Traz somente as cobranças pertencentes a esse lote.
+        schema:
+          type: integer
+      - name: paginacao.paginaAtual
+        in: query
+        required: false
+        description: Página a recuperar. Começa em 0; se omitida, o PSP assume 0.
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: paginacao.itensPorPagina
+        in: query
+        required: false
+        description: Quantidade de registros por página. Só a última página pode vir com menos.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+  /lotecobv/{id}:
+    put:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__criar__lote_cobv
+      summary: Criar ou alterar lote de cobranças com vencimento
+      description: 'Cria de uma vez um conjunto de cobranças com vencimento, cada uma com seu txid, ou reenvia o mesmo lote
+        com alterações. O processamento é assíncrono: a resposta é 202 sem corpo.
+
+
+        Quando usar: Carnê, mensalidades da turma, faturamento mensal recorrente: uma requisição no lugar de centenas de PUT
+        /cobv. O resultado individual de cada cobrança só aparece depois, em GET /lotecobv/{id}.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - lotecobv.write
+      responses:
+        '202':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"(sem corpo)": "202 Accepted: o lote foi aceito para processamento assíncrono"}'
+              example: {}
+        '400':
+          description: LoteCobVOperacaoInvalida — O lote não respeita o schema ou viola as regras de composição.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: LoteCobVNaoEncontrado — Lote não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '500':
+          description: ErroInternoDoServidor — Condição inesperada ao processar a requisição.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do lote, definido por você.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                descricao:
+                  type: string
+                  description: Descrição do lote, para identificá-lo depois.
+                cobsv:
+                  type: array
+                  description: Array de cobranças com vencimento; cada item é um objeto cobv completo acrescido do campo txid.
+              required:
+              - descricao
+              - cobsv
+            example:
+              descricao: Mensalidades agosto/2026 - turma vespertina
+              cobsv:
+              - txid: mensalidade20260800000000042
+                calendario:
+                  dataDeVencimento: '2026-08-20'
+                  validadeAposVencimento: 30
+                devedor:
+                  cpf: '00000000000'
+                  nome: Fulano de Tal
+                valor:
+                  original: '480.00'
+                chave: 00000000-0000-4000-8000-000000000000
+    patch:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__atualizar__lote_cobv
+      summary: Revisar cobranças específicas de um lote
+      description: 'Revisa um subconjunto das cobranças de um lote já existente, sem mexer nas demais. Também é assíncrono
+        (202).
+
+
+        Quando usar: Correção em massa: prorrogar o vencimento de parte do carnê, aplicar desconto negociado em algumas parcelas,
+        remover as parcelas de quem cancelou a matrícula.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - lotecobv.write
+      responses:
+        '202':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"(sem corpo)": "202 Accepted"}'
+              example: {}
+        '400':
+          description: LoteCobVOperacaoInvalida — O array cobsv contém cobrança que não pertence ao lote, ou os campos violam
+            o schema.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: LoteCobVNaoEncontrado — Lote não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do lote a revisar.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                descricao:
+                  type: string
+                  description: Nova descrição do lote.
+                cobsv:
+                  type: array
+                  description: Array com as cobranças a revisar; cada item traz o txid e os campos alterados.
+              required:
+              - cobsv
+            example:
+              cobsv:
+              - txid: mensalidade20260800000000042
+                calendario:
+                  dataDeVencimento: '2026-08-30'
+    get:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__obter__lote_cobv
+      summary: Consultar lote de cobranças com vencimento
+      description: 'Devolve um lote com a descrição, a data de criação e o array cobsv com o resultado de cada cobrança: EM_PROCESSAMENTO,
+        CRIADA ou NEGADA — esta última com o objeto problema explicando a recusa.
+
+
+        Quando usar: Chamada obrigatória depois de todo PUT/PATCH de lote: é a única forma de saber quais cobranças nasceram
+        e por que as outras falharam. Gera direto a planilha de rejeições do carnê.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - lotecobv.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"id": "integer", "descricao": "string", "criacao": "datetime", "cobsv": "array de {txid, status
+                  (EM_PROCESSAMENTO|CRIADA|NEGADA), criacao, problema}"}'
+              example: &id016
+                id: 1250
+                descricao: Mensalidades agosto/2026 - turma vespertina
+                criacao: '2026-07-25T18:00:00.000Z'
+                cobsv:
+                - txid: mensalidade20260800000000042
+                  status: CRIADA
+                  criacao: '2026-07-25T18:00:02.000Z'
+                - txid: mensalidade20260800000000043
+                  status: NEGADA
+                  problema:
+                    type: https://pix.bcb.gov.br/api/v2/error/CobVOperacaoInvalida
+                    title: Cobrança inválida.
+                    status: 400
+                    detail: A requisição não respeita o schema.
+                    violacoes:
+                    - razao: O objeto cobv.devedor não respeita o schema.
+                      propriedade: cobv.devedor
+        '404':
+          description: LoteCobVNaoEncontrado — Lote não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '400':
+          description: LoteCobVConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do lote.
+        schema:
+          type: string
+  /lotecobv:
+    get:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__listar__lote_cobv
+      summary: Consultar lotes de cobranças com vencimento
+      description: 'Lista os lotes criados no período, com a composição de cada um, paginados.
+
+
+        Quando usar: Auditoria de emissão em massa: quais carnês foram gerados no semestre, quando e com quantas parcelas
+        cada um.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - lotecobv.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"parametros": "objeto com filtros e paginacao", "lotes": "array de LoteCobVConsultado"}'
+              example:
+                parametros:
+                  inicio: '2026-07-01T00:00:00Z'
+                  fim: '2026-07-31T23:59:59Z'
+                  paginacao:
+                    paginaAtual: 0
+                    itensPorPagina: 100
+                    quantidadeDePaginas: 1
+                    quantidadeTotalDeItens: 4
+                lotes:
+                - *id016
+        '400':
+          description: LoteCobVConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: inicio
+        in: query
+        required: true
+        description: 'Limite inferior do período: devolve registros cuja data de criação do lote seja maior ou igual a este
+          instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: fim
+        in: query
+        required: true
+        description: 'Limite superior do período: devolve registros cuja data de criação do lote seja menor ou igual a este
+          instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: paginacao.paginaAtual
+        in: query
+        required: false
+        description: Página a recuperar. Começa em 0; se omitida, o PSP assume 0.
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: paginacao.itensPorPagina
+        in: query
+        required: false
+        description: Quantidade de registros por página. Só a última página pode vir com menos.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+  /loc:
+    post:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__location_pagamento__criar
+      summary: Criar location de payload (QR dinâmico reutilizável)
+      description: 'Cria uma URL (location) que o aplicativo do pagador consulta para obter o payload JSON da cobrança vigente.
+        A mesma location pode servir cobranças diferentes ao longo do tempo, uma por vez.
+
+
+        Quando usar: Cenário de QR impresso ou fixo em maquininha/totem: você imprime um QR uma vez e vai trocando a cobrança
+        vinculada à location. Também é o que permite reaproveitar QR em fila de caixa.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: LocationPagamento
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - payloadlocation.write
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"id": "integer int64", "location": "string (URL do payload)", "tipoCob": "cob|cobv", "criacao":
+                  "datetime"}'
+              example: &id017
+                id: 7788
+                location: pix.example.com/qr/v2/2353c790eefb11eaadc10242ac120002
+                tipoCob: cob
+                criacao: '2026-08-12T14:02:11.001Z'
+        '400':
+          description: PayloadLocationOperacaoInvalida — O campo tipoCob não respeita o schema.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tipoCob:
+                  type: string
+                  enum:
+                  - cob
+                  - cobv
+                  description: Tipo de cobrança que essa location vai servir.
+              required:
+              - tipoCob
+            example:
+              tipoCob: cob
+    get:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__location_pagamento__listar
+      summary: Consultar locations cadastradas
+      description: 'Lista as locations criadas no período, com filtro por tipo de cobrança e pela existência de txid vinculado.
+
+
+        Quando usar: Inventário de QR impressos: quantas locations existem, quais estão livres (txIdPresente=false) e quais
+        estão ocupadas por uma cobrança.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: LocationPagamento
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - payloadlocation.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"parametros": "objeto com filtros e paginacao", "loc": "array de locations"}'
+              example:
+                parametros:
+                  inicio: '2026-08-01T00:00:00Z'
+                  fim: '2026-08-31T23:59:59Z'
+                  paginacao:
+                    paginaAtual: 0
+                    itensPorPagina: 100
+                    quantidadeDePaginas: 1
+                    quantidadeTotalDeItens: 12
+                loc:
+                - id: 7788
+                  location: pix.example.com/qr/v2/2353c790eefb11eaadc10242ac120002
+                  tipoCob: cob
+                  criacao: '2026-08-12T14:02:11.001Z'
+                  txid: pedido2026081200000000000042
+        '400':
+          description: PayloadLocationConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: inicio
+        in: query
+        required: true
+        description: 'Limite inferior do período: devolve registros cuja data de criação da location seja maior ou igual a
+          este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: fim
+        in: query
+        required: true
+        description: 'Limite superior do período: devolve registros cuja data de criação da location seja menor ou igual a
+          este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: txIdPresente
+        in: query
+        required: false
+        description: true traz só locations com cobrança vinculada; false, só as livres.
+        schema:
+          type: boolean
+      - name: tipoCob
+        in: query
+        required: false
+        description: Filtra por tipo de cobrança servida.
+        schema:
+          type: string
+          enum:
+          - cob
+          - cobv
+      - name: paginacao.paginaAtual
+        in: query
+        required: false
+        description: Página a recuperar. Começa em 0; se omitida, o PSP assume 0.
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: paginacao.itensPorPagina
+        in: query
+        required: false
+        description: Quantidade de registros por página. Só a última página pode vir com menos.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+  /loc/{id}:
+    get:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__location_pagamento__obter
+      summary: Recuperar location de payload
+      description: 'Devolve uma location pelo id, incluindo o txid da cobrança atualmente vinculada, se houver.
+
+
+        Quando usar: Descobrir qual cobrança um QR impresso está servindo neste momento, e auditar reaproveitamento de location.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: LocationPagamento
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - payloadlocation.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"id": "integer", "txid": "string ou ausente", "location": "string", "tipoCob": "cob|cobv",
+                  "criacao": "datetime"}'
+              example:
+                id: 7788
+                location: pix.example.com/qr/v2/2353c790eefb11eaadc10242ac120002
+                tipoCob: cob
+                criacao: '2026-08-12T14:02:11.001Z'
+                txid: pedido2026081200000000000042
+        '404':
+          description: PayloadLocationNaoEncontrado — Location não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '400':
+          description: PayloadLocationConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id da location, devolvido na criação.
+        schema:
+          type: string
+  /loc/{id}/txid:
+    delete:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__location_pagamento__desvincular__txid
+      summary: Desvincular cobrança de uma location
+      description: 'Remove o vínculo entre a location e a cobrança que ela serve. A location continua existindo e fica livre
+        para receber outra cobrança; a cobrança também continua existindo.
+
+
+        Quando usar: Reaproveitar um QR impresso para a próxima cobrança, ou liberar a location quando a cobrança vinculada
+        foi cancelada.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: LocationPagamento
+      x-acao-canonica: desvincular
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - payloadlocation.write
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"id": "integer", "location": "string", "tipoCob": "cob|cobv", "criacao": "datetime"}'
+              example: *id017
+        '404':
+          description: PayloadLocationNaoEncontrado — Location não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id da location a liberar.
+        schema:
+          type: string
+  /oauth/token:
+    post:
+      tags:
+      - Autenticacao
+      operationId: pix-bacen__autenticacao__autenticar
+      summary: Obter access token (OAuth2 client credentials sobre mTLS)
+      description: 'Troca client_id e client_secret por um access_token no Authorization Server do PSP recebedor, pedindo
+        os escopos necessários. O caminho mostrado é o exemplo da especificação: o endpoint real é definido por cada PSP.
+
+
+        Quando usar: Primeira chamada de qualquer integração Pix, e sempre que o token em cache expirar ou uma chamada devolver
+        401. Peça só os escopos de que a rotina precisa — token de leitura para relatório, token de escrita só para emissão.'
+      x-confianca: inferido
+      x-fonte-url: https://www.bcb.gov.br/content/estabilidadefinanceira/pix/Regulamento_Pix/II_ManualdePadroesparaIniciacaodoPix.pdf
+      x-entidade-canonica: Autenticacao
+      x-acao-canonica: autenticar
+      x-seguro-para-executar: false
+      security: []
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"access_token": "string", "token_type": "Bearer", "expires_in": "integer (segundos)", "scope":
+                  "string com os escopos efetivamente concedidos"}'
+              example:
+                access_token: <token opaco ou JWT devolvido pelo PSP>
+                token_type: Bearer
+                expires_in: 3600
+                scope: pix.read cob.read
+        '400':
+          description: invalid_request / invalid_scope — Requisição de token malformada ou escopo não permitido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '401':
+          description: invalid_client — Credenciais rejeitadas pelo Authorization Server.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: Authorization
+        in: header
+        required: false
+        description: Basic com client_id:client_secret em base64, quando o PSP usa client_secret_basic.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                grant_type:
+                  type: string
+                  enum:
+                  - client_credentials
+                  description: 'Sempre client_credentials: é o único fluxo previsto pelo arranjo.'
+                scope:
+                  type: string
+                  description: 'Escopos separados por espaço, entre os liberados em contrato (ex.: ''pix.read cob.read cobv.read'').'
+              required:
+              - grant_type
+            example:
+              grant_type: client_credentials
+              scope: pix.read cob.read
+  /pix:
+    get:
+      tags:
+      - Transacao
+      operationId: pix-bacen__transacao__listar
+      summary: Consultar Pix recebidos
+      description: 'Lista os Pix creditados na conta do usuário recebedor dentro de um período, com endToEndId, valor, horário
+        de liquidação, txid quando houver, composição do valor e as devoluções de cada um.
+
+
+        Quando usar: É o extrato de recebimentos Pix e a consulta mais importante da API para BI e conciliação: entra tudo
+        que foi creditado, inclusive Pix por chave, QR estático e transferências avulsas — que nunca geram webhook por não
+        terem txid.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Transacao
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - pix.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"parametros": {"inicio": "datetime", "fim": "datetime", "paginacao": "objeto com totais"},
+                  "pix": "array de Pix: endToEndId, txid, valor, componentesValor, chave, horario, infoPagador, devolucoes[]"}'
+              example:
+                parametros:
+                  inicio: '2026-08-01T00:00:00Z'
+                  fim: '2026-08-31T23:59:59Z'
+                  paginacao:
+                    paginaAtual: 0
+                    itensPorPagina: 100
+                    quantidadeDePaginas: 5
+                    quantidadeTotalDeItens: 431
+                pix:
+                - endToEndId: E00000000202608121402abcdef123456
+                  txid: pedido2026081200000000000042
+                  valor: '149.90'
+                  componentesValor: &id018
+                    original:
+                      valor: '149.90'
+                  chave: 00000000-0000-4000-8000-000000000000
+                  horario: '2026-08-12T14:09:52.771Z'
+                  infoPagador: Pedido 4210
+                - &id019
+                  endToEndId: E00000000202608121402abcdef123456
+                  txid: pedido2026081200000000000042
+                  valor: '149.90'
+                  componentesValor: *id018
+                  chave: 00000000-0000-4000-8000-000000000000
+                  horario: '2026-08-12T14:09:52.771Z'
+                  infoPagador: Pedido 4210
+                  devolucoes:
+                  - id: dev4210001
+                    rtrId: D00000000202608131015abcde123456
+                    valor: '20.00'
+                    natureza: ORIGINAL
+                    descricao: Devolucao parcial do pedido 4210
+                    horario:
+                      solicitacao: '2026-08-13T10:15:00.000Z'
+                      liquidacao: '2026-08-13T10:15:03.412Z'
+                    status: DEVOLVIDO
+        '400':
+          description: PixConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '504':
+          description: IndisponibilidadePorTempoEsgotado — O serviço demorou além do esperado para retornar.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '500':
+          description: ErroInternoDoServidor — Condição inesperada ao processar a requisição.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: inicio
+        in: query
+        required: true
+        description: 'Limite inferior do período: devolve registros cuja data de liquidação do Pix seja maior ou igual a este
+          instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: fim
+        in: query
+        required: true
+        description: 'Limite superior do período: devolve registros cuja data de liquidação do Pix seja menor ou igual a este
+          instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: cpf
+        in: query
+        required: false
+        description: Filtra pelo CPF do pagador. Não pode ser combinado com cnpj.
+        schema:
+          type: string
+          pattern: ^[0-9]{11}$
+      - name: cnpj
+        in: query
+        required: false
+        description: Filtra pelo CNPJ do pagador. Não pode ser combinado com cpf.
+        schema:
+          type: string
+          pattern: ^[0-9A-Z]{14}$
+      - name: txid
+        in: query
+        required: false
+        description: Filtra pelos Pix associados a esse txid.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{1,35}'
+      - name: txIdPresente
+        in: query
+        required: false
+        description: true traz só Pix com txid (originados de cobrança); false, só os sem txid.
+        schema:
+          type: boolean
+      - name: devolucaoPresente
+        in: query
+        required: false
+        description: Filtra pela existência de devolução associada.
+        schema:
+          type: boolean
+      - name: finalidadeMED
+        in: query
+        required: false
+        description: Filtra Pix marcados com finalidade do Mecanismo Especial de Devolução.
+        schema:
+          type: boolean
+      - name: paginacao.paginaAtual
+        in: query
+        required: false
+        description: Página a recuperar. Começa em 0; se omitida, o PSP assume 0.
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: paginacao.itensPorPagina
+        in: query
+        required: false
+        description: Quantidade de registros por página. Só a última página pode vir com menos.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+  /pix/{e2eid}:
+    get:
+      tags:
+      - Transacao
+      operationId: pix-bacen__transacao__obter
+      summary: Consultar Pix por endToEndId
+      description: 'Devolve um Pix recebido pelo seu endToEndId, com valor, horário, txid, composição do valor e o histórico
+        de devoluções solicitadas sobre ele.
+
+
+        Quando usar: Confirmação pontual de um recebimento citado por um cliente, auditoria de uma linha do extrato e checagem
+        do estado de uma devolução em andamento. É também o jeito certo de confirmar um webhook antes de dar baixa.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Transacao
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - pix.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"endToEndId": "string", "txid": "string opcional", "valor": "string decimal", "componentesValor":
+                  "objeto com original, juros, multa, desconto, abatimento, saque, troco", "chave": "string", "horario": "datetime",
+                  "infoPagador": "string", "devolucoes": "array de Devolucao"}'
+              example: *id019
+        '404':
+          description: PixNaoEncontrado — Pix não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '410':
+          description: PermanentementeRemovido — A entidade existiu e foi removida em definitivo.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: e2eid
+        in: path
+        required: true
+        description: EndToEndId do Pix, identificador que circula nas mensagens pacs.002/pacs.004/pacs.008 do SPI.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{32}'
+  /pix/{e2eid}/devolucao/{id}:
+    put:
+      tags:
+      - Transacao
+      operationId: pix-bacen__transacao__estornar
+      summary: Solicitar devolução de um Pix recebido
+      description: 'Solicita a devolução, total ou parcial, de um Pix já liquidado. O id da devolução é definido por você,
+        o que torna a operação idempotente por construção.
+
+
+        Quando usar: Estorno de venda cancelada, cobrança em duplicidade, valor pago a maior. É o único caminho rastreável:
+        a devolução nasce amarrada ao endToEndId original e recebe um rtrId próprio, que circula na pacs.004.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Transacao
+      x-acao-canonica: estornar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - pix.write
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"id": "string", "rtrId": "string de 32 caracteres (ReturnIdentification)", "valor": "string
+                  decimal", "natureza": "enum", "descricao": "string", "horario": {"solicitacao": "datetime", "liquidacao":
+                  "datetime quando concluída"}, "status": "EM_PROCESSAMENTO | DEVOLVIDO | NAO_REALIZADO", "motivo": "string
+                  opcional"}'
+              example:
+                id: dev4210001
+                rtrId: D00000000202608131015abcde123456
+                valor: '20.00'
+                natureza: ORIGINAL
+                descricao: Devolucao parcial do pedido 4210
+                horario:
+                  solicitacao: '2026-08-13T10:15:00.000Z'
+                status: EM_PROCESSAMENTO
+        '400':
+          description: PixDevolucaoInvalida — A requisição de devolução não respeita o schema ou não faz sentido semanticamente.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: PixNaoEncontrado — Pix não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '500':
+          description: ErroInternoDoServidor — Condição inesperada ao processar a requisição.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: e2eid
+        in: path
+        required: true
+        description: EndToEndId do Pix, identificador que circula nas mensagens pacs.002/pacs.004/pacs.008 do SPI.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{32}'
+      - name: id
+        in: path
+        required: true
+        description: Identificador da devolução, escolhido por você.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{1,35}'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                valor:
+                  type: string
+                  description: Valor a devolver, como texto com duas casas. A soma das devoluções não pode passar do valor
+                    do Pix original.
+                natureza:
+                  type: string
+                  enum:
+                  - ORIGINAL
+                  - RETIRADA
+                  description: ORIGINAL para Pix comum ou o valor da compra em Pix Troco; RETIRADA para Pix Saque ou o troco.
+                    Omitido, assume ORIGINAL.
+                descricao:
+                  type: string
+                  maxLength: 140
+                  description: Texto exibido ao pagador sobre a devolução.
+              required:
+              - valor
+            example:
+              valor: '20.00'
+              natureza: ORIGINAL
+              descricao: Devolucao parcial do pedido 4210
+    get:
+      tags:
+      - Transacao
+      operationId: pix-bacen__transacao__obter__devolucao
+      summary: Consultar devolução de Pix
+      description: 'Devolve o estado de uma devolução específica: valor, rtrId, horários de solicitação e liquidação, status
+        e, quando não realizada, o motivo informado pelo PSP.
+
+
+        Quando usar: Fechar o ciclo do estorno: saber se a devolução saiu de EM_PROCESSAMENTO para DEVOLVIDO antes de baixar
+        o estorno no ERP, e descobrir o motivo quando ficou NAO_REALIZADO.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Transacao
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - pix.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"id": "string", "rtrId": "string", "valor": "string decimal", "natureza": "enum", "horario":
+                  {"solicitacao": "datetime", "liquidacao": "datetime"}, "status": "EM_PROCESSAMENTO | DEVOLVIDO | NAO_REALIZADO",
+                  "motivo": "string opcional"}'
+              example:
+                id: dev4210001
+                rtrId: D00000000202608131015abcde123456
+                valor: '20.00'
+                natureza: ORIGINAL
+                horario:
+                  solicitacao: '2026-08-13T10:15:00.000Z'
+                  liquidacao: '2026-08-13T10:15:03.412Z'
+                status: DEVOLVIDO
+        '404':
+          description: PixDevolucaoNaoEncontrada — Devolução não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: e2eid
+        in: path
+        required: true
+        description: EndToEndId do Pix, identificador que circula nas mensagens pacs.002/pacs.004/pacs.008 do SPI.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{32}'
+      - name: id
+        in: path
+        required: true
+        description: Id da devolução, o mesmo que você definiu na solicitação.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{1,35}'
+  /webhook/{chave}:
+    put:
+      tags:
+      - Webhook
+      operationId: pix-bacen__webhook__assinar_webhook
+      summary: Configurar webhook de Pix recebidos
+      description: 'Registra a URL base que o PSP vai chamar quando um Pix com txid for creditado na conta associada àquela
+        chave Pix. As notificações chegam em POST {webhookUrl}/pix.
+
+
+        Quando usar: Substituir o polling em GET /pix por notificação quase em tempo real no checkout. Cada webhook é por
+        chave Pix: se você recebe em mais de uma chave, registre um webhook para cada.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Webhook
+      x-acao-canonica: assinar_webhook
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - webhook.write
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"(sem corpo)": "200 OK — webhook configurado"}'
+              example: {}
+        '400':
+          description: WebhookOperacaoInvalida — A requisição busca criar um webhook sem respeitar o schema ou com semântica
+            inválida.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: WebhookNaoEncontrado — Webhook não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: chave
+        in: path
+        required: true
+        description: Chave Pix do recebedor, registrada no DICT, cujos recebimentos serão notificados.
+        schema:
+          type: string
+          maxLength: 77
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                webhookUrl:
+                  type: string
+                  description: URL base HTTPS do seu endpoint. O PSP acrescenta /pix ao chamar.
+              required:
+              - webhookUrl
+            example:
+              webhookUrl: https://webhook.example.com/pix
+    get:
+      tags:
+      - Webhook
+      operationId: pix-bacen__webhook__obter
+      summary: Exibir webhook de uma chave Pix
+      description: 'Mostra a configuração de webhook associada a uma chave Pix: URL registrada, CNPJ do recebedor e data de
+        cadastro.
+
+
+        Quando usar: Conferir, antes de sair caçando bug, se o webhook está mesmo apontando para o ambiente certo — é o erro
+        mais comum depois de uma migração de servidor ou de domínio.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Webhook
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - webhook.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"webhookUrl": "string", "cnpj": "string", "criacao": "datetime"}'
+              example: &id020
+                webhookUrl: https://webhook.example.com/pix
+                cnpj: 00000000000191
+                criacao: '2026-07-01T12:00:00.000Z'
+        '404':
+          description: WebhookNaoEncontrado — Webhook não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: chave
+        in: path
+        required: true
+        description: Chave Pix do recebedor.
+        schema:
+          type: string
+          maxLength: 77
+    delete:
+      tags:
+      - Webhook
+      operationId: pix-bacen__webhook__excluir
+      summary: Cancelar webhook de uma chave Pix
+      description: 'Remove a configuração de webhook da chave Pix indicada. O PSP para de enviar notificações imediatamente.
+
+
+        Quando usar: Desligar o ambiente antigo em uma migração, ou parar as notificações enquanto o endpoint está em manutenção
+        — lembrando de voltar ao polling em GET /pix nesse período.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Webhook
+      x-acao-canonica: excluir
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - webhook.write
+      responses:
+        '204':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"(sem corpo)": "204 No Content"}'
+              example: {}
+        '404':
+          description: WebhookNaoEncontrado — Webhook não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: chave
+        in: path
+        required: true
+        description: Chave Pix cujo webhook será removido.
+        schema:
+          type: string
+          maxLength: 77
+  /webhook:
+    get:
+      tags:
+      - Webhook
+      operationId: pix-bacen__webhook__listar
+      summary: Consultar webhooks cadastrados
+      description: 'Lista todos os webhooks Pix configurados pelo usuário recebedor, com a URL de cada um e a data de cadastro.
+        Aqui inicio e fim são opcionais.
+
+
+        Quando usar: Inventário de integrações: descobrir quantas chaves têm webhook, se sobrou algum apontando para ambiente
+        desativado e desde quando cada um está no ar.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Webhook
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - webhook.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"parametros": "objeto com filtros e paginacao", "webhooks": "array de {webhookUrl, cnpj, criacao}"}'
+              example:
+                parametros:
+                  inicio: '2026-01-01T00:00:00Z'
+                  fim: '2026-09-17T23:59:59Z'
+                  paginacao:
+                    paginaAtual: 0
+                    itensPorPagina: 100
+                    quantidadeDePaginas: 1
+                    quantidadeTotalDeItens: 2
+                webhooks:
+                - *id020
+        '400':
+          description: WebhookConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: inicio
+        in: query
+        required: false
+        description: 'Limite inferior do período: devolve registros cuja data de cadastro do webhook seja maior ou igual a
+          este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: fim
+        in: query
+        required: false
+        description: 'Limite superior do período: devolve registros cuja data de cadastro do webhook seja menor ou igual a
+          este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: paginacao.paginaAtual
+        in: query
+        required: false
+        description: Página a recuperar. Começa em 0; se omitida, o PSP assume 0.
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: paginacao.itensPorPagina
+        in: query
+        required: false
+        description: Quantidade de registros por página. Só a última página pode vir com menos.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+  /webhookrec:
+    put:
+      tags:
+      - Webhook
+      operationId: pix-bacen__webhook__assinar_webhook__rec
+      summary: Configurar webhook de recorrências do Pix Automático
+      description: 'Registra a URL base que receberá as notificações de mudanças de status das recorrências (CRIADA, APROVADA,
+        REJEITADA, EXPIRADA, CANCELADA). Diferente do webhook de Pix, não há chave no path: o webhook é do usuário recebedor
+        como um todo.
+
+
+        Quando usar: Obrigatório em qualquer integração de Pix Automático que não queira viver de polling: sem ele, você só
+        descobre que o pagador autorizou (ou que a cobrança foi liquidada) consultando a API de tempos em tempos.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Webhook
+      x-acao-canonica: assinar_webhook
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - webhookrec.write
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"(sem corpo)": "200 OK"}'
+              example: {}
+        '400':
+          description: WebhookRecOperacaoInvalida — Requisição fora do schema ou com semântica inválida.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: WebhookRecNaoEncontrado — Webhook não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                webhookUrl:
+                  type: string
+                  description: URL base HTTPS do seu endpoint; o PSP acrescenta /rec ao chamar.
+              required:
+              - webhookUrl
+            example:
+              webhookUrl: https://webhook.example.com/pixrec
+    get:
+      tags:
+      - Webhook
+      operationId: pix-bacen__webhook__obter__rec
+      summary: Exibir webhook de recorrências do Pix Automático
+      description: 'Mostra a URL registrada para as notificações de mudanças de status das recorrências (CRIADA, APROVADA,
+        REJEITADA, EXPIRADA, CANCELADA) e a data de cadastro.
+
+
+        Quando usar: Verificação de configuração antes de investigar ausência de notificações de Pix Automático.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Webhook
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - webhookrec.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"webhookUrl": "string", "criacao": "datetime"}'
+              example:
+                webhookUrl: https://webhook.example.com/pixrec
+                criacao: '2026-07-01T12:00:00.000Z'
+        '404':
+          description: WebhookRecNaoEncontrado — Webhook não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+    delete:
+      tags:
+      - Webhook
+      operationId: pix-bacen__webhook__excluir__rec
+      summary: Cancelar webhook de recorrências do Pix Automático
+      description: 'Remove a configuração de webhook de mudanças de status das recorrências (CRIADA, APROVADA, REJEITADA,
+        EXPIRADA, CANCELADA). O PSP para de notificar.
+
+
+        Quando usar: Desativação de ambiente ou migração de endpoint de Pix Automático.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Webhook
+      x-acao-canonica: excluir
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - webhookrec.write
+      responses:
+        '204':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"(sem corpo)": "204 No Content"}'
+              example: {}
+        '404':
+          description: WebhookRecNaoEncontrado — Webhook não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+  /webhookcobr:
+    put:
+      tags:
+      - Webhook
+      operationId: pix-bacen__webhook__assinar_webhook__cobr
+      summary: Configurar webhook de cobranças recorrentes do Pix Automático
+      description: 'Registra a URL base que receberá as notificações de mudanças de status das cobranças recorrentes e das
+        suas tentativas de liquidação. Diferente do webhook de Pix, não há chave no path: o webhook é do usuário recebedor
+        como um todo.
+
+
+        Quando usar: Obrigatório em qualquer integração de Pix Automático que não queira viver de polling: sem ele, você só
+        descobre que o pagador autorizou (ou que a cobrança foi liquidada) consultando a API de tempos em tempos.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Webhook
+      x-acao-canonica: assinar_webhook
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - webhookcobr.write
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"(sem corpo)": "200 OK"}'
+              example: {}
+        '400':
+          description: WebhookCobROperacaoInvalida — Requisição fora do schema ou com semântica inválida.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: WebhookCobRNaoEncontrado — Webhook não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                webhookUrl:
+                  type: string
+                  description: URL base HTTPS do seu endpoint; o PSP acrescenta /cobr ao chamar.
+              required:
+              - webhookUrl
+            example:
+              webhookUrl: https://webhook.example.com/pixcobr
+    get:
+      tags:
+      - Webhook
+      operationId: pix-bacen__webhook__obter__cobr
+      summary: Exibir webhook de cobranças recorrentes do Pix Automático
+      description: 'Mostra a URL registrada para as notificações de mudanças de status das cobranças recorrentes e das suas
+        tentativas de liquidação e a data de cadastro.
+
+
+        Quando usar: Verificação de configuração antes de investigar ausência de notificações de Pix Automático.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Webhook
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - webhookcobr.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"webhookUrl": "string", "criacao": "datetime"}'
+              example:
+                webhookUrl: https://webhook.example.com/pixcobr
+                criacao: '2026-07-01T12:00:00.000Z'
+        '404':
+          description: WebhookCobRNaoEncontrado — Webhook não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+    delete:
+      tags:
+      - Webhook
+      operationId: pix-bacen__webhook__excluir__cobr
+      summary: Cancelar webhook de cobranças recorrentes do Pix Automático
+      description: 'Remove a configuração de webhook de mudanças de status das cobranças recorrentes e das suas tentativas
+        de liquidação. O PSP para de notificar.
+
+
+        Quando usar: Desativação de ambiente ou migração de endpoint de Pix Automático.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Webhook
+      x-acao-canonica: excluir
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - webhookcobr.write
+      responses:
+        '204':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"(sem corpo)": "204 No Content"}'
+              example: {}
+        '404':
+          description: WebhookCobRNaoEncontrado — Webhook não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+  /rec:
+    post:
+      tags:
+      - Assinatura
+      operationId: pix-bacen__assinatura__criar
+      summary: Criar recorrência do Pix Automático
+      description: 'Cria a recorrência (autorização de débito recorrente) do Pix Automático: o contrato entre recebedor e
+        pagador que define objeto, periodicidade, data do primeiro pagamento, valor e política de retentativa. O PSP devolve
+        o idRec de 29 caracteres.
+
+
+        Quando usar: Primeiro passo de qualquer assinatura, mensalidade ou conta de consumo no Pix Automático. A recorrência
+        nasce CRIADA e só vira APROVADA depois que o pagador autoriza no app do banco dele.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - rec.write
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"idRec": "string de 29 caracteres", "status": "CRIADA", "vinculo": "objeto", "calendario":
+                  "objeto", "valor": "objeto", "politicaRetentativa": "enum", "atualizacao": "array com o histórico de status"}'
+              example:
+                idRec: RR0000000020260801abcdefghijk
+                vinculo: &id021
+                  contrato: CT-2026-4210
+                  objeto: Plano mensal Exemplo
+                  devedor:
+                    cpf: '00000000000'
+                    nome: Fulano de Tal
+                calendario: &id022
+                  dataInicial: '2026-09-05'
+                  periodicidade: MENSAL
+                valor: &id023
+                  valorRec: '99.90'
+                recebedor: &id024
+                  ispbParticipante: '00000000'
+                  cnpj: 00000000000191
+                  convenio: CONV-001
+                status: CRIADA
+                politicaRetentativa: PERMITE_3R_7D
+                loc: &id025
+                  id: 9001
+                  location: pix.example.com/qr/v2/rec/2353c790eefb11eaadc10242ac120002
+                  criacao: '2026-08-01T10:00:00.000Z'
+                  idRec: RR0000000020260801abcdefghijk
+                atualizacao:
+                - status: CRIADA
+                  data: '2026-08-01T10:00:00.000Z'
+                ativacao: &id026
+                  tipoJornada: JORNADA_3
+        '400':
+          description: RecOperacaoInvalida — A recorrência não respeita o schema ou está semanticamente errada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '500':
+          description: ErroInternoDoServidor — Condição inesperada ao processar a requisição.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vinculo.contrato:
+                  type: string
+                  maxLength: 35
+                  description: Número ou código do contrato/pedido que a recorrência representa.
+                vinculo.objeto:
+                  type: string
+                  maxLength: 35
+                  description: 'Texto livre que ajuda o pagador a reconhecer o que está autorizando (ex.: ''Plano mensal Exemplo'').'
+                vinculo.devedor.cpf:
+                  type: string
+                  pattern: ^[0-9]{11}$
+                  description: CPF do devedor da recorrência. Exclusivo com cnpj.
+                vinculo.devedor.cnpj:
+                  type: string
+                  pattern: ^[0-9A-Z]{14}$
+                  description: CNPJ do devedor. Exclusivo com cpf.
+                vinculo.devedor.nome:
+                  type: string
+                  maxLength: 200
+                  description: Nome ou razão social do devedor.
+                calendario.dataInicial:
+                  type: string
+                  format: date
+                  description: Data estimada do primeiro pagamento, em YYYY-MM-DD.
+                calendario.dataFinal:
+                  type: string
+                  format: date
+                  description: Fim da vigência, quando a autorização tem prazo definido.
+                calendario.periodicidade:
+                  type: string
+                  enum:
+                  - SEMANAL
+                  - MENSAL
+                  - TRIMESTRAL
+                  - SEMESTRAL
+                  - ANUAL
+                  description: Intervalo entre as cobranças.
+                valor.valorRec:
+                  type: string
+                  description: Valor fixo das parcelas, quando não varia. Omita em conta de consumo com valor variável.
+                valor.valorMinimoRecebedor:
+                  type: string
+                  description: Piso definido pelo recebedor para o valor máximo que o pagador pode fixar.
+                politicaRetentativa:
+                  type: string
+                  enum:
+                  - NAO_PERMITE
+                  - PERMITE_3R_7D
+                  description: 'NAO_PERMITE: uma única tentativa. PERMITE_3R_7D: até 3 novas tentativas dentro de 7 dias após
+                    o vencimento.'
+                recebedor.convenio:
+                  type: string
+                  maxLength: 60
+                  description: Convênio entre o recebedor e o PSP, usado para segmentar carteiras.
+                loc:
+                  type: integer
+                  description: Id de uma location de recorrência (POST /locrec) para servir o QR composto.
+                ativacao.dadosJornada:
+                  type: object
+                  description: Dados da jornada de autorização quando a ativação já nasce vinculada a uma cobrança (jornada
+                    3).
+              required:
+              - vinculo.contrato
+              - calendario.dataInicial
+              - calendario.periodicidade
+              - politicaRetentativa
+            example:
+              vinculo:
+                contrato: CT-2026-4210
+                objeto: Plano mensal Exemplo
+                devedor:
+                  cpf: '00000000000'
+                  nome: Fulano de Tal
+              calendario:
+                dataInicial: '2026-09-05'
+                periodicidade: MENSAL
+              valor:
+                valorRec: '99.90'
+              politicaRetentativa: PERMITE_3R_7D
+              recebedor:
+                convenio: CONV-001
+    get:
+      tags:
+      - Assinatura
+      operationId: pix-bacen__assinatura__listar
+      summary: Consultar lista de recorrências
+      description: 'Lista as recorrências criadas no período, com filtros por devedor, status, convênio e presença de location.
+
+
+        Quando usar: Planilha da base de assinantes: quantas autorizações foram criadas no mês, quantas o cliente aprovou,
+        quantas caducaram sem resposta e quantas foram canceladas — a taxa de conversão da adesão ao Pix Automático.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - rec.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"parametros": "objeto com filtros e paginacao", "recs": "array de RecCompleta"}'
+              example:
+                parametros:
+                  inicio: '2026-08-01T00:00:00Z'
+                  fim: '2026-08-31T23:59:59Z'
+                  paginacao:
+                    paginaAtual: 0
+                    itensPorPagina: 100
+                    quantidadeDePaginas: 1
+                    quantidadeTotalDeItens: 57
+                recs:
+                - &id027
+                  idRec: RR0000000020260801abcdefghijk
+                  vinculo: *id021
+                  calendario: *id022
+                  valor: *id023
+                  recebedor: *id024
+                  status: APROVADA
+                  politicaRetentativa: PERMITE_3R_7D
+                  loc: *id025
+                  atualizacao:
+                  - &id028
+                    status: CRIADA
+                    data: '2026-08-01T10:00:00.000Z'
+                  - &id029
+                    status: APROVADA
+                    data: '2026-08-01T10:07:41.000Z'
+                  ativacao: *id026
+        '400':
+          description: RecConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: inicio
+        in: query
+        required: true
+        description: 'Limite inferior do período: devolve registros cuja data de criação da recorrência seja maior ou igual
+          a este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: fim
+        in: query
+        required: true
+        description: 'Limite superior do período: devolve registros cuja data de criação da recorrência seja menor ou igual
+          a este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: cpf
+        in: query
+        required: false
+        description: Filtra pelo CPF do devedor. Não pode ser combinado com cnpj.
+        schema:
+          type: string
+          pattern: ^[0-9]{11}$
+      - name: cnpj
+        in: query
+        required: false
+        description: Filtra pelo CNPJ do devedor. Não pode ser combinado com cpf.
+        schema:
+          type: string
+          pattern: ^[0-9A-Z]{14}$
+      - name: status
+        in: query
+        required: false
+        description: Filtra pelo status da recorrência.
+        schema:
+          type: string
+          enum:
+          - CRIADA
+          - APROVADA
+          - REJEITADA
+          - EXPIRADA
+          - CANCELADA
+      - name: convenio
+        in: query
+        required: false
+        description: Filtra pelo convênio associado ao recebedor.
+        schema:
+          type: string
+          maxLength: 60
+      - name: locationPresente
+        in: query
+        required: false
+        description: Filtra pela existência de location vinculada.
+        schema:
+          type: boolean
+      - name: paginacao.paginaAtual
+        in: query
+        required: false
+        description: Página a recuperar. Começa em 0; se omitida, o PSP assume 0.
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: paginacao.itensPorPagina
+        in: query
+        required: false
+        description: Quantidade de registros por página. Só a última página pode vir com menos.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+  /rec/{idRec}:
+    get:
+      tags:
+      - Assinatura
+      operationId: pix-bacen__assinatura__obter
+      summary: Consultar recorrência
+      description: 'Devolve uma recorrência pelo idRec, com status atual, histórico de mudanças de status, dados do pagador
+        quando já autorizada, solicitações vinculadas e o encerramento, se houver.
+
+
+        Quando usar: Saber se o cliente já autorizou a assinatura antes de gerar a primeira cobrança, e investigar por que
+        uma recorrência parou de cobrar (REJEITADA, EXPIRADA ou CANCELADA — o array atualizacao mostra quando e para qual
+        estado).'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - rec.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"idRec": "string", "status": "CRIADA|APROVADA|REJEITADA|EXPIRADA|CANCELADA", "vinculo": "objeto
+                  com contrato, objeto e devedor", "calendario": "objeto com dataInicial, dataFinal e periodicidade", "valor":
+                  "objeto", "pagador": "objeto preenchido após a aprovação", "politicaRetentativa": "enum", "loc": "objeto
+                  location", "atualizacao": "array de {status, data}", "solicitacao": "array de solicitações vinculadas",
+                  "ativacao": "objeto com tipoJornada", "dadosQR": "objeto presente quando o txid é informado"}'
+              example: *id027
+        '404':
+          description: RecNaoEncontrada — Recorrência não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '400':
+          description: RecConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: idRec
+        in: path
+        required: true
+        description: Identificador da recorrência, de 29 caracteres.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{29}'
+          minLength: 29
+          maxLength: 29
+      - name: txid
+        in: query
+        required: false
+        description: TxID de uma cobrança associada; faz o PSP devolver também o bloco dadosQR com o Pix copia e cola da jornada.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{26,35}'
+    patch:
+      tags:
+      - Assinatura
+      operationId: pix-bacen__assinatura__atualizar
+      summary: Revisar ou cancelar recorrência
+      description: 'Altera dados da recorrência (devedor, calendário, valor, location) ou a encerra enviando status CANCELADA.
+
+
+        Quando usar: Cancelamento de assinatura pelo cliente, mudança de plano com novo valor, ajuste de vigência. No Pix
+        Automático, cancelar a recorrência é este PATCH — é o que interrompe as cobranças futuras.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - rec.write
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"idRec": "string", "status": "enum atualizado", "atualizacao": "array com o novo status"}'
+              example:
+                idRec: RR0000000020260801abcdefghijk
+                vinculo: *id021
+                calendario: *id022
+                valor: *id023
+                recebedor: *id024
+                status: CANCELADA
+                politicaRetentativa: PERMITE_3R_7D
+                loc: *id025
+                atualizacao:
+                - *id028
+                - *id029
+                - status: CANCELADA
+                  data: '2026-09-17T11:20:00.000Z'
+                ativacao: *id026
+        '400':
+          description: RecOperacaoInvalida — Alteração incompatível com o estado atual da recorrência.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: RecNaoEncontrada — Recorrência não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: idRec
+        in: path
+        required: true
+        description: Identificador da recorrência.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{29}'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - CANCELADA
+                  description: CANCELADA para encerrar a autorização.
+                calendario.dataFinal:
+                  type: string
+                  format: date
+                  description: Nova data de fim da vigência.
+                valor.valorRec:
+                  type: string
+                  description: Novo valor fixo das parcelas.
+                loc:
+                  type: integer
+                  description: Nova location de recorrência.
+                vinculo.devedor.cpf:
+                  type: string
+                  pattern: ^[0-9]{11}$
+                  description: CPF do devedor da recorrência. Exclusivo com cnpj.
+                vinculo.devedor.cnpj:
+                  type: string
+                  pattern: ^[0-9A-Z]{14}$
+                  description: CNPJ do devedor. Exclusivo com cpf.
+                vinculo.devedor.nome:
+                  type: string
+                  maxLength: 200
+                  description: Nome ou razão social do devedor.
+            example:
+              status: CANCELADA
+  /solicrec:
+    post:
+      tags:
+      - Assinatura
+      operationId: pix-bacen__assinatura__enviar__solicitacao
+      summary: Enviar solicitação de confirmação de recorrência
+      description: 'Envia ao PSP do pagador o pedido de confirmação da recorrência (jornada 1 de autorização): o pagador recebe
+        a solicitação no app do próprio banco e aprova ou rejeita por lá, sem QR Code.
+
+
+        Quando usar: Jornada 1 do Pix Automático, em que você já tem os dados bancários do cliente (agência, conta e ISPB)
+        e quer que a autorização apareça direto no app do banco dele. Nas jornadas 2 a 4, o caminho é o QR servido por /locrec.'
+      x-confianca: verificado
+      x-fonte-url: https://www.bcb.gov.br/content/estabilidadefinanceira/pix/automatico/guia_pix_automatico.pdf
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: enviar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - solicrec.write
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"idSolicRec": "string de 29 caracteres", "idRec": "string", "calendario": "objeto", "destinatario":
+                  "objeto", "status": "CRIADA|ENVIADA|RECEBIDA|REJEITADA|ACEITA|EXPIRADA|CANCELADA", "atualizacao": "array
+                  de {status, data}", "recPayload": "cópia dos dados da recorrência"}'
+              example:
+                idSolicRec: SC0000000020260801abcdefghijk
+                idRec: RR0000000020260801abcdefghijk
+                calendario: &id030
+                  dataExpiracaoSolicitacao: '2026-08-08T23:59:59Z'
+                  criacao: '2026-08-01T10:05:00.000Z'
+                destinatario: &id031
+                  agencia: '0001'
+                  conta: 0009876543
+                  ispbParticipante: '00000000'
+                status: ENVIADA
+                atualizacao: &id032
+                - &id033
+                  status: CRIADA
+                  data: '2026-08-01T10:05:00.000Z'
+                - &id034
+                  status: ENVIADA
+                  data: '2026-08-01T10:05:02.000Z'
+        '400':
+          description: SolicRecOperacaoInvalida — A solicitação de confirmação não respeita o schema ou está semanticamente
+            errada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: SolicRecNaoEncontrada — Solicitação de recorrência não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                idRec:
+                  type: string
+                  pattern: '[a-zA-Z0-9]{29}'
+                  description: Recorrência que será submetida à confirmação do pagador.
+                calendario.dataExpiracaoSolicitacao:
+                  type: string
+                  format: date-time
+                  description: Prazo para o pagador responder. Depois disso, a solicitação vira EXPIRADA.
+                destinatario.ispbParticipante:
+                  type: string
+                  pattern: ^[0-9A-Z]{8}$
+                  description: ISPB do PSP do pagador (8 posições).
+                destinatario.conta:
+                  type: string
+                  maxLength: 20
+                  description: Conta do pagador no PSP indicado.
+                destinatario.agencia:
+                  type: string
+                  maxLength: 4
+                  description: Agência do pagador.
+              required:
+              - idRec
+              - calendario.dataExpiracaoSolicitacao
+              - destinatario.ispbParticipante
+              - destinatario.conta
+            example:
+              idRec: RR0000000020260801abcdefghijk
+              calendario:
+                dataExpiracaoSolicitacao: '2026-08-08T23:59:59Z'
+              destinatario:
+                ispbParticipante: '00000000'
+                agencia: '0001'
+                conta: 0009876543
+  /solicrec/{idSolicRec}:
+    get:
+      tags:
+      - Assinatura
+      operationId: pix-bacen__assinatura__obter__solicitacao
+      summary: Consultar solicitação de confirmação de recorrência
+      description: 'Devolve o estado de uma solicitação de confirmação: se foi enviada, recebida pelo PSP pagador, aceita,
+        rejeitada ou expirada, com o histórico de status e o motivo da rejeição quando houver.
+
+
+        Quando usar: Acompanhar a adesão do cliente na jornada 1 e descobrir por que a autorização não saiu: foi rejeitada,
+        expirou sem resposta ou nem chegou ao PSP do pagador.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - solicrec.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"idSolicRec": "string", "idRec": "string", "status": "enum de 7 estados", "calendario": "objeto",
+                  "destinatario": "objeto", "atualizacao": "array de {status, data}", "encerramento": "objeto com rejeicao.motivo
+                  quando rejeitada", "recPayload": "cópia dos dados da recorrência submetida"}'
+              example:
+                idSolicRec: SC0000000020260801abcdefghijk
+                idRec: RR0000000020260801abcdefghijk
+                calendario: *id030
+                destinatario: *id031
+                status: REJEITADA
+                atualizacao: *id032
+                encerramento:
+                  rejeicao:
+                    motivo: DADOS_BANCARIOS_INVALIDOS
+        '404':
+          description: SolicRecNaoEncontrada — Solicitação de recorrência não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: idSolicRec
+        in: path
+        required: true
+        description: Identificador da solicitação, de 29 caracteres.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{29}'
+    patch:
+      tags:
+      - Assinatura
+      operationId: pix-bacen__assinatura__atualizar__solicitacao
+      summary: Cancelar solicitação de confirmação de recorrência
+      description: 'Cancela uma solicitação de confirmação ainda pendente, enviando status CANCELADA.
+
+
+        Quando usar: Cliente desistiu antes de responder, dados bancários foram corrigidos e você vai reenviar, ou a venda
+        caiu.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - solicrec.write
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"idSolicRec": "string", "status": "CANCELADA", "atualizacao": "array atualizado"}'
+              example:
+                idSolicRec: SC0000000020260801abcdefghijk
+                idRec: RR0000000020260801abcdefghijk
+                calendario: *id030
+                destinatario: *id031
+                status: CANCELADA
+                atualizacao:
+                - *id033
+                - *id034
+                - status: CANCELADA
+                  data: '2026-08-03T09:00:00.000Z'
+        '400':
+          description: SolicRecOperacaoInvalida — Não é possível cancelar uma solicitação com status diferente de CRIADA ou
+            RECEBIDA.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: SolicRecNaoEncontrada — Solicitação de recorrência não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: idSolicRec
+        in: path
+        required: true
+        description: Identificador da solicitação.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{29}'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - CANCELADA
+                  description: 'Único valor aceito: CANCELADA.'
+              required:
+              - status
+            example:
+              status: CANCELADA
+  /locrec:
+    post:
+      tags:
+      - Assinatura
+      operationId: pix-bacen__location_pagamento__criar__recorrencia
+      summary: Criar location de recorrência
+      description: 'Cria a URL que serve o payload JSON da recorrência, usada no QR Code de adesão ao Pix Automático (jornadas
+        2, 3 e 4). Como a location de cobrança, pode servir recorrências diferentes ao longo do tempo.
+
+
+        Quando usar: Quando a adesão acontece por QR Code — na tela do checkout, no boleto do plano, no material impresso
+        — em vez de partir dos dados bancários do cliente.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: LocationPagamento
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - payloadlocationrec.write
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"id": "integer int64", "location": "string (URL do payload da recorrência)", "tipo": "rec",
+                  "criacao": "datetime"}'
+              example: &id035
+                id: 9001
+                location: pix.example.com/qr/v2/rec/2353c790eefb11eaadc10242ac120002
+                tipo: rec
+                criacao: '2026-08-01T10:00:00.000Z'
+        '400':
+          description: PayloadLocationOperacaoInvalida — Corpo fora do schema.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tipo:
+                  type: string
+                  enum:
+                  - rec
+                  description: 'Único valor aceito no padrão: rec.'
+              required:
+              - tipo
+            example:
+              tipo: rec
+    get:
+      tags:
+      - Assinatura
+      operationId: pix-bacen__location_pagamento__listar__recorrencia
+      summary: Consultar locations de recorrência
+      description: 'Lista as locations de recorrência criadas no período, com filtro por convênio e pela existência de idRec
+        vinculado.
+
+
+        Quando usar: Inventário dos QR de adesão ao Pix Automático: quantos existem, quais estão livres e quais já estão amarrados
+        a uma recorrência.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: LocationPagamento
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - payloadlocationrec.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"parametros": "objeto com filtros e paginacao", "loc": "array de locations de recorrência"}'
+              example:
+                parametros:
+                  inicio: '2026-08-01T00:00:00Z'
+                  fim: '2026-08-31T23:59:59Z'
+                  paginacao:
+                    paginaAtual: 0
+                    itensPorPagina: 100
+                    quantidadeDePaginas: 1
+                    quantidadeTotalDeItens: 6
+                loc:
+                - id: 9001
+                  location: pix.example.com/qr/v2/rec/2353c790eefb11eaadc10242ac120002
+                  tipo: rec
+                  criacao: '2026-08-01T10:00:00.000Z'
+                  idRec: RR0000000020260801abcdefghijk
+        '400':
+          description: PayloadLocationRecConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: inicio
+        in: query
+        required: true
+        description: 'Limite inferior do período: devolve registros cuja data de criação da location seja maior ou igual a
+          este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: fim
+        in: query
+        required: true
+        description: 'Limite superior do período: devolve registros cuja data de criação da location seja menor ou igual a
+          este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: idRecPresente
+        in: query
+        required: false
+        description: true traz só locations com recorrência vinculada; false, só as livres.
+        schema:
+          type: boolean
+      - name: convenio
+        in: query
+        required: false
+        description: Filtra pelo convênio associado.
+        schema:
+          type: string
+          maxLength: 60
+      - name: paginacao.paginaAtual
+        in: query
+        required: false
+        description: Página a recuperar. Começa em 0; se omitida, o PSP assume 0.
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: paginacao.itensPorPagina
+        in: query
+        required: false
+        description: Quantidade de registros por página. Só a última página pode vir com menos.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+  /locrec/{id}:
+    get:
+      tags:
+      - Assinatura
+      operationId: pix-bacen__location_pagamento__obter__recorrencia
+      summary: Recuperar location de recorrência
+      description: 'Devolve uma location de recorrência pelo id, com a URL e o idRec atualmente vinculado, quando houver.
+
+
+        Quando usar: Descobrir qual recorrência um QR de adesão está servindo, antes de reaproveitá-lo para outro plano.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: LocationPagamento
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - payloadlocationrec.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"id": "integer", "idRec": "string quando vinculada", "location": "string", "criacao": "datetime"}'
+              example:
+                id: 9001
+                location: pix.example.com/qr/v2/rec/2353c790eefb11eaadc10242ac120002
+                tipo: rec
+                criacao: '2026-08-01T10:00:00.000Z'
+                idRec: RR0000000020260801abcdefghijk
+        '404':
+          description: PayloadLocationRecNaoEncontrado — Location de recorrência não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id da location de recorrência.
+        schema:
+          type: string
+  /locrec/{id}/idRec:
+    delete:
+      tags:
+      - Assinatura
+      operationId: pix-bacen__location_pagamento__desvincular__id_rec
+      summary: Desvincular recorrência de uma location
+      description: 'Remove o vínculo entre a location de recorrência e o idRec que ela serve, mantendo location e recorrência.
+
+
+        Quando usar: Reaproveitar um QR de adesão para outro plano ou liberar a location quando a recorrência foi cancelada.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: LocationPagamento
+      x-acao-canonica: desvincular
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - payloadlocationrec.write
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"id": "integer", "location": "string", "criacao": "datetime"}'
+              example: *id035
+        '404':
+          description: PayloadLocationRecNaoEncontrado — Location de recorrência não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id da location de recorrência a liberar.
+        schema:
+          type: string
+  /cobr/{txid}:
+    put:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__criar__cobr
+      summary: Criar cobrança recorrente (txid do recebedor)
+      description: 'Cria a cobrança de uma parcela dentro de uma recorrência aprovada do Pix Automático, com txid definido
+        por você. O PSP pagador agenda a liquidação para a data de vencimento.
+
+
+        Quando usar: Geração mensal das faturas de uma assinatura já autorizada. Com txid próprio, a criação é idempotente
+        e a conciliação amarra a parcela ao documento do ERP.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - cobr.write
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"txid": "string", "idRec": "string", "status": "CRIADA|ATIVA|CONCLUIDA|EXPIRADA|REJEITADA|CANCELADA",
+                  "calendario": "objeto", "valor": "objeto", "politicaRetentativa": "enum", "atualizacao": "array", "tentativas":
+                  "array com as tentativas de liquidação agendadas"}'
+              example: &id042
+                idRec: RR0000000020260801abcdefghijk
+                txid: assinatura20260900000000000042
+                infoAdicional: Plano mensal - setembro/2026
+                calendario: &id036
+                  criacao: '2026-08-28'
+                  dataDeVencimento: '2026-09-05'
+                valor: &id037
+                  original: '99.90'
+                ajusteDiaUtil: true
+                recebedor: &id038
+                  conta: '0001234567'
+                  tipoConta: CORRENTE
+                  agencia: '0001'
+                  ispbParticipante: '00000000'
+                  cnpj: 00000000000191
+                status: ATIVA
+                politicaRetentativa: PERMITE_3R_7D
+                devedor: &id039
+                  cpf: '00000000000'
+                  nome: Fulano de Tal
+                atualizacao: &id040
+                - status: CRIADA
+                  data: '2026-08-28T09:00:00.000Z'
+                - status: ATIVA
+                  data: '2026-08-28T09:00:05.000Z'
+                tentativas: &id041
+                - &id044
+                  dataLiquidacao: '2026-09-05'
+                  tipo: AGND
+                  status: AGENDADA
+                  endToEndId: E00000000202609050900abcdef111111
+                  atualizacao:
+                  - status: AGENDADA
+                    data: '2026-08-28T09:00:05.000Z'
+        '400':
+          description: CobROperacaoInvalida — A cobrança recorrente não respeita o schema ou está semanticamente errada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: CobRNaoEncontrado — Cobrança recorrente não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '500':
+          description: ErroInternoDoServidor — Condição inesperada ao processar a requisição.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: txid
+        in: path
+        required: true
+        description: Identificador da transação definido pelo usuário recebedor. Identifica a parcela dentro da recorrência.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{26,35}'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                idRec:
+                  type: string
+                  pattern: '[a-zA-Z0-9]{29}'
+                  description: Recorrência APROVADA à qual a cobrança pertence.
+                infoAdicional:
+                  type: string
+                  maxLength: 140
+                  description: Descrição da fatura exibida ao pagador.
+                calendario.dataDeVencimento:
+                  type: string
+                  format: date
+                  description: Data de vencimento da parcela, em YYYY-MM-DD.
+                valor.original:
+                  type: string
+                  description: Valor da parcela, como texto com duas casas.
+                ajusteDiaUtil:
+                  type: boolean
+                  description: true joga a liquidação para o próximo dia útil quando o vencimento cai em dia não útil.
+                recebedor.conta:
+                  type: string
+                  maxLength: 20
+                  description: Conta do recebedor que receberá o crédito.
+                recebedor.tipoConta:
+                  type: string
+                  enum: &id043
+                  - CORRENTE
+                  - POUPANCA
+                  - PAGAMENTO
+                  description: Tipo da conta do recebedor.
+                recebedor.agencia:
+                  type: string
+                  maxLength: 4
+                  description: Agência do recebedor.
+                devedor.cpf:
+                  type: string
+                  pattern: ^[0-9]{11}$
+                  description: CPF do devedor.
+                devedor.cnpj:
+                  type: string
+                  pattern: ^[0-9A-Z]{14}$
+                  description: CNPJ do devedor.
+                devedor.nome:
+                  type: string
+                  maxLength: 200
+                  description: Nome do devedor.
+              required:
+              - idRec
+              - calendario.dataDeVencimento
+              - valor.original
+              - ajusteDiaUtil
+              - recebedor.conta
+              - recebedor.tipoConta
+            example:
+              idRec: RR0000000020260801abcdefghijk
+              infoAdicional: Plano mensal - setembro/2026
+              calendario:
+                dataDeVencimento: '2026-09-05'
+              valor:
+                original: '99.90'
+              ajusteDiaUtil: true
+              recebedor:
+                conta: '0001234567'
+                tipoConta: CORRENTE
+                agencia: '0001'
+              devedor:
+                cpf: '00000000000'
+                nome: Fulano de Tal
+    patch:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__atualizar__cobr
+      summary: Revisar ou cancelar cobrança recorrente
+      description: 'Cancela uma cobrança recorrente enviando status CANCELADA, desde que ainda não tenha chegado a data prevista
+        da primeira tentativa de liquidação.
+
+
+        Quando usar: Cliente cancelou o plano antes do vencimento, valor foi corrigido, cobrança foi gerada por engano.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: atualizar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - cobr.write
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"txid": "string", "status": "CANCELADA", "atualizacao": "array com o novo status"}'
+              example:
+                idRec: RR0000000020260801abcdefghijk
+                txid: assinatura20260900000000000042
+                infoAdicional: Plano mensal - setembro/2026
+                calendario: *id036
+                valor: *id037
+                ajusteDiaUtil: true
+                recebedor: *id038
+                status: CANCELADA
+                politicaRetentativa: PERMITE_3R_7D
+                devedor: *id039
+                atualizacao: *id040
+                tentativas: *id041
+        '400':
+          description: CobROperacaoInvalida — Não é possível cancelar uma cobrança em data igual ou posterior à da primeira
+            tentativa de liquidação.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: CobRNaoEncontrado — Cobrança recorrente não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: txid
+        in: path
+        required: true
+        description: Identificador da transação definido pelo usuário recebedor.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{26,35}'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - CANCELADA
+                  description: 'Único valor aceito: CANCELADA.'
+              required:
+              - status
+            example:
+              status: CANCELADA
+    get:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__obter__cobr
+      summary: Consultar cobrança recorrente
+      description: 'Devolve uma cobrança recorrente pelo txid, com status, valor, histórico de status e o array tentativas,
+        que mostra cada tentativa de liquidação com data, tipo, status, endToEndId e motivo de rejeição.
+
+
+        Quando usar: Saber se a parcela do mês foi paga, quando será a próxima tentativa e por que uma tentativa foi rejeitada
+        — é onde a inadimplência do Pix Automático fica visível.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - cobr.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"txid": "string", "idRec": "string", "status": "enum", "calendario": "objeto", "valor": "objeto",
+                  "devedor": "objeto", "politicaRetentativa": "enum", "pix": "array com os Pix liquidados", "tentativas":
+                  "array de {dataLiquidacao, tipo (AGND|NTAG|RIFL), status (SOLICITADA|AGENDADA|PAGA|CANCELADA|REJEITADA|EXPIRADA),
+                  endToEndId, rejeicao}", "atualizacao": "array de {status, data}"}'
+              example: *id042
+        '404':
+          description: CobRNaoEncontrado — Cobrança recorrente não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '400':
+          description: CobRConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: txid
+        in: path
+        required: true
+        description: Identificador da transação definido pelo usuário recebedor.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{26,35}'
+  /cobr:
+    post:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__criar__cobr_txid_psp
+      summary: Criar cobrança recorrente com txid gerado pelo PSP
+      description: 'Cria uma parcela da recorrência deixando o txid a cargo do PSP. Mesmo comportamento do PUT, sem idempotência.
+
+
+        Quando usar: Só quando não houver um identificador próprio para a parcela. Em faturamento recorrente, o normal é usar
+        o PUT /cobr/{txid} com um txid derivado de contrato + competência.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - cobr.write
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"txid": "string gerado pelo PSP", "idRec": "string", "status": "enum", "tentativas": "array"}'
+              example:
+                idRec: RR0000000020260801abcdefghijk
+                txid: c0ffee00000000000000000000000042
+                infoAdicional: Plano mensal - setembro/2026
+                calendario: *id036
+                valor: *id037
+                ajusteDiaUtil: true
+                recebedor: *id038
+                status: ATIVA
+                politicaRetentativa: PERMITE_3R_7D
+                devedor: *id039
+                atualizacao: *id040
+                tentativas: *id041
+        '400':
+          description: CobROperacaoInvalida — Corpo fora do schema ou recorrência não aprovada.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                idRec:
+                  type: string
+                  pattern: '[a-zA-Z0-9]{29}'
+                  description: Recorrência APROVADA à qual a cobrança pertence.
+                infoAdicional:
+                  type: string
+                  maxLength: 140
+                  description: Descrição da fatura exibida ao pagador.
+                calendario.dataDeVencimento:
+                  type: string
+                  format: date
+                  description: Data de vencimento da parcela, em YYYY-MM-DD.
+                valor.original:
+                  type: string
+                  description: Valor da parcela, como texto com duas casas.
+                ajusteDiaUtil:
+                  type: boolean
+                  description: true joga a liquidação para o próximo dia útil quando o vencimento cai em dia não útil.
+                recebedor.conta:
+                  type: string
+                  maxLength: 20
+                  description: Conta do recebedor que receberá o crédito.
+                recebedor.tipoConta:
+                  type: string
+                  enum: *id043
+                  description: Tipo da conta do recebedor.
+                recebedor.agencia:
+                  type: string
+                  maxLength: 4
+                  description: Agência do recebedor.
+                devedor.cpf:
+                  type: string
+                  pattern: ^[0-9]{11}$
+                  description: CPF do devedor.
+                devedor.cnpj:
+                  type: string
+                  pattern: ^[0-9A-Z]{14}$
+                  description: CNPJ do devedor.
+                devedor.nome:
+                  type: string
+                  maxLength: 200
+                  description: Nome do devedor.
+              required:
+              - idRec
+              - calendario.dataDeVencimento
+              - valor.original
+              - ajusteDiaUtil
+              - recebedor.conta
+              - recebedor.tipoConta
+            example:
+              idRec: RR0000000020260801abcdefghijk
+              calendario:
+                dataDeVencimento: '2026-09-05'
+              valor:
+                original: '99.90'
+              ajusteDiaUtil: true
+              recebedor:
+                conta: '0001234567'
+                tipoConta: CORRENTE
+    get:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__listar__cobr
+      summary: Consultar lista de cobranças recorrentes
+      description: 'Lista as cobranças recorrentes criadas no período, com filtros por recorrência, devedor, status e convênio.
+
+
+        Quando usar: Relatório mensal da carteira de assinaturas: faturado, liquidado, rejeitado e cancelado por competência,
+        e lista de inadimplentes para régua de cobrança.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      security:
+      - OAuth2:
+        - cobr.read
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"parametros": "objeto com filtros e paginacao", "cobsr": "array de CobRCompleta"}'
+              example:
+                parametros:
+                  inicio: '2026-09-01T00:00:00Z'
+                  fim: '2026-09-30T23:59:59Z'
+                  paginacao:
+                    paginaAtual: 0
+                    itensPorPagina: 100
+                    quantidadeDePaginas: 2
+                    quantidadeTotalDeItens: 143
+                cobsr:
+                - *id042
+        '400':
+          description: CobRConsultaInvalida — Parâmetros de consulta fora do schema ou sem sentido semântico.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: inicio
+        in: query
+        required: true
+        description: 'Limite inferior do período: devolve registros cuja data de criação da cobrança seja maior ou igual a
+          este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: fim
+        in: query
+        required: true
+        description: 'Limite superior do período: devolve registros cuja data de criação da cobrança seja menor ou igual a
+          este instante.'
+        schema:
+          type: string
+          format: date-time
+      - name: idRec
+        in: query
+        required: false
+        description: Traz apenas as parcelas de uma recorrência.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{29}'
+          minLength: 29
+          maxLength: 29
+      - name: cpf
+        in: query
+        required: false
+        description: Filtra pelo CPF do devedor. Não pode ser combinado com cnpj.
+        schema:
+          type: string
+          pattern: ^[0-9]{11}$
+      - name: cnpj
+        in: query
+        required: false
+        description: Filtra pelo CNPJ do devedor. Não pode ser combinado com cpf.
+        schema:
+          type: string
+          pattern: ^[0-9A-Z]{14}$
+      - name: status
+        in: query
+        required: false
+        description: Filtra pelo status da cobrança recorrente.
+        schema:
+          type: string
+          enum:
+          - CRIADA
+          - ATIVA
+          - CONCLUIDA
+          - EXPIRADA
+          - REJEITADA
+          - CANCELADA
+      - name: convenio
+        in: query
+        required: false
+        description: Filtra pelo convênio associado.
+        schema:
+          type: string
+          maxLength: 60
+      - name: paginacao.paginaAtual
+        in: query
+        required: false
+        description: Página a recuperar. Começa em 0; se omitida, o PSP assume 0.
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: paginacao.itensPorPagina
+        in: query
+        required: false
+        description: Quantidade de registros por página. Só a última página pode vir com menos.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+  /cobr/{txid}/retentativa/{data}:
+    post:
+      tags:
+      - Cobranca
+      operationId: pix-bacen__cobranca__criar__retentativa_cobr
+      summary: Solicitar retentativa de cobrança recorrente
+      description: 'Pede uma nova tentativa de liquidação de uma cobrança recorrente que não foi paga, para a data informada
+        no path. Só funciona se a recorrência tiver política PERMITE_3R_7D.
+
+
+        Quando usar: Régua de cobrança de assinatura: a parcela não liquidou por falta de saldo e você quer tentar de novo
+        dentro da janela permitida, sem criar uma nova cobrança.'
+      x-confianca: verificado
+      x-fonte-url: https://github.com/bacen/pix-api/releases/tag/2.10.0
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      security:
+      - OAuth2:
+        - cobr.write
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                description: '{"txid": "string", "status": "enum", "tentativas": "array obrigatório, com a nova tentativa
+                  incluída"}'
+              example:
+                idRec: RR0000000020260801abcdefghijk
+                txid: assinatura20260900000000000042
+                infoAdicional: Plano mensal - setembro/2026
+                calendario: *id036
+                valor: *id037
+                ajusteDiaUtil: true
+                recebedor: *id038
+                status: ATIVA
+                politicaRetentativa: PERMITE_3R_7D
+                devedor: *id039
+                atualizacao: *id040
+                tentativas:
+                - *id044
+                - dataLiquidacao: '2026-09-09'
+                  tipo: RIFL
+                  status: SOLICITADA
+                  endToEndId: E00000000202609090900abcdef222222
+                  atualizacao:
+                  - status: SOLICITADA
+                    data: '2026-09-08T14:00:00.000Z'
+        '400':
+          description: CobROperacaoInvalida — A política configurada na recorrência não permite retentativa de cobrança.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '403':
+          description: AcessoNegado — Requisição de participante autenticado que viola alguma regra de autorização.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: CobRNaoEncontrado — Cobrança recorrente não encontrado(a).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '503':
+          description: ServicoIndisponivel — Serviço indisponível; pode estar em manutenção ou fora da janela de funcionamento.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+      parameters:
+      - name: txid
+        in: path
+        required: true
+        description: Identificador da transação definido pelo usuário recebedor. Cobrança recorrente não liquidada.
+        schema:
+          type: string
+          pattern: '[a-zA-Z0-9]{26,35}'
+      - name: data
+        in: path
+        required: true
+        description: Data prevista para a nova tentativa de liquidação, em YYYY-MM-DD.
+        schema:
+          type: string
+          format: date
+components:
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      description: Client credentials sobre mTLS; tokenUrl é definido por cada PSP.
+      flows:
+        clientCredentials:
+          tokenUrl: https://api.seupsp.com.br/oauth/token
+          scopes:
+            cob.read: Escopo cob.read da API Pix
+            cob.write: Escopo cob.write da API Pix
+            cobv.read: Escopo cobv.read da API Pix
+            cobv.write: Escopo cobv.write da API Pix
+            lotecobv.read: Escopo lotecobv.read da API Pix
+            lotecobv.write: Escopo lotecobv.write da API Pix
+            pix.read: Escopo pix.read da API Pix
+            pix.write: Escopo pix.write da API Pix
+            webhook.read: Escopo webhook.read da API Pix
+            webhook.write: Escopo webhook.write da API Pix
+            payloadlocation.read: Escopo payloadlocation.read da API Pix
+            payloadlocation.write: Escopo payloadlocation.write da API Pix
+            payloadlocationrec.read: Escopo payloadlocationrec.read da API Pix
+            payloadlocationrec.write: Escopo payloadlocationrec.write da API Pix
+            rec.read: Escopo rec.read da API Pix
+            rec.write: Escopo rec.write da API Pix
+            solicrec.read: Escopo solicrec.read da API Pix
+            solicrec.write: Escopo solicrec.write da API Pix
+            cobr.read: Escopo cobr.read da API Pix
+            cobr.write: Escopo cobr.write da API Pix
+            webhookrec.read: Escopo webhookrec.read da API Pix
+            webhookrec.write: Escopo webhookrec.write da API Pix
+            webhookcobr.read: Escopo webhookcobr.read da API Pix
+            webhookcobr.write: Escopo webhookcobr.write da API Pix
+  schemas:
+    Problema:
+      type: object
+      description: Erro no formato RFC 7807 usado por toda a API Pix.
+      required:
+      - type
+      - title
+      - status
+      properties:
+        type:
+          type: string
+          format: uri
+          description: https://pix.bcb.gov.br/api/v2/error/<TipoErro>
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        correlationId:
+          type: string
+          description: Identificador de correlação para suporte do PSP.
+        violacoes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Violacao'
+    Violacao:
+      type: object
+      properties:
+        razao:
+          type: string
+        propriedade:
+          type: string
+        valor:
+          type: string
+    Paginacao:
+      type: object
+      required:
+      - paginaAtual
+      - itensPorPagina
+      - quantidadeDePaginas
+      - quantidadeTotalDeItens
+      properties:
+        paginaAtual:
+          type: integer
+        itensPorPagina:
+          type: integer
+        quantidadeDePaginas:
+          type: integer
+        quantidadeTotalDeItens:
+          type: integer

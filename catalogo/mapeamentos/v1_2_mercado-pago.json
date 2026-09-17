@@ -1,0 +1,40 @@
+{
+  "sistema": "mercado-pago",
+  "detalhados": [
+    {"de": "mercado-pago.cobranca.listar.contestacoes", "para": "mercado-pago.contestacao.listar", "entidade": "Contestacao", "acao": "listar"},
+    {"de": "mercado-pago.cliente.criar.cartao", "para": "mercado-pago.cartao.criar", "entidade": "Cartao", "acao": "criar"},
+    {"de": "mercado-pago.cliente.listar.cartoes", "para": "mercado-pago.cartao.listar", "entidade": "Cartao", "acao": "listar"},
+    {"de": "mercado-pago.assinatura.criar.plano", "para": "mercado-pago.plano.criar", "entidade": "Plano", "acao": "criar"},
+    {"de": "mercado-pago.assinatura.listar.planos", "para": "mercado-pago.plano.listar", "entidade": "Plano", "acao": "listar"},
+    {"de": "mercado-pago.transacao.criar.relatorio_liberacao", "para": "mercado-pago.relatorio.criar.liberacao", "entidade": "Relatorio", "acao": "criar"},
+    {"de": "mercado-pago.transacao.consultar_status.relatorio_liberacao", "para": "mercado-pago.relatorio.consultar_status.liberacao", "entidade": "Relatorio", "acao": "consultar_status"},
+    {"de": "mercado-pago.transacao.listar.relatorios_liberacao", "para": "mercado-pago.relatorio.listar.liberacao", "entidade": "Relatorio", "acao": "listar"},
+    {"de": "mercado-pago.transacao.baixar_arquivo.relatorio_liberacao", "para": "mercado-pago.relatorio.baixar_arquivo.liberacao", "entidade": "Relatorio", "acao": "baixar_arquivo"}
+  ],
+  "secundarios": [
+    {"metodo": "GET", "path": "/v1/customers/{customer_id}/cards/{card_id}", "entidade": "Cartao", "acao": "obter"},
+    {"metodo": "PUT", "path": "/v1/customers/{customer_id}/cards/{card_id}", "entidade": "Cartao", "acao": "atualizar"},
+    {"metodo": "DELETE", "path": "/v1/customers/{customer_id}/cards/{card_id}", "entidade": "Cartao", "acao": "excluir"},
+    {"metodo": "GET", "path": "/v1/chargebacks/{id}", "entidade": "Contestacao", "acao": "obter"},
+    {"metodo": "POST", "path": "/v1/chargebacks/{id}/documentation", "entidade": "Contestacao", "acao": "enviar"},
+    {"metodo": "GET", "path": "/v1/chargebacks/{id}/documentation/{file_id}", "entidade": "Contestacao", "acao": "baixar_arquivo"},
+    {"metodo": "GET", "path": "/preapproval_plan/{id}", "entidade": "Plano", "acao": "obter"},
+    {"metodo": "PUT", "path": "/preapproval_plan/{id}", "entidade": "Plano", "acao": "atualizar"},
+    {"metodo": "POST", "path": "/v1/account/release_report/config", "entidade": "Relatorio", "acao": "criar"},
+    {"metodo": "PUT", "path": "/v1/account/release_report/config", "entidade": "Relatorio", "acao": "atualizar"},
+    {"metodo": "GET", "path": "/v1/account/release_report/config", "entidade": "Relatorio", "acao": "obter"},
+    {"metodo": "GET", "path": "/v1/account/release_report/list", "entidade": "Relatorio", "acao": "listar"},
+    {"metodo": "POST", "path": "/v1/account/release_report/schedule", "entidade": "Relatorio", "acao": "atualizar"},
+    {"metodo": "DELETE", "path": "/v1/account/release_report/schedule", "entidade": "Relatorio", "acao": "atualizar"},
+    {"metodo": "POST", "path": "/v1/account/settlement_report", "entidade": "Relatorio", "acao": "criar"},
+    {"metodo": "GET", "path": "/v1/account/settlement_report/search", "entidade": "Relatorio", "acao": "listar"},
+    {"metodo": "GET", "path": "/v1/account/settlement_report/list", "entidade": "Relatorio", "acao": "listar"},
+    {"metodo": "GET", "path": "/v1/account/settlement_report/task/{task-id}", "entidade": "Relatorio", "acao": "consultar_status"},
+    {"metodo": "GET", "path": "/v1/account/settlement_report/{file_name}", "entidade": "Relatorio", "acao": "baixar_arquivo"},
+    {"metodo": "POST", "path": "/v1/account/settlement_report/config", "entidade": "Relatorio", "acao": "criar"},
+    {"metodo": "PUT", "path": "/v1/account/settlement_report/config", "entidade": "Relatorio", "acao": "atualizar"},
+    {"metodo": "GET", "path": "/v1/account/settlement_report/config", "entidade": "Relatorio", "acao": "obter"},
+    {"metodo": "POST", "path": "/v1/account/settlement_report/schedule", "entidade": "Relatorio", "acao": "atualizar"},
+    {"metodo": "DELETE", "path": "/v1/account/settlement_report/schedule", "entidade": "Relatorio", "acao": "atualizar"}
+  ]
+}

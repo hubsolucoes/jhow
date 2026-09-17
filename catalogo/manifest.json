@@ -1,0 +1,2760 @@
+{
+  "catalogo": "catalogo-apis-brasil",
+  "versao_manifest": "0.1.0",
+  "fase_atual": "fase_2_lotes",
+  "aguardando_aprovacao": false,
+  "aprovado_em": "2026-09-14",
+  "criado_em": "2026-09-14",
+  "atualizado_em": "2026-09-17",
+  "legenda_status": {
+    "pendente": "ainda não iniciado",
+    "em_andamento": "lote em execução",
+    "concluido": "passou na Definition of Done (seção 16)",
+    "bloqueado": "impedimento registrado em 'bloqueio'",
+    "acesso_restrito": "documentação exige contrato/NDA/credencial de parceiro — só o que é público será registrado",
+    "removido": "sem API pública documentada ou descontinuado — motivo registrado"
+  },
+  "criterio_priorizacao": {
+    "formula": "adocao_mercado_alvo x acessibilidade_doc x valor_comercial_integracao",
+    "escala": "1 (baixo) a 3 (alto) por componente; prioridade = produto (1 a 27)",
+    "natureza": "ESTIMATIVA DE PLANEJAMENTO — julgamento qualitativo do arquiteto, não dado verificado. Será revisada com evidência ao fim de cada lote.",
+    "confianca": "inferido"
+  },
+  "justificativa_ordem": [
+    "Onda 1 cobre as quatro categorias que mais geram demanda de integração no Brasil (Pagamentos, Fiscal, ERP nacional, E-commerce), conforme seção 5.",
+    "O Lote 1 usa sistemas com documentação pública, self-service e sandbox gratuito (Asaas, Focus NFe, Bling). Objetivo: calibrar o template de ficha, a taxonomia e o pipeline de validação em APIs 'fáceis' antes de enfrentar SOAP/SEFAZ e ERPs com acesso restrito.",
+    "Padrões/arranjos (API Pix do Bacen, NF-e SEFAZ, NFS-e Nacional) entram cedo porque são a referência que dezenas de PSPs e gateways implementam — documentá-los primeiro evita duplicação e permite mapear PSPs como 'implementação do padrão'.",
+    "Os lotes alternam categorias para que, ao atingir 20+ sistemas (fim do Lote 7), já existam peças para as receitas mais vendáveis: marketplace→ERP→NF-e→frete e checkout Pix→conciliação→baixa no ERP.",
+    "ERPs de grande porte com acesso restrito (TOTVS, Senior, Sankhya, SAP) ficam no meio da Onda 1: são comercialmente essenciais, mas o risco de 'acesso_restrito' é alto e não deve travar o calibramento inicial.",
+    "Ondas 2–4 seguem valor comercial decrescente para o ICP; verticais (Saúde, Contábil) ficam por último por terem maior probabilidade de acesso restrito ou ausência de API pública."
+  ],
+  "regras_execucao": {
+    "sistemas_por_lote": 3,
+    "receitas_liberadas_apos": "20 sistemas com status concluido ou acesso_restrito documentado",
+    "retomada": "sempre ler este arquivo antes de iniciar lote; nunca reprocessar 'concluido' sem pedido explícito",
+    "frequencia_revisao_padrao": {
+      "pagamentos": "mensal",
+      "fiscal": "mensal",
+      "bancos_open_finance": "mensal",
+      "demais": "trimestral"
+    }
+  },
+  "fases": [
+    {
+      "fase": 0,
+      "nome": "Planejamento",
+      "status": "concluido",
+      "entregaveis": [
+        "manifest.json"
+      ]
+    },
+    {
+      "fase": 1,
+      "nome": "Taxonomia",
+      "status": "concluido",
+      "entregaveis": [
+        "taxonomia.json",
+        "glossario_br.json",
+        "ESPECIFICACAO.md",
+        "scripts/validar.py"
+      ]
+    },
+    {
+      "fase": 2,
+      "nome": "Lotes de sistemas",
+      "status": "em_andamento",
+      "entregaveis": [
+        "sistemas/<slug>/*"
+      ]
+    },
+    {
+      "fase": 3,
+      "nome": "Receitas cross-system",
+      "status": "pendente",
+      "entregaveis": [
+        "receitas/*.json (mín. 15)"
+      ]
+    },
+    {
+      "fase": 4,
+      "nome": "Consolidação",
+      "status": "pendente",
+      "entregaveis": [
+        "relatorios/cobertura.md",
+        "relatorios/changelog.md",
+        "índices e validação"
+      ]
+    }
+  ],
+  "lotes": [
+    {
+      "lote": 1,
+      "onda": 1,
+      "tema": "Calibragem — APIs self-service",
+      "sistemas": [
+        "asaas",
+        "focus-nfe",
+        "bling"
+      ],
+      "status": "concluido",
+      "concluido_em": "2026-09-17",
+      "relatorio": "relatorios/lote-01.md",
+      "reclassificado_taxonomia": "1.2.0 em 2026-09-17",
+      "execucao_complementada": "2026-09-17"
+    },
+    {
+      "lote": 2,
+      "onda": 1,
+      "tema": "Padrão Pix + PSPs de alta adoção",
+      "sistemas": [
+        "pix-bacen",
+        "pagarme",
+        "mercado-pago"
+      ],
+      "status": "concluido",
+      "concluido_em": "2026-09-17",
+      "relatorio": "relatorios/lote-02.md",
+      "observacao": "",
+      "reclassificado_taxonomia": "1.2.0 em 2026-09-17"
+    },
+    {
+      "lote": "P1",
+      "onda": 1,
+      "tema": "Prioritário — ERP do cliente atual",
+      "sistemas": [
+        "sygecom"
+      ],
+      "status": "em_andamento",
+      "motivo": "pedido do usuário em 2026-09-17: piloto de teste do executor"
+    },
+    {
+      "lote": 3,
+      "onda": 1,
+      "tema": "Fiscal — padrão e gateways",
+      "sistemas": [
+        "sefaz-nfe",
+        "nfe-io",
+        "plugnotas"
+      ],
+      "status": "em_andamento"
+    },
+    {
+      "lote": 4,
+      "onda": 1,
+      "tema": "ERP nacional PME/média (APIs abertas)",
+      "sistemas": [
+        "omie",
+        "tiny",
+        "conta-azul"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 5,
+      "onda": 1,
+      "tema": "E-commerce / marketplace líderes",
+      "sistemas": [
+        "vtex",
+        "mercado-livre",
+        "nuvemshop"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 6,
+      "onda": 1,
+      "tema": "ERP médio/grande porte (risco de acesso restrito)",
+      "sistemas": [
+        "totvs-protheus",
+        "sankhya",
+        "senior"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 7,
+      "onda": 1,
+      "tema": "Cobrança recorrente / PSPs",
+      "sistemas": [
+        "efi",
+        "iugu",
+        "vindi"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 8,
+      "onda": 1,
+      "tema": "Adquirentes",
+      "sistemas": [
+        "stone",
+        "cielo",
+        "rede"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 9,
+      "onda": 1,
+      "tema": "Logística — frete e cotação",
+      "sistemas": [
+        "melhor-envio",
+        "correios",
+        "frenet"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 10,
+      "onda": 1,
+      "tema": "Fiscal governamental",
+      "sistemas": [
+        "nfse-nacional",
+        "serpro",
+        "esocial"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 11,
+      "onda": 1,
+      "tema": "Marketplaces e hubs",
+      "sistemas": [
+        "magalu",
+        "amazon-br",
+        "anymarket"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 12,
+      "onda": 1,
+      "tema": "Pagamentos — BaaS e carteiras",
+      "sistemas": [
+        "pagbank",
+        "celcoin",
+        "stark-bank"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 13,
+      "onda": 1,
+      "tema": "E-commerce complementar",
+      "sistemas": [
+        "tray",
+        "shopify",
+        "shopee"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 14,
+      "onda": 2,
+      "tema": "Bancos — Open Finance e cobrança",
+      "sistemas": [
+        "open-finance-brasil",
+        "banco-do-brasil",
+        "itau"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 15,
+      "onda": 2,
+      "tema": "Bancos — cobrança/Pix",
+      "sistemas": [
+        "bradesco",
+        "santander",
+        "inter"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 16,
+      "onda": 2,
+      "tema": "Comunicação — WhatsApp e CPaaS BR",
+      "sistemas": [
+        "whatsapp-cloud-api",
+        "take-blip",
+        "zenvia"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 17,
+      "onda": 2,
+      "tema": "Assinatura eletrônica",
+      "sistemas": [
+        "clicksign",
+        "d4sign",
+        "zapsign"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 18,
+      "onda": 2,
+      "tema": "CRM / Marketing BR",
+      "sistemas": [
+        "rd-station",
+        "ploomes",
+        "pipedrive"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 19,
+      "onda": 2,
+      "tema": "Dados / KYC / crédito",
+      "sistemas": [
+        "receita-federal-cnpj",
+        "serpro-datavalid",
+        "serasa-experian"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 20,
+      "onda": 2,
+      "tema": "Fiscal complementar",
+      "sistemas": [
+        "efd-reinf",
+        "tecnospeed",
+        "arquivei"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 21,
+      "onda": 2,
+      "tema": "ERP global com localização BR",
+      "sistemas": [
+        "sap-s4hana",
+        "oracle-netsuite",
+        "dynamics-365"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 22,
+      "onda": 3,
+      "tema": "RH / Folha / Ponto",
+      "sistemas": [
+        "gupy",
+        "solides",
+        "convenia"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 23,
+      "onda": 3,
+      "tema": "Ponto eletrônico",
+      "sistemas": [
+        "pontomais",
+        "ahgora",
+        "tangerino"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 24,
+      "onda": 3,
+      "tema": "Atendimento / Service Desk",
+      "sistemas": [
+        "movidesk",
+        "octadesk",
+        "zendesk"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 25,
+      "onda": 3,
+      "tema": "Logística — transportadoras e TMS",
+      "sistemas": [
+        "intelipost",
+        "loggi",
+        "jadlog"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 26,
+      "onda": 3,
+      "tema": "CPaaS global",
+      "sistemas": [
+        "twilio",
+        "infobip",
+        "sinch"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 27,
+      "onda": 3,
+      "tema": "CRM global",
+      "sistemas": [
+        "salesforce",
+        "hubspot",
+        "agendor"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 28,
+      "onda": 3,
+      "tema": "Assinatura / identidade",
+      "sistemas": [
+        "autentique",
+        "docusign",
+        "unico"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 29,
+      "onda": 3,
+      "tema": "Bancos cooperativos e investimento",
+      "sistemas": [
+        "sicoob",
+        "sicredi",
+        "btg-pactual"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 30,
+      "onda": 3,
+      "tema": "ERP nacional — varejo e serviços",
+      "sistemas": [
+        "linx",
+        "totvs-rm",
+        "totvs-datasul"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 31,
+      "onda": 4,
+      "tema": "Produtividade / Infra",
+      "sistemas": [
+        "microsoft-graph",
+        "google-workspace",
+        "slack"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 32,
+      "onda": 4,
+      "tema": "BI",
+      "sistemas": [
+        "power-bi",
+        "metabase",
+        "looker"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 33,
+      "onda": 4,
+      "tema": "Dados de crédito e enriquecimento",
+      "sistemas": [
+        "boa-vista-equifax",
+        "bigdatacorp",
+        "idwall"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 34,
+      "onda": 4,
+      "tema": "Atendimento / produtividade complementar",
+      "sistemas": [
+        "freshdesk",
+        "jira-service-management",
+        "atlassian"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 35,
+      "onda": 4,
+      "tema": "PSPs complementares",
+      "sistemas": [
+        "zoop",
+        "juno",
+        "transfeera"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 36,
+      "onda": 4,
+      "tema": "Comunicação complementar",
+      "sistemas": [
+        "gupshup",
+        "3c-plus",
+        "callix"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 37,
+      "onda": 4,
+      "tema": "ERP nacional — nicho",
+      "sistemas": [
+        "alterdata",
+        "nasajon",
+        "benner"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 38,
+      "onda": 4,
+      "tema": "E-commerce / hubs complementares",
+      "sistemas": [
+        "loja-integrada",
+        "magazord",
+        "plugg-to"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 39,
+      "onda": 4,
+      "tema": "Fiscal / assinatura complementar",
+      "sistemas": [
+        "enotas",
+        "oobj",
+        "govbr"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 40,
+      "onda": 4,
+      "tema": "Logística / TMS complementar",
+      "sistemas": [
+        "kangu",
+        "braspress",
+        "ssw"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 41,
+      "onda": 4,
+      "tema": "Vertical Saúde",
+      "sistemas": [
+        "tiss-ans",
+        "tasy",
+        "mv"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 42,
+      "onda": 4,
+      "tema": "Vertical Contábil",
+      "sistemas": [
+        "dominio-thomson-reuters",
+        "questor",
+        "fortes"
+      ],
+      "status": "pendente"
+    },
+    {
+      "lote": 43,
+      "onda": 4,
+      "tema": "Cauda longa",
+      "sistemas": [
+        "moskit",
+        "feedz",
+        "neoway",
+        "quod",
+        "certisign",
+        "contmatic",
+        "nomus",
+        "esl-cloud",
+        "skyhub",
+        "totvs-rh",
+        "senior-hcm",
+        "qlik",
+        "aws",
+        "azure",
+        "gcp",
+        "cora",
+        "superlogica",
+        "hotmart",
+        "ifood",
+        "olist"
+      ],
+      "status": "pendente",
+      "observacao": "Será quebrado em lotes de 3 quando chegar a vez; ordem interna revisada com o aprendizado das ondas anteriores."
+    }
+  ],
+  "sistemas": [
+    {
+      "slug": "asaas",
+      "nome": "Asaas",
+      "categoria": "pagamentos_psp",
+      "onda": 1,
+      "lote": 1,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "concluido",
+      "hipoteses_a_validar": [
+        "sandbox self-service",
+        "webhooks de cobrança"
+      ],
+      "concluido_em": "2026-09-17",
+      "endpoints_detalhados": 62,
+      "endpoints_catalogados": 151,
+      "faq": 18,
+      "indice_integrabilidade": 78,
+      "validador": "0 erros, 0 avisos",
+      "conferencia_orquestrador": "Amostra de 5 endpoints: paths conferidos; DELETE /v3/installments/{id} confirmado na doc oficial em 2026-09-17",
+      "pendencias": [
+        "refresh da planilha não testado com chave de sandbox válida",
+        "termos de uso inacessíveis a acesso automatizado"
+      ],
+      "execucao": {
+        "completo_em": "2026-09-17",
+        "endpoints_executaveis": 27,
+        "endpoints_total": 62
+      }
+    },
+    {
+      "slug": "focus-nfe",
+      "nome": "Focus NFe",
+      "categoria": "fiscal_gateway",
+      "onda": 1,
+      "lote": 1,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "concluido",
+      "hipoteses_a_validar": [
+        "cobre NF-e, NFC-e, NFS-e, CT-e, MDF-e em API única"
+      ],
+      "concluido_em": "2026-09-17",
+      "endpoints_detalhados": 62,
+      "endpoints_catalogados": 66,
+      "faq": 17,
+      "indice_integrabilidade": 67,
+      "validador": "0 erros, 0 avisos",
+      "conferencia_orquestrador": "Amostra de 5 endpoints conferida; POST /v2/nfe/danfe checado na doc oficial em 2026-09-17",
+      "pendencias": [
+        "refresh da planilha não testado com token válido",
+        "rate limit e download por caminho_* só na doc legada oficial",
+        "download de XML/DANFE de notas emitidas sem rota no portal atual",
+        "IP bloqueado temporariamente (429) por autenticações falhas durante a pesquisa em 2026-09-17"
+      ],
+      "execucao": {
+        "completo_em": "2026-09-17",
+        "endpoints_executaveis": 32,
+        "endpoints_total": 62
+      }
+    },
+    {
+      "slug": "bling",
+      "nome": "Bling",
+      "categoria": "erp_nacional",
+      "onda": 1,
+      "lote": 1,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "concluido",
+      "hipoteses_a_validar": [
+        "API v3 com OAuth2",
+        "v2 descontinuada — confirmar data"
+      ],
+      "concluido_em": "2026-09-17",
+      "endpoints_detalhados": 75,
+      "endpoints_catalogados": 185,
+      "faq": 18,
+      "indice_integrabilidade": 64,
+      "validador": "0 erros, 0 avisos",
+      "conferencia_orquestrador": "Amostra de 5 endpoints conferida; spec oficial baixada em 2026-09-17 (257 operações) confirma ausência de cancelamento/CC-e/inutilização de NF-e e NFC-e",
+      "pendencias": [
+        "sem sandbox oficial: 'sandbox' = conta Bling de teste",
+        "refresh da planilha não testado com token válido",
+        "data oficial de desligamento da v2 não confirmada",
+        "revogação de token e criação de remessa marcadas como inferidas"
+      ],
+      "execucao": {
+        "completo_em": "2026-09-17",
+        "endpoints_executaveis": 32,
+        "endpoints_total": 75
+      }
+    },
+    {
+      "slug": "pix-bacen",
+      "nome": "API Pix (arranjo Bacen)",
+      "categoria": "pagamentos_padrao",
+      "onda": 1,
+      "lote": 2,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "concluido",
+      "hipoteses_a_validar": [
+        "spec OpenAPI publicada pelo Bacen",
+        "mTLS + OAuth2 client credentials",
+        "Pix Automático no escopo"
+      ],
+      "observacao": "Documentado como padrão; PSPs/bancos referenciam este sistema e registram apenas desvios.",
+      "concluido_em": "2026-09-17",
+      "endpoints_detalhados": 49,
+      "endpoints_catalogados": 3,
+      "faq": 18,
+      "indice_integrabilidade": 64,
+      "validador": "0 erros, 0 avisos",
+      "execucao": {
+        "completo_em": "2026-09-17",
+        "endpoints_executaveis": 22,
+        "endpoints_total": 49
+      },
+      "conferencia_orquestrador": "amostra de 4 endpoints conferida; validador ok; Pix Automático incluído (spec 2.10.0)",
+      "pendencias": [
+        "padrão não define base URL nem sandbox: cada PSP fornece",
+        "URL e formato do token não padronizados (único endpoint inferido)",
+        "Power Query inviável (mTLS) — declarado em kit_power_query"
+      ]
+    },
+    {
+      "slug": "pagarme",
+      "nome": "Pagar.me",
+      "categoria": "pagamentos_psp",
+      "onda": 1,
+      "lote": 2,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "concluido",
+      "hipoteses_a_validar": [
+        "API v5 atual",
+        "relação com o grupo Stone"
+      ],
+      "concluido_em": "2026-09-17",
+      "endpoints_detalhados": 62,
+      "endpoints_catalogados": 63,
+      "faq": 19,
+      "indice_integrabilidade": 66,
+      "validador": "0 erros, 8 avisos (e-mails institucionais da doc oficial)",
+      "execucao": {
+        "completo_em": "2026-09-17",
+        "endpoints_executaveis": 28,
+        "endpoints_total": 62
+      },
+      "conferencia_orquestrador": "amostra de 4 endpoints conferida; validador ok",
+      "pendencias": [
+        "webhook sem assinatura documentada",
+        "sem tabela de preços pública",
+        "spec OpenAPI sem download público (openapi.yaml é reconstrução)",
+        "breaking changes de 28/08/2026 já em vigor"
+      ]
+    },
+    {
+      "slug": "mercado-pago",
+      "nome": "Mercado Pago",
+      "categoria": "pagamentos_psp",
+      "onda": 1,
+      "lote": 2,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "concluido",
+      "hipoteses_a_validar": [
+        "API >80 endpoints → aplicar regra de endpoints_secundarios"
+      ],
+      "concluido_em": "2026-09-17",
+      "endpoints_detalhados": 41,
+      "endpoints_catalogados": 83,
+      "faq": 17,
+      "indice_integrabilidade": 82,
+      "validador": "0 erros, 0 avisos",
+      "execucao": {
+        "completo_em": "2026-09-17",
+        "endpoints_executaveis": 25,
+        "endpoints_total": 41
+      },
+      "conferencia_orquestrador": "amostra de 4 endpoints conferida; validador ok",
+      "pendencias": [
+        "rate limit sem valor publicado",
+        "sem OpenAPI oficial (reconstruído)",
+        "sem URL de sandbox: ambiente vem do prefixo do token",
+        "limite máximo de página não publicado nas buscas"
+      ]
+    },
+    {
+      "slug": "sefaz-nfe",
+      "nome": "SEFAZ — NF-e/NFC-e/CT-e/MDF-e",
+      "categoria": "fiscal_governo",
+      "onda": 1,
+      "lote": 3,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "SOAP com certificado ICP-Brasil",
+        "URLs variam por autorizador/UF",
+        "Reforma Tributária (IBS/CBS) altera leiaute — verificar Notas Técnicas vigentes"
+      ],
+      "risco": "complexidade muito alta; pode ser dividido em sefaz-nfe e sefaz-cte-mdfe",
+      "observacao_execucao": "segurado até um dos agentes do Lote 3 terminar (controle de limite de uso)"
+    },
+    {
+      "slug": "nfe-io",
+      "nome": "NFE.io",
+      "categoria": "fiscal_gateway",
+      "onda": 1,
+      "lote": 3,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "plugnotas",
+      "nome": "PlugNotas (Tecnospeed)",
+      "categoria": "fiscal_gateway",
+      "onda": 1,
+      "lote": 3,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "omie",
+      "nome": "Omie",
+      "categoria": "erp_nacional",
+      "onda": 1,
+      "lote": 4,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "estilo RPC-sobre-HTTP (call + app_key/app_secret no body)"
+      ]
+    },
+    {
+      "slug": "tiny",
+      "nome": "Tiny ERP (Olist)",
+      "categoria": "erp_nacional",
+      "onda": 1,
+      "lote": 4,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "marca atual e versão da API (v2 token vs v3 OAuth)"
+      ]
+    },
+    {
+      "slug": "conta-azul",
+      "nome": "Conta Azul",
+      "categoria": "erp_nacional",
+      "onda": 1,
+      "lote": 4,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "vtex",
+      "nome": "VTEX",
+      "categoria": "ecommerce_plataforma",
+      "onda": 1,
+      "lote": 5,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "specs OpenAPI públicas",
+        ">80 endpoints"
+      ]
+    },
+    {
+      "slug": "mercado-livre",
+      "nome": "Mercado Livre",
+      "categoria": "marketplace",
+      "onda": 1,
+      "lote": 5,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "nuvemshop",
+      "nome": "Nuvemshop",
+      "categoria": "ecommerce_plataforma",
+      "onda": 1,
+      "lote": 5,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 2,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "totvs-protheus",
+      "nome": "TOTVS Protheus",
+      "categoria": "erp_nacional",
+      "onda": 1,
+      "lote": 6,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "API REST on-premise por cliente (sem base_url única)",
+        "TOTVS Developers/TDN como fonte"
+      ],
+      "risco": "APIs variam por release e customização do cliente"
+    },
+    {
+      "slug": "sankhya",
+      "nome": "Sankhya",
+      "categoria": "erp_nacional",
+      "onda": 1,
+      "lote": 6,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "risco": "possível acesso_restrito"
+    },
+    {
+      "slug": "senior",
+      "nome": "Senior Sistemas (plataforma Senior X)",
+      "categoria": "erp_nacional",
+      "onda": 1,
+      "lote": 6,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "risco": "possível acesso_restrito"
+    },
+    {
+      "slug": "efi",
+      "nome": "Efí (ex-Gerencianet)",
+      "categoria": "pagamentos_psp",
+      "onda": 1,
+      "lote": 7,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "iugu",
+      "nome": "Iugu",
+      "categoria": "pagamentos_psp",
+      "onda": 1,
+      "lote": 7,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "vindi",
+      "nome": "Vindi",
+      "categoria": "pagamentos_psp",
+      "onda": 1,
+      "lote": 7,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "stone",
+      "nome": "Stone",
+      "categoria": "pagamentos_adquirente",
+      "onda": 1,
+      "lote": 8,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente",
+      "risco": "APIs podem exigir credenciamento"
+    },
+    {
+      "slug": "cielo",
+      "nome": "Cielo (API E-commerce 3.0)",
+      "categoria": "pagamentos_adquirente",
+      "onda": 1,
+      "lote": 8,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 2,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "rede",
+      "nome": "Rede (e.Rede)",
+      "categoria": "pagamentos_adquirente",
+      "onda": 1,
+      "lote": 8,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "melhor-envio",
+      "nome": "Melhor Envio",
+      "categoria": "logistica",
+      "onda": 1,
+      "lote": 9,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "correios",
+      "nome": "Correios (API CWS)",
+      "categoria": "logistica",
+      "onda": 1,
+      "lote": 9,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "exige contrato para token",
+        "SIGEP Web legado descontinuado"
+      ]
+    },
+    {
+      "slug": "frenet",
+      "nome": "Frenet",
+      "categoria": "logistica",
+      "onda": 1,
+      "lote": 9,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "nfse-nacional",
+      "nome": "NFS-e Padrão Nacional",
+      "categoria": "fiscal_governo",
+      "onda": 1,
+      "lote": 10,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "cronograma de adesão municipal",
+        "API REST do Ambiente de Dados Nacional"
+      ]
+    },
+    {
+      "slug": "serpro",
+      "nome": "Serpro (APIs Consulta CNPJ/CPF/NF-e)",
+      "categoria": "fiscal_governo",
+      "onda": 1,
+      "lote": 10,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "esocial",
+      "nome": "eSocial",
+      "categoria": "fiscal_governo",
+      "onda": 1,
+      "lote": 10,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "webservices SOAP + certificado",
+        "versão S-1.x vigente"
+      ]
+    },
+    {
+      "slug": "magalu",
+      "nome": "Magalu Marketplace",
+      "categoria": "marketplace",
+      "onda": 1,
+      "lote": 11,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "amazon-br",
+      "nome": "Amazon Selling Partner API (BR)",
+      "categoria": "marketplace",
+      "onda": 1,
+      "lote": 11,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "anymarket",
+      "nome": "Anymarket",
+      "categoria": "ecommerce_hub",
+      "onda": 1,
+      "lote": 11,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 3,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "pagbank",
+      "nome": "PagBank (PagSeguro)",
+      "categoria": "pagamentos_psp",
+      "onda": 1,
+      "lote": 12,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "celcoin",
+      "nome": "Celcoin",
+      "categoria": "pagamentos_baas",
+      "onda": 1,
+      "lote": 12,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "stark-bank",
+      "nome": "Stark Bank",
+      "categoria": "pagamentos_baas",
+      "onda": 1,
+      "lote": 12,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente",
+      "adicionado_fora_lista": true,
+      "justificativa_inclusao": "Banco API-first muito usado por médias/grandes empresas para Pix, boleto e pagamentos em lote; tende a ter doc pública e SDKs."
+    },
+    {
+      "slug": "tray",
+      "nome": "Tray",
+      "categoria": "ecommerce_plataforma",
+      "onda": 1,
+      "lote": 13,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "shopify",
+      "nome": "Shopify",
+      "categoria": "ecommerce_plataforma",
+      "onda": 1,
+      "lote": 13,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "GraphQL Admin API como principal; REST em descontinuação"
+      ]
+    },
+    {
+      "slug": "shopee",
+      "nome": "Shopee Open Platform",
+      "categoria": "marketplace",
+      "onda": 1,
+      "lote": 13,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "open-finance-brasil",
+      "nome": "Open Finance Brasil",
+      "categoria": "bancos_open_finance",
+      "onda": 2,
+      "lote": 14,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "participação exige autorização Bacen/diretório",
+        "FAPI-BR + DCR + mTLS"
+      ],
+      "observacao": "Documentar specs públicas; operar como receptor exige ser instituição participante ou usar iniciador/agregador."
+    },
+    {
+      "slug": "banco-do-brasil",
+      "nome": "Banco do Brasil (Developers BB)",
+      "categoria": "bancos",
+      "onda": 2,
+      "lote": 14,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "itau",
+      "nome": "Itaú (APIs empresas)",
+      "categoria": "bancos",
+      "onda": 2,
+      "lote": 14,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "risco": "possível acesso_restrito"
+    },
+    {
+      "slug": "bradesco",
+      "nome": "Bradesco",
+      "categoria": "bancos",
+      "onda": 2,
+      "lote": 15,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "risco": "possível acesso_restrito"
+    },
+    {
+      "slug": "santander",
+      "nome": "Santander",
+      "categoria": "bancos",
+      "onda": 2,
+      "lote": 15,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "risco": "possível acesso_restrito"
+    },
+    {
+      "slug": "inter",
+      "nome": "Banco Inter (Inter Empresas)",
+      "categoria": "bancos",
+      "onda": 2,
+      "lote": 15,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "whatsapp-cloud-api",
+      "nome": "WhatsApp Business Cloud API (Meta)",
+      "categoria": "comunicacao",
+      "onda": 2,
+      "lote": 16,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "modelo de preço por mensagem/categoria vigente"
+      ]
+    },
+    {
+      "slug": "take-blip",
+      "nome": "Blip (Take Blip)",
+      "categoria": "comunicacao",
+      "onda": 2,
+      "lote": 16,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "zenvia",
+      "nome": "Zenvia",
+      "categoria": "comunicacao",
+      "onda": 2,
+      "lote": 16,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 2,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "clicksign",
+      "nome": "Clicksign",
+      "categoria": "assinatura_eletronica",
+      "onda": 2,
+      "lote": 17,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "d4sign",
+      "nome": "D4Sign",
+      "categoria": "assinatura_eletronica",
+      "onda": 2,
+      "lote": 17,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "zapsign",
+      "nome": "ZapSign",
+      "categoria": "assinatura_eletronica",
+      "onda": 2,
+      "lote": 17,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "rd-station",
+      "nome": "RD Station (CRM + Marketing)",
+      "categoria": "crm_marketing",
+      "onda": 2,
+      "lote": 18,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 3,
+        "total": 27
+      },
+      "status": "pendente",
+      "observacao": "Pode virar dois sistemas (rd-station-crm, rd-station-marketing) se as APIs forem independentes."
+    },
+    {
+      "slug": "ploomes",
+      "nome": "Ploomes",
+      "categoria": "crm_marketing",
+      "onda": 2,
+      "lote": 18,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "pipedrive",
+      "nome": "Pipedrive",
+      "categoria": "crm_marketing",
+      "onda": 2,
+      "lote": 18,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "receita-federal-cnpj",
+      "nome": "Receita Federal — dados CNPJ",
+      "categoria": "dados_kyc",
+      "onda": 2,
+      "lote": 19,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 1,
+        "valor": 3,
+        "total": 9
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "não há API REST pública oficial gratuita; fontes oficiais = dados abertos (arquivos) e Serpro"
+      ],
+      "risco": "pode resultar em estilo 'arquivo/EDI' ou redirecionamento para serpro"
+    },
+    {
+      "slug": "serpro-datavalid",
+      "nome": "Serpro Datavalid",
+      "categoria": "dados_kyc",
+      "onda": 2,
+      "lote": 19,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "serasa-experian",
+      "nome": "Serasa Experian",
+      "categoria": "dados_kyc",
+      "onda": 2,
+      "lote": 19,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 1,
+        "valor": 3,
+        "total": 9
+      },
+      "status": "pendente",
+      "risco": "provável acesso_restrito (sob contrato)"
+    },
+    {
+      "slug": "efd-reinf",
+      "nome": "EFD-Reinf",
+      "categoria": "fiscal_governo",
+      "onda": 2,
+      "lote": 20,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "tecnospeed",
+      "nome": "Tecnospeed (demais APIs)",
+      "categoria": "fiscal_gateway",
+      "onda": 2,
+      "lote": 20,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente",
+      "observacao": "PlugNotas já coberto no lote 3; aqui entram boleto/Pix/conciliação se houver API pública."
+    },
+    {
+      "slug": "arquivei",
+      "nome": "Arquivei (Qive)",
+      "categoria": "fiscal_gateway",
+      "onda": 2,
+      "lote": 20,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "rebranding para Qive"
+      ]
+    },
+    {
+      "slug": "sap-s4hana",
+      "nome": "SAP S/4HANA (+ localização BR / DRC)",
+      "categoria": "erp_global",
+      "onda": 2,
+      "lote": 21,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "risco": "escopo gigantesco — limitar a APIs de entidades canônicas no SAP Business Accelerator Hub + Document and Reporting Compliance BR"
+    },
+    {
+      "slug": "oracle-netsuite",
+      "nome": "Oracle NetSuite",
+      "categoria": "erp_global",
+      "onda": 2,
+      "lote": 21,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "dynamics-365",
+      "nome": "Microsoft Dynamics 365",
+      "categoria": "erp_global",
+      "onda": 2,
+      "lote": 21,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "gupy",
+      "nome": "Gupy",
+      "categoria": "rh",
+      "onda": 3,
+      "lote": 22,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "solides",
+      "nome": "Sólides",
+      "categoria": "rh",
+      "onda": 3,
+      "lote": 22,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "convenia",
+      "nome": "Convenia",
+      "categoria": "rh",
+      "onda": 3,
+      "lote": 22,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "pontomais",
+      "nome": "Pontomais",
+      "categoria": "rh_ponto",
+      "onda": 3,
+      "lote": 23,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "ahgora",
+      "nome": "Ahgora",
+      "categoria": "rh_ponto",
+      "onda": 3,
+      "lote": 23,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "tangerino",
+      "nome": "Tangerino",
+      "categoria": "rh_ponto",
+      "onda": 3,
+      "lote": 23,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "incorporação à Sólides — pode ser fundido na ficha solides"
+      ]
+    },
+    {
+      "slug": "movidesk",
+      "nome": "Movidesk (Zenvia)",
+      "categoria": "atendimento",
+      "onda": 3,
+      "lote": 24,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "octadesk",
+      "nome": "Octadesk",
+      "categoria": "atendimento",
+      "onda": 3,
+      "lote": 24,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "zendesk",
+      "nome": "Zendesk",
+      "categoria": "atendimento",
+      "onda": 3,
+      "lote": 24,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 2,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "intelipost",
+      "nome": "Intelipost",
+      "categoria": "logistica",
+      "onda": 3,
+      "lote": 25,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 3,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "loggi",
+      "nome": "Loggi",
+      "categoria": "logistica",
+      "onda": 3,
+      "lote": 25,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "jadlog",
+      "nome": "Jadlog",
+      "categoria": "logistica",
+      "onda": 3,
+      "lote": 25,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "twilio",
+      "nome": "Twilio",
+      "categoria": "comunicacao",
+      "onda": 3,
+      "lote": 26,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "infobip",
+      "nome": "Infobip",
+      "categoria": "comunicacao",
+      "onda": 3,
+      "lote": 26,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "sinch",
+      "nome": "Sinch",
+      "categoria": "comunicacao",
+      "onda": 3,
+      "lote": 26,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "salesforce",
+      "nome": "Salesforce",
+      "categoria": "crm_marketing",
+      "onda": 3,
+      "lote": 27,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 2,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "hubspot",
+      "nome": "HubSpot",
+      "categoria": "crm_marketing",
+      "onda": 3,
+      "lote": 27,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 2,
+        "total": 18
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "agendor",
+      "nome": "Agendor",
+      "categoria": "crm_marketing",
+      "onda": 3,
+      "lote": 27,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "autentique",
+      "nome": "Autentique",
+      "categoria": "assinatura_eletronica",
+      "onda": 3,
+      "lote": 28,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "API GraphQL"
+      ]
+    },
+    {
+      "slug": "docusign",
+      "nome": "DocuSign",
+      "categoria": "assinatura_eletronica",
+      "onda": 3,
+      "lote": 28,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "unico",
+      "nome": "Unico (IDtech)",
+      "categoria": "dados_kyc",
+      "onda": 3,
+      "lote": 28,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 3,
+        "total": 18
+      },
+      "status": "pendente",
+      "adicionado_fora_lista": true,
+      "justificativa_inclusao": "Biometria/KYC e assinatura com forte adoção em grandes empresas brasileiras (varejo, bancos, RH/admissão digital)."
+    },
+    {
+      "slug": "sicoob",
+      "nome": "Sicoob",
+      "categoria": "bancos",
+      "onda": 3,
+      "lote": 29,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "sicredi",
+      "nome": "Sicredi",
+      "categoria": "bancos",
+      "onda": 3,
+      "lote": 29,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "btg-pactual",
+      "nome": "BTG Pactual Empresas",
+      "categoria": "bancos",
+      "onda": 3,
+      "lote": 29,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "linx",
+      "nome": "Linx (StoneCo)",
+      "categoria": "erp_nacional",
+      "onda": 3,
+      "lote": 30,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 1,
+        "valor": 2,
+        "total": 6
+      },
+      "status": "pendente",
+      "risco": "múltiplos produtos com APIs distintas; possível acesso_restrito"
+    },
+    {
+      "slug": "totvs-rm",
+      "nome": "TOTVS RM",
+      "categoria": "erp_nacional",
+      "onda": 3,
+      "lote": 30,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 1,
+        "valor": 2,
+        "total": 6
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "totvs-datasul",
+      "nome": "TOTVS Datasul",
+      "categoria": "erp_nacional",
+      "onda": 3,
+      "lote": 30,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 1,
+        "valor": 2,
+        "total": 4
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "microsoft-graph",
+      "nome": "Microsoft Graph (M365)",
+      "categoria": "produtividade_infra",
+      "onda": 4,
+      "lote": 31,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 1,
+        "total": 9
+      },
+      "status": "pendente",
+      "observacao": "Escopo limitado a usos típicos de integração (e-mail, calendário, arquivos, usuários)."
+    },
+    {
+      "slug": "google-workspace",
+      "nome": "Google Workspace APIs",
+      "categoria": "produtividade_infra",
+      "onda": 4,
+      "lote": 31,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 1,
+        "total": 9
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "slack",
+      "nome": "Slack",
+      "categoria": "produtividade_infra",
+      "onda": 4,
+      "lote": 31,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 1,
+        "total": 6
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "power-bi",
+      "nome": "Power BI REST API",
+      "categoria": "bi",
+      "onda": 4,
+      "lote": 32,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 3,
+        "valor": 1,
+        "total": 9
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "metabase",
+      "nome": "Metabase",
+      "categoria": "bi",
+      "onda": 4,
+      "lote": 32,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 1,
+        "total": 4
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "looker",
+      "nome": "Looker",
+      "categoria": "bi",
+      "onda": 4,
+      "lote": 32,
+      "prioridade": {
+        "adocao": 1,
+        "doc": 3,
+        "valor": 1,
+        "total": 3
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "boa-vista-equifax",
+      "nome": "Boa Vista / Equifax BR",
+      "categoria": "dados_kyc",
+      "onda": 4,
+      "lote": 33,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 1,
+        "valor": 3,
+        "total": 9
+      },
+      "status": "pendente",
+      "risco": "provável acesso_restrito"
+    },
+    {
+      "slug": "bigdatacorp",
+      "nome": "BigDataCorp",
+      "categoria": "dados_kyc",
+      "onda": 4,
+      "lote": 33,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "idwall",
+      "nome": "Idwall",
+      "categoria": "dados_kyc",
+      "onda": 4,
+      "lote": 33,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "freshdesk",
+      "nome": "Freshdesk",
+      "categoria": "atendimento",
+      "onda": 4,
+      "lote": 34,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 1,
+        "total": 6
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "jira-service-management",
+      "nome": "Jira Service Management",
+      "categoria": "atendimento",
+      "onda": 4,
+      "lote": 34,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 1,
+        "total": 6
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "atlassian",
+      "nome": "Atlassian (Jira/Confluence)",
+      "categoria": "produtividade_infra",
+      "onda": 4,
+      "lote": 34,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 1,
+        "total": 6
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "zoop",
+      "nome": "Zoop",
+      "categoria": "pagamentos_baas",
+      "onda": 4,
+      "lote": 35,
+      "prioridade": {
+        "adocao": 1,
+        "doc": 2,
+        "valor": 2,
+        "total": 4
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "juno",
+      "nome": "Juno",
+      "categoria": "pagamentos_psp",
+      "onda": 4,
+      "lote": 35,
+      "prioridade": {
+        "adocao": 1,
+        "doc": 2,
+        "valor": 1,
+        "total": 2
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "situação atual do produto — candidato a status 'descontinuada' ou fusão com outra ficha"
+      ]
+    },
+    {
+      "slug": "transfeera",
+      "nome": "Transfeera",
+      "categoria": "pagamentos_baas",
+      "onda": 4,
+      "lote": 35,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 3,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente",
+      "adicionado_fora_lista": true,
+      "justificativa_inclusao": "Pagamentos em lote e validação de contas via API, recorrente em integrações de contas a pagar."
+    },
+    {
+      "slug": "gupshup",
+      "nome": "Gupshup",
+      "categoria": "comunicacao",
+      "onda": 4,
+      "lote": 36,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 1,
+        "total": 4
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "3c-plus",
+      "nome": "3C Plus",
+      "categoria": "comunicacao",
+      "onda": 4,
+      "lote": 36,
+      "prioridade": {
+        "adocao": 1,
+        "doc": 2,
+        "valor": 1,
+        "total": 2
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "callix",
+      "nome": "Callix",
+      "categoria": "comunicacao",
+      "onda": 4,
+      "lote": 36,
+      "prioridade": {
+        "adocao": 1,
+        "doc": 1,
+        "valor": 1,
+        "total": 1
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "alterdata",
+      "nome": "Alterdata",
+      "categoria": "erp_nacional",
+      "onda": 4,
+      "lote": 37,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 1,
+        "valor": 2,
+        "total": 4
+      },
+      "status": "pendente",
+      "risco": "possível sem_api pública"
+    },
+    {
+      "slug": "nasajon",
+      "nome": "Nasajon",
+      "categoria": "erp_nacional",
+      "onda": 4,
+      "lote": 37,
+      "prioridade": {
+        "adocao": 1,
+        "doc": 1,
+        "valor": 2,
+        "total": 2
+      },
+      "status": "pendente",
+      "risco": "possível sem_api pública"
+    },
+    {
+      "slug": "benner",
+      "nome": "Benner",
+      "categoria": "erp_nacional",
+      "onda": 4,
+      "lote": 37,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 1,
+        "valor": 2,
+        "total": 4
+      },
+      "status": "pendente",
+      "risco": "possível acesso_restrito"
+    },
+    {
+      "slug": "loja-integrada",
+      "nome": "Loja Integrada",
+      "categoria": "ecommerce_plataforma",
+      "onda": 4,
+      "lote": 38,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 1,
+        "total": 4
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "magazord",
+      "nome": "Magazord",
+      "categoria": "ecommerce_plataforma",
+      "onda": 4,
+      "lote": 38,
+      "prioridade": {
+        "adocao": 1,
+        "doc": 2,
+        "valor": 1,
+        "total": 2
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "plugg-to",
+      "nome": "Plugg.to",
+      "categoria": "ecommerce_hub",
+      "onda": 4,
+      "lote": 38,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "enotas",
+      "nome": "eNotas",
+      "categoria": "fiscal_gateway",
+      "onda": 4,
+      "lote": 39,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "oobj",
+      "nome": "Oobj",
+      "categoria": "fiscal_gateway",
+      "onda": 4,
+      "lote": 39,
+      "prioridade": {
+        "adocao": 1,
+        "doc": 2,
+        "valor": 2,
+        "total": 4
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "govbr",
+      "nome": "Gov.br (Login Único + Assinatura)",
+      "categoria": "dados_kyc",
+      "onda": 4,
+      "lote": 39,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 2,
+        "total": 8
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "integração exige adesão formal de órgão/empresa"
+      ],
+      "observacao": "Une 'Gov.br Login' e 'Gov.br Assina' da lista original."
+    },
+    {
+      "slug": "kangu",
+      "nome": "Kangu",
+      "categoria": "logistica",
+      "onda": 4,
+      "lote": 40,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 2,
+        "valor": 1,
+        "total": 4
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "braspress",
+      "nome": "Braspress",
+      "categoria": "logistica",
+      "onda": 4,
+      "lote": 40,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 1,
+        "valor": 2,
+        "total": 4
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "ssw",
+      "nome": "SSW Sistemas (TMS)",
+      "categoria": "logistica",
+      "onda": 4,
+      "lote": 40,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 1,
+        "valor": 2,
+        "total": 4
+      },
+      "status": "pendente"
+    },
+    {
+      "slug": "tiss-ans",
+      "nome": "Padrão TISS (ANS)",
+      "categoria": "vertical_saude",
+      "onda": 4,
+      "lote": 41,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 2,
+        "valor": 2,
+        "total": 12
+      },
+      "status": "pendente",
+      "hipoteses_a_validar": [
+        "padrão de troca XML/webservice, não API de fornecedor"
+      ]
+    },
+    {
+      "slug": "tasy",
+      "nome": "Tasy (Philips)",
+      "categoria": "vertical_saude",
+      "onda": 4,
+      "lote": 41,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 1,
+        "valor": 2,
+        "total": 4
+      },
+      "status": "pendente",
+      "risco": "provável acesso_restrito; dado sensível (saúde)"
+    },
+    {
+      "slug": "mv",
+      "nome": "MV Sistemas",
+      "categoria": "vertical_saude",
+      "onda": 4,
+      "lote": 41,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 1,
+        "valor": 2,
+        "total": 4
+      },
+      "status": "pendente",
+      "risco": "provável acesso_restrito; dado sensível (saúde)"
+    },
+    {
+      "slug": "dominio-thomson-reuters",
+      "nome": "Domínio (Thomson Reuters)",
+      "categoria": "vertical_contabil",
+      "onda": 4,
+      "lote": 42,
+      "prioridade": {
+        "adocao": 3,
+        "doc": 1,
+        "valor": 2,
+        "total": 6
+      },
+      "status": "pendente",
+      "risco": "possível sem_api pública (integração por arquivo)"
+    },
+    {
+      "slug": "questor",
+      "nome": "Questor",
+      "categoria": "vertical_contabil",
+      "onda": 4,
+      "lote": 42,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 1,
+        "valor": 1,
+        "total": 2
+      },
+      "status": "pendente",
+      "risco": "possível sem_api pública"
+    },
+    {
+      "slug": "fortes",
+      "nome": "Fortes Tecnologia",
+      "categoria": "vertical_contabil",
+      "onda": 4,
+      "lote": 42,
+      "prioridade": {
+        "adocao": 2,
+        "doc": 1,
+        "valor": 1,
+        "total": 2
+      },
+      "status": "pendente",
+      "risco": "possível sem_api pública"
+    },
+    {
+      "slug": "sygecom",
+      "nome": "SyGeCom (Sagi, SGR, SGR+, Easy)",
+      "categoria": "erp_nacional",
+      "onda": 1,
+      "lote": "prioritario",
+      "prioridade": {
+        "adocao": 1,
+        "doc": 1,
+        "valor": 3,
+        "total": 3
+      },
+      "status": "em_andamento",
+      "adicionado_fora_lista": true,
+      "justificativa_inclusao": "ERP do cliente atual do usuário (gestão de resíduos e reciclagem); será o piloto de teste do executor com credencial real.",
+      "hipoteses_a_validar": [
+        "documentação de API provavelmente não é pública",
+        "produto Sagi é a plataforma mais completa",
+        "app móvel é extensão do Sagi"
+      ]
+    }
+  ],
+  "cauda_longa_sem_ficha_individual_ainda": [
+    {
+      "slug": "moskit",
+      "categoria": "crm_marketing"
+    },
+    {
+      "slug": "feedz",
+      "categoria": "rh"
+    },
+    {
+      "slug": "neoway",
+      "categoria": "dados_kyc",
+      "risco": "acesso_restrito"
+    },
+    {
+      "slug": "quod",
+      "categoria": "dados_kyc",
+      "risco": "acesso_restrito"
+    },
+    {
+      "slug": "certisign",
+      "categoria": "assinatura_eletronica"
+    },
+    {
+      "slug": "contmatic",
+      "categoria": "vertical_contabil",
+      "risco": "possível sem_api"
+    },
+    {
+      "slug": "nomus",
+      "categoria": "erp_nacional"
+    },
+    {
+      "slug": "esl-cloud",
+      "categoria": "logistica"
+    },
+    {
+      "slug": "skyhub",
+      "categoria": "ecommerce_hub",
+      "hipoteses_a_validar": [
+        "situação atual após reestruturação da Americanas"
+      ]
+    },
+    {
+      "slug": "totvs-rh",
+      "categoria": "rh"
+    },
+    {
+      "slug": "senior-hcm",
+      "categoria": "rh",
+      "observacao": "pode ser fundido na ficha senior"
+    },
+    {
+      "slug": "qlik",
+      "categoria": "bi"
+    },
+    {
+      "slug": "aws",
+      "categoria": "produtividade_infra",
+      "observacao": "limitar a serviços de integração (S3, SQS, SNS, EventBridge, Lambda)"
+    },
+    {
+      "slug": "azure",
+      "categoria": "produtividade_infra",
+      "observacao": "limitar a Blob, Service Bus, Event Grid, Functions"
+    },
+    {
+      "slug": "gcp",
+      "categoria": "produtividade_infra",
+      "observacao": "limitar a Cloud Storage, Pub/Sub, Cloud Functions"
+    },
+    {
+      "slug": "cora",
+      "categoria": "bancos",
+      "adicionado_fora_lista": true,
+      "justificativa_inclusao": "Banco digital PJ com API de boleto/Pix; adoção relevante em PMEs e médias."
+    },
+    {
+      "slug": "superlogica",
+      "categoria": "erp_nacional",
+      "adicionado_fora_lista": true,
+      "justificativa_inclusao": "ERP de recorrência/condomínios/imobiliárias com API usada por integradoras."
+    },
+    {
+      "slug": "hotmart",
+      "categoria": "ecommerce_plataforma",
+      "adicionado_fora_lista": true,
+      "justificativa_inclusao": "Plataforma dominante de infoprodutos; webhooks e APIs muito demandados em integração com CRM/ERP."
+    },
+    {
+      "slug": "ifood",
+      "categoria": "marketplace",
+      "adicionado_fora_lista": true,
+      "justificativa_inclusao": "Marketplace de food service com API de pedidos para PDV/ERP de redes de restaurantes."
+    },
+    {
+      "slug": "olist",
+      "categoria": "ecommerce_hub",
+      "adicionado_fora_lista": true,
+      "justificativa_inclusao": "Hub de marketplaces relevante para varejo; avaliar sobreposição com ficha tiny."
+    }
+  ],
+  "fusoes_e_ajustes_propostos": [
+    "Gov.br Login + Gov.br Assina → ficha única 'govbr'.",
+    "Pix documentado como padrão ('pix-bacen'); PSPs e bancos registram apenas desvios/extensões em relação a ele.",
+    "RD Station poderá ser dividido em CRM e Marketing se as APIs forem independentes.",
+    "Tangerino e Senior HCM são candidatos a fusão com Sólides e Senior, respectivamente, se a API for a mesma.",
+    "Juno e Skyhub: candidatos a 'descontinuada'/'removido' — verificar antes de pesquisar a fundo."
+  ],
+  "decisoes_usuario": [
+    {
+      "data": "2026-09-14",
+      "decisao": "Ordem de lotes e sistemas adicionados aprovados."
+    },
+    {
+      "data": "2026-09-14",
+      "decisao": "Saída em jhow/catalogo."
+    },
+    {
+      "data": "2026-09-14",
+      "decisao": "Lotes executados com 1 subagente por sistema em paralelo."
+    },
+    {
+      "data": "2026-09-17",
+      "decisao": "Taxonomia v1.1 aprovada; Lote 1 reclassificado antes do Lote 2."
+    },
+    {
+      "data": "2026-09-17",
+      "decisao": "VBA fora do escopo; kit com Power Query (planilha Excel gerada), Python e TypeScript."
+    },
+    {
+      "data": "2026-09-17",
+      "decisao": "Produto executa a consulta na API do cliente e devolve planilha preenchida; somente leitura."
+    },
+    {
+      "data": "2026-09-17",
+      "decisao": "Credenciais em cofre no backend; nunca no chat."
+    },
+    {
+      "data": "2026-09-17",
+      "decisao": "Kits Power Query em standby (premium futuro); não produzir nos próximos sistemas."
+    },
+    {
+      "data": "2026-09-17",
+      "decisao": "Taxonomia v1.2 aprovada (Relatorio, Contestacao, Cartao, Plano, LocationPagamento, desvincular); sistemas existentes reclassificados."
+    }
+  ],
+  "bloqueios": [],
+  "taxonomia_versao": "1.2.0"
+}

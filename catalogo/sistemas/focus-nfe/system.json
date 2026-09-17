@@ -1,0 +1,497 @@
+{
+  "slug": "focus-nfe",
+  "nome": "Focus NFe",
+  "categoria": "fiscal_gateway",
+  "fornecedor": {
+    "razao_social": "Focus NFe LTDA",
+    "pais": "BR",
+    "site": "https://focusnfe.com.br"
+  },
+  "descricao_curta": "Gateway REST/JSON que assina e transmite documentos fiscais eletrônicos (NF-e, NFC-e, NFS-e municipal e Nacional, CT-e, MDF-e, NFCom, DC-e) para SEFAZ, prefeituras e Ambiente Nacional, e que também captura NF-e, CT-e e NFS-e Nacional emitidas contra o CNPJ do cliente.",
+  "porte_alvo": [
+    "pequena",
+    "media",
+    "grande"
+  ],
+  "verticais": [
+    "varejo",
+    "industria",
+    "servicos",
+    "transporte_logistica",
+    "software_house",
+    "contabilidade",
+    "saas_multiempresa"
+  ],
+  "status": "documentado",
+  "api": {
+    "estilo": "REST",
+    "base_urls": {
+      "producao": "https://api.focusnfe.com.br",
+      "sandbox": "https://homologacao.focusnfe.com.br"
+    },
+    "versao_atual": "v2 (prefixo /v2 em todas as rotas; portal marcado como 'API Reference v2.0')",
+    "politica_versionamento": "Versão no caminho (/v2). Não foi encontrada política pública de depreciação/sunset; mudanças são anunciadas na página de Atualizações do site.",
+    "formatos": [
+      "json",
+      "xml (download e envio em alguns endpoints)",
+      "pdf (DANFE/DACTE/DANFSe)"
+    ],
+    "spec_oficial_url": "https://doc.focusnfe.com.br/llms.txt",
+    "openapi_disponivel": true
+  },
+  "autenticacao": {
+    "tipos": [
+      "basic"
+    ],
+    "fluxo_resumido": "HTTP Basic em todas as chamadas: usuário = token da empresa (gerado no painel Focus NFe), senha = vazia. O cabeçalho fica 'Authorization: Basic base64(<token>:)'. Não existe endpoint de login nem troca de token. Cada ambiente (homologação/produção) tem seu próprio token.",
+    "escopos_permissoes": [],
+    "expiracao_token": "Não informado na documentação (token estático).",
+    "renovacao": "Não há fluxo de renovação via API; token é gerido no painel.",
+    "ip_allowlist_obrigatorio": false
+  },
+  "execucao_auth": {
+    "tipo": "basic",
+    "header": "Authorization",
+    "prefixo": "Basic",
+    "usuario_basic_e_a_credencial": true,
+    "headers_fixos": {},
+    "token_url": null,
+    "credenciais_necessarias": [
+      {
+        "nome": "token",
+        "rotulo": "Token da API Focus NFe (do ambiente escolhido)",
+        "segredo": true,
+        "onde_obter": "Painel Focus NFe, no cadastro da empresa emitente: há um token de produção e outro de homologação, distintos. Pela API de Empresas os mesmos valores aparecem em token_producao e token_homologacao.",
+        "obrigatoria": true
+      }
+    ],
+    "base_url_por_ambiente": {
+      "sandbox": "https://homologacao.focusnfe.com.br",
+      "producao": "https://api.focusnfe.com.br"
+    },
+    "observacao": "HTTP Basic sem endpoint de login: o token da empresa vai no lugar do usuário e a senha fica vazia (usuario_basic_e_a_credencial=true), ou seja, Authorization: Basic base64(<token>:) — repare nos dois pontos finais sem nada depois. O token é estático e não há refresh. O token é por ambiente: usar o de homologação contra https://api.focusnfe.com.br devolve 401. Autenticações falhas repetidas bloqueiam o IP por alguns segundos (429 limite_excedido), então o executor não deve repetir a chamada depois de um 401."
+  },
+  "ambiente_testes": {
+    "sandbox": true,
+    "como_obter": "Criar conta pelo 'Teste Grátis' no site e usar o token de homologação com a base https://homologacao.focusnfe.com.br. Documentos emitidos ali não têm validade fiscal. Para emitir, mesmo em homologação, a empresa emitente precisa estar cadastrada com certificado A1. A API de Empresas só opera em produção (usar dry_run=1 para simular).",
+    "custo": "Gratuito no período de teste de 30 dias informado na página de planos (volátil).",
+    "dados_ficticios": false
+  },
+  "limites": {
+    "rate_limit": "100 créditos por minuto por token; cada requisição consome 1 crédito, qualquer documento e método. Ao estourar: HTTP 429. Cabeçalhos Rate-Limit-Limit, Rate-Limit-Remaining e Rate-Limit-Reset (segundos até zerar). Fonte: documentação oficial legada no repositório FocusNFe/api-doc; o portal atual não repete a informação. Observado em teste real em 2026-09-17 (não documentado): após várias tentativas com token inválido, a API bloqueia o IP por alguns segundos com HTTP 429, codigo 'limite_excedido' e cabeçalho retry-after (e não Rate-Limit-Reset).",
+    "janela": "60 segundos",
+    "burst": null,
+    "paginacao": {
+      "estilo": "offset",
+      "tamanho_max": 50
+    },
+    "tamanho_max_payload": null,
+    "timeout_recomendado": null,
+    "politica_retry": "Em 429 aguardar Rate-Limit-Reset ou, na ausência, Retry-After. Não repetir chamadas com token inválido: tentativas de autenticação falhas bloqueiam o IP temporariamente. Em emissões, reenviar com a MESMA ref só se a nota não foi autorizada. Em 422 pending_operation, consultar em vez de reenviar.",
+    "idempotencia": {
+      "suportada": true,
+      "header": null
+    },
+    "volatil": true
+  },
+  "webhooks": {
+    "suportados": true,
+    "eventos": [
+      "nfe",
+      "nfse",
+      "nfsen",
+      "nfce_contingencia",
+      "nfe_recebida",
+      "nfe_recebida_falha_consulta",
+      "cte_recebida",
+      "inutilizacao",
+      "cte",
+      "mdfe",
+      "nfcom",
+      "nfsen_recebida",
+      "dce",
+      "nfce_consulta_automatica"
+    ],
+    "verificacao_assinatura": "Sem assinatura HMAC documentada. É possível cadastrar um valor fixo (campo authorization) e o nome do cabeçalho em que ele será enviado (authorization_header) para o seu endpoint validar a origem.",
+    "politica_reentrega": "Se o POST falhar (indisponibilidade ou resposta fora de 2xx), novas tentativas após 1 min, 30 min, 1 h, 3 h e 24 h; depois disso o gatilho desiste daquele evento. Reenvio manual: POST /v2/<documento>/{referencia}/hook.",
+    "requer_endpoint_publico": true
+  },
+  "erros": {
+    "formato": "JSON {\"codigo\": \"<snake_case>\", \"mensagem\": \"...\", \"erros\": [{\"mensagem\", \"campo\"}]} (NFS-e traz também 'correcao'; Empresas pode devolver {\"erros\": [{\"codigo\",\"mensagem\"}]}). 401 vem em text/html com o texto 'HTTP Basic: Access denied'. Rejeições da SEFAZ/prefeitura não são erro HTTP: aparecem na consulta com status erro_autorizacao e status_sefaz/mensagem_sefaz. Observado em teste real (2026-09-17): em /v2/nfes_recebidas o 401 veio em JSON {codigo: permissao_negada, mensagem: 'Access token inválido ...'}; trate os dois formatos.",
+    "codigos_principais": [
+      "requisicao_invalida",
+      "nao_encontrado",
+      "nao_encontrada",
+      "nfce_nao_encontrada",
+      "permissao_negada",
+      "formato_invalido",
+      "erro_validacao",
+      "erro_validacao_schema",
+      "pending_operation",
+      "already_processed",
+      "nfe_nao_autorizada",
+      "nfe_autorizada",
+      "cte_em_processamento",
+      "cte_ja_autorizado",
+      "mdfe_em_processamento",
+      "mdfe_ja_autorizado",
+      "mdfe_ja_encerrado",
+      "parametros_modal_nao_informados",
+      "forma_emissao_nao_informada",
+      "ambiente_nao_configurado",
+      "empresa_nao_configurada",
+      "empresa_nao_habilitada",
+      "parametros_invalidos",
+      "nao_autorizado",
+      "limite_excedido"
+    ]
+  },
+  "sdks_oficiais": [
+    {
+      "linguagem": "ruby",
+      "nome": "FocusNFe/ruby (gem)",
+      "url": "https://github.com/FocusNFe/ruby",
+      "observacao": "Último push em 2019; tratar como exemplo, não como SDK mantido."
+    },
+    {
+      "linguagem": "php",
+      "nome": "FocusNFe/php (exemplos)",
+      "url": "https://github.com/FocusNFe/php",
+      "observacao": "Exemplos de 2019."
+    },
+    {
+      "linguagem": "python",
+      "nome": "FocusNFe/python (exemplos)",
+      "url": "https://github.com/FocusNFe/python",
+      "observacao": "Exemplos de 2019."
+    },
+    {
+      "linguagem": "javascript",
+      "nome": "FocusNFe/javascript (exemplos)",
+      "url": "https://github.com/FocusNFe/javascript",
+      "observacao": "Exemplos de 2019."
+    },
+    {
+      "linguagem": "java",
+      "nome": "FocusNFe/java (exemplos)",
+      "url": "https://github.com/FocusNFe/java",
+      "observacao": "Exemplos de 2019."
+    }
+  ],
+  "comercial": {
+    "modelo_acesso": "plano_pago",
+    "custo_api": "Página de planos (consulta 2026-09-17): Solo R$89,90/mês (1 CNPJ, 100 notas, R$0,10 por nota adicional); Start R$113,90/mês (3 CNPJs, 100 notas por CNPJ, R$37,90 por CNPJ adicional, R$0,10 por nota adicional); Growth R$548,00/mês (CNPJs ilimitados, 4.000 notas, R$0,12 por nota adicional); Enterprise sob consulta (acima de 50 mil notas/mês); Retail (NFC-e) R$59,90/mês (1 CNPJ, 500 NFC-e + 100 NF-e); Retail+ R$629,90/mês (CNPJs ilimitados, 9.000 NFC-e + 1.000 NF-e). Nota emitida ou recebida conta como uma unidade. Sem taxa de setup nem fidelidade. Integração de município novo de NFS-e: taxa fixa de R$199,00 com prazo de até 15 dias corridos (FAQ da página).",
+    "exige_homologacao": false,
+    "tempo_medio_aprovacao": "Self-service (conta de teste imediata). Em produção, depende do certificado A1 e, para NFC-e, do CSC gerado na SEFAZ da UF.",
+    "volatil": true
+  },
+  "conformidade": {
+    "trafega_dado_pessoal": true,
+    "dado_sensivel": false,
+    "base_legal_tipica": "Cumprimento de obrigação legal/regulatória (LGPD art. 7º, II) para dados de destinatário/tomador em documentos fiscais.",
+    "exige_certificado_digital": true,
+    "regulador": "SEFAZ estaduais, Receita Federal (Ambiente Nacional NFS-e/Reforma Tributária) e prefeituras",
+    "residencia_dados": "Servidores na AWS Brasil, segundo a página de planos (não há detalhe técnico na doc da API).",
+    "termos_uso_url": "https://focusnfe.com.br/termos-de-uso/",
+    "permite_uso_em_produto_terceiro": "indefinido"
+  },
+  "esforco_integracao": {
+    "complexidade": "media",
+    "horas_estimadas_mvp": 60,
+    "premissa_horas": "Premissa: um ERP/PDV que já tem dados fiscais corretos (NCM, CFOP, CST, alíquotas) emitindo NF-e + NFC-e de uma empresa, com consulta por polling, webhook, cancelamento, CC-e e download de XML/DANFE. Julgamento do analista; não é número do fornecedor. NFS-e municipal varia por prefeitura e pode dobrar o esforço.",
+    "principais_armadilhas": [
+      "A API não calcula tributos: CST/CSOSN, bases e alíquotas devem vir corretas do seu sistema.",
+      "Emissão de NF-e, NFS-e, CT-e e MDF-e é assíncrona (202): é preciso consultar ou usar webhook; NFC-e é síncrona.",
+      "A ref fica presa ao documento depois de autorizado (mesmo cancelado): nova nota exige nova ref.",
+      "O corpo usa 'items' (a página de campos chama a coleção de 'itens').",
+      "Caminhos de XML/DANFE voltam relativos (caminho_*): concatenar com a base do ambiente e enviar o mesmo Basic Auth.",
+      "Token e base URL são por ambiente; token de homologação em produção dá 401.",
+      "Rate limit de 100 req/min por token: polling agressivo em lote estoura rápido; prefira webhooks.",
+      "NFS-e municipal tem campos e regras por município; consultar /v2/municipios e o JSON de exemplo do município.",
+      "Reforma Tributária: campos IBS/CBS (ibs_cbs_situacao_tributaria, ibs_cbs_classificacao_tributaria, cbs_*, ibs_uf_*, ibs_mun_*) já existem para NF-e/NFC-e, CT-e, NFS-e Nacional e NFCom.",
+      "Só certificado A1 (e-CNPJ ou e-CPF de produtor rural); A3 não é aceito.",
+      "Token errado repetido bloqueia o IP (429 limite_excedido, observado em teste); trate 401 sem retry automático."
+    ]
+  },
+  "casos_uso_negocio": [
+    {
+      "titulo": "Faturamento de pedidos com NF-e",
+      "dor_resolvida": "Evita manter comunicação SOAP com 27 SEFAZ, assinatura XML e contingência.",
+      "endpoints_envolvidos": [
+        "focus-nfe.nota_fiscal.emitir.nfe",
+        "focus-nfe.nota_fiscal.consultar_status.nfe",
+        "focus-nfe.webhook.assinar_webhook",
+        "focus-nfe.nota_fiscal.baixar_arquivo.nfe"
+      ],
+      "valor_percebido": "Go-live fiscal em semanas, sem equipe especializada em leiaute SEFAZ."
+    },
+    {
+      "titulo": "PDV / e-commerce com NFC-e",
+      "dor_resolvida": "Autorização síncrona do cupom no checkout, com contingência offline.",
+      "endpoints_envolvidos": [
+        "focus-nfe.nota_fiscal.emitir.nfce",
+        "focus-nfe.nota_fiscal.cancelar.nfce",
+        "focus-nfe.nota_fiscal.inutilizar.nfce"
+      ],
+      "valor_percebido": "Um único contrato para várias UFs."
+    },
+    {
+      "titulo": "Plataforma de serviços emitindo NFS-e em muitos municípios",
+      "dor_resolvida": "Cada prefeitura tem um webservice diferente; o gateway abstrai e já suporta o padrão Nacional.",
+      "endpoints_envolvidos": [
+        "focus-nfe.nota_fiscal.emitir.nfse",
+        "focus-nfe.nota_fiscal.emitir.nfsen",
+        "focus-nfe.tabela_auxiliar.obter.municipio"
+      ],
+      "valor_percebido": "Escala para milhares de municípios sem desenvolver cada integração."
+    },
+    {
+      "titulo": "Captura de notas de compra (entrada)",
+      "dor_resolvida": "Descobrir e baixar NF-e/CT-e emitidas contra o CNPJ e manifestar ciência/confirmação.",
+      "endpoints_envolvidos": [
+        "focus-nfe.nota_fiscal.listar.nfe_recebida",
+        "focus-nfe.nota_fiscal.manifestar.nfe_recebida",
+        "focus-nfe.nota_fiscal.baixar_arquivo.xml_nfe_recebida"
+      ],
+      "valor_percebido": "Automatiza escrituração de entrada e reduz digitação."
+    },
+    {
+      "titulo": "SaaS/contabilidade com muitos CNPJs",
+      "dor_resolvida": "Onboarding de clientes emitentes (certificado, séries, CSC) sem painel manual.",
+      "endpoints_envolvidos": [
+        "focus-nfe.empresa.criar",
+        "focus-nfe.empresa.atualizar",
+        "focus-nfe.empresa.listar"
+      ],
+      "valor_percebido": "Onboarding automatizado e escalável."
+    },
+    {
+      "titulo": "Painel fiscal em Excel/Power BI",
+      "dor_resolvida": "Acompanhar notas recebidas, inutilizações e status de emissão sem desenvolver sistema.",
+      "endpoints_envolvidos": [
+        "focus-nfe.nota_fiscal.listar.nfe_recebida",
+        "focus-nfe.nota_fiscal.consultar_status.nfe",
+        "focus-nfe.nota_fiscal.listar.inutilizacoes_nfe"
+      ],
+      "valor_percebido": "Visão gerencial com atualização programada."
+    }
+  ],
+  "indice_integrabilidade": {
+    "score": 67,
+    "componentes": {
+      "documentacao": {
+        "peso": 20,
+        "pontos": 17,
+        "justificativa": "Portal ReadMe com OpenAPI embutido por página, versão Markdown e llms.txt, mais site de campos completo por documento. Perde pontos porque os schemas OpenAPI de CT-e/MDF-e/NFS-e Nacional listam poucos campos, o rate limit só aparece na doc legada e há divergências pequenas (items x itens; CRT 4 ausente no enum)."
+      },
+      "sandbox": {
+        "peso": 15,
+        "pontos": 13,
+        "justificativa": "Ambiente de homologação próprio e teste grátis de 30 dias self-service. Exige certificado A1 real mesmo para testar; homologação de NFS-e depende do município; API de Empresas só em produção (dry_run)."
+      },
+      "autenticacao": {
+        "peso": 15,
+        "pontos": 7,
+        "justificativa": "Token estático via HTTP Basic, sem OAuth2, escopos ou rotação por API."
+      },
+      "webhooks": {
+        "peso": 15,
+        "pontos": 9,
+        "justificativa": "CRUD de gatilhos, 14 eventos, reentrega documentada (1 min a 24 h) e reenvio manual. Sem assinatura HMAC; só cabeçalho fixo configurável."
+      },
+      "limites_paginacao": {
+        "peso": 10,
+        "pontos": 6,
+        "justificativa": "Limite claro (100 req/min por token) com cabeçalhos Rate-Limit-*; paginação por offset (50) com X-Total-Count e por versão (100) com X-Max-Version. Limite baixo para polling em lote."
+      },
+      "sdks_comunidade": {
+        "peso": 10,
+        "pontos": 4,
+        "justificativa": "Só repositórios de exemplo oficiais sem atualização desde 2019; comunidade não avaliada."
+      },
+      "acesso_sem_barreira": {
+        "peso": 10,
+        "pontos": 9,
+        "justificativa": "Preços públicos, sem setup nem fidelidade, trial imediato."
+      },
+      "versionamento": {
+        "peso": 5,
+        "pontos": 2,
+        "justificativa": "Versão no path (/v2) e página de atualizações, mas sem política formal de depreciação."
+      }
+    }
+  },
+  "qualidade_doc": {
+    "nota": 8,
+    "observacoes": "Referência organizada por documento, com exemplos de resposta por status e erros. O detalhe fiscal completo fica em campos.focusnfe.com.br. Pontos fracos: specs OpenAPI parciais para CT-e/MDF-e/NFS-e Nacional, rate limit fora do portal novo, divergências pontuais de nomes."
+  },
+  "monitoramento": {
+    "changelog_url": "https://focusnfe.com.br/atualizacoes/",
+    "canal_breaking_changes": "Página de Atualizações, Guia da Reforma Tributária (https://focusnfe.com.br/guides/reforma-tributaria/) e status em https://status.focusnfe.com.br/",
+    "frequencia_revisao_sugerida": "mensal"
+  },
+  "lacunas": [
+    {
+      "campo": "limites.rate_limit",
+      "descricao": "O limite de 100 créditos/min e os cabeçalhos Rate-Limit-* só constam na doc legada (repositório oficial FocusNFe/api-doc, último commit 2026-05-28). O portal doc.focusnfe.com.br não fala do assunto. Confirmar com o fornecedor se o valor continua válido.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "limites.tamanho_max_payload / timeout_recomendado",
+      "descricao": "Não encontrados na documentação.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "limites.idempotencia",
+      "descricao": "Não existe cabeçalho de idempotência. A proteção contra duplicidade é o parâmetro ref (único por token; erros already_processed/pending_operation, 409 em CT-e/MDF-e). Por isso 'suportada: true' com header null.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "webhooks.payload",
+      "descricao": "A doc diz que o POST leva os dados do documento em JSON (um documento por disparo), mas não publica schema por evento. Assumir o mesmo formato da consulta do documento (inferência).",
+      "impacto": "medio"
+    },
+    {
+      "campo": "download de XML/DANFE emitidos",
+      "descricao": "Não há endpoint dedicado no portal atual. A doc legada oficial diz para concatenar a base do ambiente com caminho_xml_nota_fiscal/caminho_danfe. Não está explícito se o download exige Basic Auth; os snippets enviam o cabeçalho por segurança.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "endpoints CT-e / MDF-e / NFS-e Nacional (payload)",
+      "descricao": "Os OpenAPI embutidos listam poucos campos (CT-e: 6; MDF-e: 4). O restante, incluindo modais, está só em campos.focusnfe.com.br. Documentados aqui apenas os campos confirmados; obrigatoriedade completa não detalhada.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "NF-e regime_tributario_emitente",
+      "descricao": "O OpenAPI lista enum [1,2,3]; a página de campos inclui também 4 (MEI). Registrado o enum da página de campos com observação.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "cobertura: NFCom, DC-e, NFGás",
+      "descricao": "Os subtipos nfcom, dce e nfgas foram incluídos na taxonomia v1.1, mas esses documentos seguem catalogados como secundários (não detalhados).",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "conformidade.permite_uso_em_produto_terceiro",
+      "descricao": "Os planos atendem múltiplos CNPJs (SaaS/revenda), mas os termos de uso não foram analisados para uso em produto de terceiros.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "chave_acesso_nfse",
+      "descricao": "A página de campos da NFS-e Nacional mostra chave de NFS-e substituída como String[50]; formato completo não detalhado.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "cnpj alfanumérico",
+      "descricao": "Não encontrada menção da Focus NFe ao CNPJ alfanumérico; schemas de NFS-e usam regex ^\\d{14}$ para prestador.cnpj.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "sdks_oficiais",
+      "descricao": "Coleção Postman da Focus NFe aparece em busca, mas não foi aberta nesta sessão.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "limites.bloqueio_autenticacao",
+      "descricao": "Comportamento observado em chamada real (2026-09-17), não documentado: 429 'limite_excedido' por excesso de autenticações falhas por IP, com retry-after em segundos. Limiar e duração não publicados.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "erros.401",
+      "descricao": "A doc mostra 401 em text/html ('HTTP Basic: Access denied'); em chamada real a /v2/nfes_recebidas com token inválido veio JSON permissao_negada. O formato pode variar por rota.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "power_query.cabecalhos",
+      "descricao": "Teste no Excel (2026-09-17): Value.Metadata(Web.Contents) só expõe Content-Type, Content-Length, Date e Server; X-Total-Count, X-Max-Version e Rate-Limit-* não ficam visíveis. Os códigos M paginam pelo tamanho da página (offset) e pelo maior campo versao (documentos recebidos). Além disso, 401/403 não podem ser tratados com ManualStatusHandling: aparecem como erro de credencial do Excel.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "execucao.campo_total (listagens)",
+      "descricao": "O total de registros das listagens paginadas vem no cabeçalho X-Total-Count, não em um campo do corpo JSON; por isso campo_total fica null em todos os endpoints. O mesmo vale para X-Max-Version nas listagens de documentos recebidos.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "execucao.colunas_sugeridas (tabelas auxiliares e downloads)",
+      "descricao": "Em /v2/cfops, /v2/ncms/{codigo}, /v2/municipios/{codigo}/itens_lista_servico e /v2/backups/{cnpj}.json a documentação publica menos de 5 campos de resposta, então as colunas sugeridas ficam abaixo do mínimo de 5 da seção 7.1. Nos downloads de XML/PDF a resposta é binária (sem JSON): a coluna sugerida é o identificador usado na requisição (chave de acesso ou caminho do arquivo).",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "execucao.paginacao (listagens de recebidos e tabelas auxiliares)",
+      "descricao": "A doc confirma paginação por versão nas NF-e recebidas (parâmetro versao, 100 por página, X-Max-Version); para /v2/ctes_recebidas e /v2/nfsens_recebidas o parâmetro versao está documentado, mas o tamanho de página não, e fica null. Em /v2/cfops, /v2/ncms, /v2/ceps e /v2/empresas o offset e a página de 50 estão documentados; em /v2/municipios, /v2/codigos_cnae e itens_lista_servico o tamanho máximo não é publicado.",
+      "impacto": "medio"
+    }
+  ],
+  "fontes": [
+    {
+      "url": "https://doc.focusnfe.com.br/reference/introducao",
+      "titulo": "Introdução — API Focus NFe",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://doc.focusnfe.com.br/reference/ambiente",
+      "titulo": "Ambiente (URLs de homologação e produção)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://doc.focusnfe.com.br/reference/autenticacao",
+      "titulo": "Autenticação HTTP Basic",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://doc.focusnfe.com.br/reference/referencia",
+      "titulo": "Referência (ref)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://doc.focusnfe.com.br/reference/webhooks",
+      "titulo": "Webhooks (gatilhos)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://doc.focusnfe.com.br/llms.txt",
+      "titulo": "Índice completo da documentação (llms.txt)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://campos.focusnfe.com.br/nfe/NotaFiscalXML.html",
+      "titulo": "Campos da NF-e 4.00",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://campos.focusnfe.com.br/nfse_nacional/EmissaoDPSXml.html",
+      "titulo": "Campos da NFS-e Nacional (DPS)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://github.com/FocusNFe/api-doc/blob/master/source/includes/_limite-requisicoes.md",
+      "titulo": "Doc legada oficial — limite de requisições",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://github.com/FocusNFe/api-doc/blob/master/source/includes/_nfe.md",
+      "titulo": "Doc legada oficial — NF-e (download por caminho_*)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://focusnfe.com.br/guides/reforma-tributaria/",
+      "titulo": "Guia da Reforma Tributária (IBS/CBS)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://focusnfe.com.br/precos/",
+      "titulo": "Planos e preços",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://focusnfe.com.br/termos-de-uso/",
+      "titulo": "Termos de uso",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://github.com/FocusNFe",
+      "titulo": "Organização GitHub oficial",
+      "data_consulta": "2026-09-17"
+    }
+  ]
+}

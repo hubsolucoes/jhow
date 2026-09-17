@@ -1,0 +1,4645 @@
+openapi: 3.1.0
+info:
+  title: Mercado Pago — API reconstruída para o catálogo
+  version: v1-2026-09-17
+  description: Reconstrução da API REST do Mercado Pago a partir da referência oficial em mercadopago.com.br/developers (pt-BR),
+    consultada em 2026-09-17. O Mercado Pago não publica OpenAPI oficial. Cobre autenticação OAuth, Orders API (Checkout Transparente
+    recomendado), Payments API (legado em manutenção), preferências do Checkout Pro, pedidos comerciais, clientes e cartões,
+    assinaturas e relatórios financeiros. Endpoints não detalhados estão em endpoints.json > endpoints_secundarios.
+  contact:
+    url: https://www.mercadopago.com.br/developers/pt/support/center
+  license:
+    name: Termos de uso do Mercado Pago
+    url: https://www.mercadopago.com.br/developers/pt/docs/resources/legal/terms-and-conditions
+servers:
+- url: https://api.mercadopago.com
+  description: Produção — use Access Token APP_USR-...
+- url: https://api.mercadopago.com
+  description: Teste/sandbox — MESMA URL, com Access Token TEST-... (ou credenciais de produção de um usuário de teste na
+    Orders API)
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Access Token da aplicação. O prefixo define o ambiente: TEST- para teste, APP_USR- para produção.'
+security:
+- bearerAuth: []
+tags:
+- name: Assinatura
+- name: Autenticacao
+- name: Cliente
+- name: Cobranca
+- name: Pedido
+- name: TabelaAuxiliar
+- name: Transacao
+paths:
+  /oauth/token:
+    post:
+      operationId: mercado-pago__autenticacao__autenticar
+      summary: Criar e atualizar token
+      description: 'Emite ou renova o Access Token de uma aplicação Mercado Pago. Atende os três fluxos OAuth 2.0 suportados:
+        authorization_code (o vendedor autoriza a plataforma por redirecionamento), refresh_token (renova sem interação) e
+        client_credentials (token da própria aplicação, sem usuário).
+
+
+        Quando usar: Em integrações de marketplace ou plataforma, quando você cobra em nome de outros vendedores e precisa
+        de um token por vendedor. Para operar só na sua conta, não use este endpoint: copie o Access Token direto do painel
+        Suas integrações.'
+      tags:
+      - Autenticacao
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/authentication/oauth/_oauth_token/post
+      x-entidade-canonica: Autenticacao
+      x-acao-canonica: autenticar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                  expires_in:
+                    type: number
+                  scope:
+                    type: string
+                  user_id:
+                    type: number
+                  refresh_token:
+                    type: string
+                  public_key:
+                    type: string
+                  live_mode:
+                    type: boolean
+              example:
+                access_token: APP_USR-0000000000000000-000000-xxxxxxxxxxxxxxxx-000000000
+                token_type: bearer
+                expires_in: 15552000
+                scope: read write offline_access
+                user_id: 241983636
+                refresh_token: TG-0000000000000000-241983636
+                public_key: APP_USR-00000000-0000-0000-0000-000000000000
+                live_mode: true
+        '400':
+          description: 'invalid_client: client_id e/ou client_secret errados.'
+        '429':
+          description: 'local_rate_limited: Limitação de taxa no endpoint de token.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                client_id:
+                  type: string
+                  description: Identificador único da sua aplicação (par de credenciais Client ID/Client Secret do painel).
+                client_secret:
+                  type: string
+                  description: Chave privada da aplicação. Nunca exponha no frontend.
+                grant_type:
+                  type: string
+                  description: Fluxo desejado.
+                  enum:
+                  - authorization_code
+                  - refresh_token
+                  - client_credentials
+                code:
+                  type: string
+                  description: Código devolvido pelo servidor de autorização no redirecionamento. Vale 10 minutos. Obrigatório
+                    quando grant_type=authorization_code.
+                redirect_uri:
+                  type: string
+                  description: URL estática cadastrada no campo Redirect URLs da aplicação. Obrigatória quando grant_type=authorization_code
+                    e precisa bater exatamente com a cadastrada.
+                code_verifier:
+                  type: string
+                  description: Verificador PKCE, quando a aplicação usa PKCE no fluxo authorization_code.
+                refresh_token:
+                  type: string
+                  description: Concessão temporária recebida junto do Access Token. Obrigatória quando grant_type=refresh_token.
+                test_token:
+                  type: string
+                  description: Enviar com valor true apenas quando se quer gerar credenciais de teste.
+              required:
+              - client_id
+              - client_secret
+              - grant_type
+  /v1/orders:
+    post:
+      operationId: mercado-pago__cobranca__criar__order
+      summary: Criar order
+      description: 'Cria uma order do Checkout Transparente, que é o contêiner da venda e das transações de pagamento. Em
+        processing_mode=automatic a order já é processada na mesma chamada; em manual ela nasce com status created e devolve
+        um client_token para o frontend completar o pagamento. É por aqui que se emitem Pix (payment_method.id=pix, type=bank_transfer),
+        boleto (id=boleto, type=ticket) e cartão tokenizado.
+
+
+        Quando usar: Integração nova de Checkout Transparente. A documentação recomenda a Orders API para quem está começando;
+        a Payments API antiga continua funcionando, mas só recebe correções de segurança e estabilidade.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/create-order/post
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: criar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: X-Idempotency-Key
+        in: header
+        required: true
+        description: Chave única da requisição (UUID v4 recomendado), de 1 a 128 caracteres. Repetir a mesma chave não cria
+          uma segunda order.
+        schema:
+          type: string
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  type:
+                    type: string
+                  processing_mode:
+                    type: string
+                  status:
+                    type: string
+                  status_detail:
+                    type: string
+                  external_reference:
+                    type: string
+                  total_amount:
+                    type: string
+                  total_paid_amount:
+                    type: string
+                  country_code:
+                    type: string
+                  created_date:
+                    type: string
+                  last_updated_date:
+                    type: string
+                  client_token:
+                    type: string
+                  transactions:
+                    type: object
+                    properties:
+                      payments:
+                        type: array
+                  items:
+                    type: array
+              example:
+                id: ORD01J49MMW3SSBK5PSV3DFR32959
+                type: online
+                processing_mode: automatic
+                external_reference: PEDIDO-2026-0001
+                total_amount: '50.00'
+                status: processed
+                status_detail: accredited
+                country_code: BR
+                created_date: '2026-09-17T13:06:51.045Z'
+                last_updated_date: '2026-09-17T13:06:51.045Z'
+                transactions:
+                  payments:
+                  - id: PAY01J67CQQH5904WDBVZEM4JMEP3
+                    amount: '50.00'
+                    status: processed
+                    status_detail: accredited
+                    payment_method:
+                      id: pix
+                      type: bank_transfer
+        '400':
+          description: 'empty_required_header: Header X-Idempotency-Key obrigatório não enviado.'
+        '409':
+          description: 'idempotency_key_already_used: A chave de idempotência já foi usada em outra requisição.'
+        '402':
+          description: '402: A order foi criada mas alguma transação falhou.'
+        '401':
+          description: '401: Access Token ausente, inválido, revogado ou do ambiente errado (TEST- x APP_USR-).'
+        '403':
+          description: 'forbidden: A aplicação não tem permissão/escopo para o recurso.'
+        '429':
+          description: 'too_many_requests: Limite de requisições do Client ID atingido no gateway.'
+        '500':
+          description: 'internal_error: Erro genérico do servidor.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  description: Tipo da order. Para pagamento online, o único valor possível é online.
+                  enum:
+                  - online
+                processing_mode:
+                  type: string
+                  description: Define se a transação é processada na criação (automatic) ou depois, em etapas (manual).
+                  enum:
+                  - automatic
+                  - manual
+                capture_mode:
+                  type: string
+                  description: Como o valor é capturado. automatic captura junto com a autorização; manual reserva o valor
+                    no cartão para captura posterior; automatic_async permite processamento assíncrono.
+                  enum:
+                  - automatic
+                  - manual
+                  - automatic_async
+                total_amount:
+                  type: string
+                  description: 'Valor total da order, como string decimal (ex.: "50.00").'
+                external_reference:
+                  type: string
+                  description: Sua referência interna. Máximo 64 caracteres, só números, letras, hífen e underscore. Obrigatória
+                    para Pix.
+                description:
+                  type: string
+                  description: Descrição da venda.
+                transactions:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                payer:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                items:
+                  type: array
+                  description: Itens da venda (title, unit_price, quantity, description, external_code, category_id...).
+                  items: {}
+                shipment:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                integration_data:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                config:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+              required:
+              - total_amount
+              - payer
+    get:
+      operationId: mercado-pago__cobranca__listar__orders
+      summary: Buscar order
+      description: 'Busca orders do Checkout Transparente em lote, com filtros de período, status, meio de pagamento e referência
+        externa, e paginação por página. O envelope traz data[] com as orders e paging com total, total_pages, offset e limit.
+
+
+        Quando usar: Extração para planilha e conciliação de vendas do Checkout Transparente novo. É o endpoint de listagem
+        da Orders API; para integrações antigas em Payments API, use GET /v1/payments/search.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/search-order/get
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: begin_date
+        in: query
+        required: true
+        description: 'Início do período, pela data de criação, em RFC 3339 (ex.: 2026-09-01T00:00:00Z).'
+        schema:
+          type: string
+          format: date-time
+      - name: end_date
+        in: query
+        required: true
+        description: Fim do período, pela data de criação, em RFC 3339.
+        schema:
+          type: string
+          format: date-time
+      - name: external_reference
+        in: query
+        required: false
+        description: Filtra pela sua referência interna.
+        schema:
+          type: string
+      - name: type
+        in: query
+        required: false
+        description: Tipo da order. Para pagamento online, online.
+        schema:
+          type: string
+          enum:
+          - online
+      - name: status
+        in: query
+        required: false
+        description: Status atual da order.
+        schema:
+          type: string
+          enum:
+          - created
+          - processed
+          - action_required
+          - failed
+          - processing
+          - refunded
+          - canceled
+      - name: status_detail
+        in: query
+        required: false
+        description: Detalhe do status (accredited, refunded, partially_refunded, waiting_capture, rejected_by_issuer...).
+        schema:
+          type: string
+      - name: payment_method_id
+        in: query
+        required: false
+        description: Meio de pagamento (pix, boleto, visa, master...).
+        schema:
+          type: string
+      - name: payment_method_type
+        in: query
+        required: false
+        description: Tipo do meio (bank_transfer, ticket, credit_card, debit_card, account_money).
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        description: Página, começando em 1.
+        schema:
+          type: integer
+      - name: page_size
+        in: query
+        required: false
+        description: Registros por página. Máximo 100; padrão 20.
+        schema:
+          type: integer
+      - name: sort_by
+        in: query
+        required: false
+        description: Ordena por data de criação ou de última atualização.
+        schema:
+          type: string
+      - name: sort_order
+        in: query
+        required: false
+        description: Sentido da ordenação.
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        type:
+                          type: string
+                        processing_mode:
+                          type: string
+                        external_reference:
+                          type: string
+                        total_amount:
+                          type: string
+                        total_paid_amount:
+                          type: string
+                        user_id:
+                          type: string
+                        status:
+                          type: string
+                        status_detail:
+                          type: string
+                        capture_mode:
+                          type: string
+                        currency:
+                          type: string
+                        created_date:
+                          type: string
+                        last_updated_date:
+                          type: string
+                        transactions:
+                          type: object
+                  paging:
+                    type: object
+                    properties:
+                      total:
+                        type: string
+                      total_pages:
+                        type: string
+                      offset:
+                        type: string
+                      limit:
+                        type: string
+              example:
+                data:
+                - id: ORD01K9SN1Q5959CGN8QGW00EH7V5
+                  type: online
+                  processing_mode: automatic
+                  external_reference: PEDIDO-2026-0001
+                  total_amount: '50.00'
+                  total_paid_amount: '50.00'
+                  user_id: '12345'
+                  status: processed
+                  status_detail: accredited
+                  capture_mode: automatic
+                  currency: BRL
+                  created_date: '2026-09-17T13:06:51.045Z'
+                  last_updated_date: '2026-09-17T13:06:51.045Z'
+                paging:
+                  total: '54'
+                  total_pages: '3'
+                  offset: '0'
+                  limit: '20'
+        '400':
+          description: 'required_search_params: begin_date e end_date não foram enviados.'
+        '401':
+          description: '401: Access Token ausente, inválido, revogado ou do ambiente errado (TEST- x APP_USR-).'
+        '403':
+          description: 'forbidden: A aplicação não tem permissão/escopo para o recurso.'
+        '429':
+          description: 'too_many_requests: Limite de requisições do Client ID atingido no gateway.'
+        '500':
+          description: 'internal_error: Erro genérico do servidor.'
+  /v1/orders/{id}:
+    get:
+      operationId: mercado-pago__cobranca__obter__order
+      summary: Obter order por ID
+      description: 'Devolve o estado atual de uma order do Checkout Transparente, com as transações de pagamento, os reembolsos,
+        os itens e o status em tempo real.
+
+
+        Quando usar: Ao receber uma notificação do tópico order, para buscar o estado real antes de dar baixa. Também para
+        conferir se o Pix foi pago ou se o boleto foi compensado.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/get-order/get
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: obter
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador da order devolvido na criação (formato ORD...).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  type:
+                    type: string
+                  processing_mode:
+                    type: string
+                  external_reference:
+                    type: string
+                  total_amount:
+                    type: string
+                  total_paid_amount:
+                    type: string
+                  status:
+                    type: string
+                  status_detail:
+                    type: string
+                  capture_mode:
+                    type: string
+                  currency:
+                    type: string
+                  country_code:
+                    type: string
+                  user_id:
+                    type: string
+                  created_date:
+                    type: string
+                  last_updated_date:
+                    type: string
+                  transactions:
+                    type: object
+                    properties:
+                      payments:
+                        type: array
+                      refunds:
+                        type: array
+                  items:
+                    type: array
+              example:
+                id: ORD01J49MMW3SSBK5PSV3DFR32959
+                processing_mode: automatic
+                external_reference: PEDIDO-2026-0001
+                total_amount: '50.00'
+                total_paid_amount: '50.00'
+                status: processed
+                status_detail: accredited
+                currency: BRL
+                country_code: BR
+                user_id: '12345'
+                created_date: '2026-09-17T13:06:51.045Z'
+                last_updated_date: '2026-09-17T13:10:02.001Z'
+                transactions:
+                  payments:
+                  - id: PAY01J67CQQH5904WDBVZEM4JMEP3
+                    amount: '50.00'
+                    status: processed
+                    status_detail: accredited
+        '400':
+          description: 'invalid_path_param: O id informado não tem formato de order.'
+        '404':
+          description: 'order_not_found: Order inexistente, de outra conta ou do outro ambiente.'
+        '401':
+          description: '401: Access Token ausente, inválido, revogado ou do ambiente errado (TEST- x APP_USR-).'
+        '403':
+          description: 'forbidden: A aplicação não tem permissão/escopo para o recurso.'
+        '429':
+          description: 'too_many_requests: Limite de requisições do Client ID atingido no gateway.'
+        '500':
+          description: 'internal_error: Erro genérico do servidor.'
+  /v1/orders/{order_id}/cancel:
+    post:
+      operationId: mercado-pago__cobranca__cancelar__order
+      summary: Cancelar order por ID
+      description: 'Cancela uma order e suas transações. Só funciona enquanto a order está em status created ou action_required
+        — depois de processada, o caminho é o reembolso.
+
+
+        Quando usar: Para derrubar um Pix ou boleto ainda não pago, ou abandonar uma order em modo manual que o cliente não
+        concluiu.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/cancel-order/post
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: cancelar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: X-Idempotency-Key
+        in: header
+        required: true
+        description: Chave única da requisição (UUID v4), de 1 a 128 caracteres.
+        schema:
+          type: string
+      - name: order_id
+        in: path
+        required: true
+        description: ID da order a cancelar (ORD...).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                  status_detail:
+                    type: string
+                  transactions:
+                    type: object
+                    properties:
+                      payments:
+                        type: array
+              example:
+                id: ORD01J49MMW3SSBK5PSV3DFR32959
+                status: canceled
+                status_detail: canceled_transaction
+                transactions:
+                  payments:
+                  - id: PAY01J67CQQH5904WDBVZEM4JMEP3
+                    status: canceled
+                    status_detail: canceled_transaction
+        '400':
+          description: 'empty_required_header: Header X-Idempotency-Key obrigatório não enviado.'
+        '409':
+          description: 'idempotency_key_already_used: A chave de idempotência já foi usada em outra requisição.'
+        '404':
+          description: 'order_not_found: Order inexistente ou de outra conta.'
+        '401':
+          description: '401: Access Token ausente, inválido, revogado ou do ambiente errado (TEST- x APP_USR-).'
+        '403':
+          description: 'forbidden: A aplicação não tem permissão/escopo para o recurso.'
+        '429':
+          description: 'too_many_requests: Limite de requisições do Client ID atingido no gateway.'
+        '500':
+          description: 'internal_error: Erro genérico do servidor.'
+  /v1/orders/{order_id}/refund:
+    post:
+      operationId: mercado-pago__cobranca__estornar__order
+      summary: Reembolsar uma order
+      description: 'Devolve ao comprador o valor das transações de uma order. Sem corpo na requisição, o reembolso é total;
+        com transactions[].id e amount, é parcial. A order fica totalmente reembolsada quando todas as transações forem devolvidas
+        integralmente.
+
+
+        Quando usar: Devolução de venda, cancelamento após pagamento, acordo com o cliente. Para Pix, o reembolso devolve
+        o valor pela própria rede Pix e a resposta traz o e2e_id da devolução.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/refund-order/post
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: estornar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: X-Idempotency-Key
+        in: header
+        required: true
+        description: Chave única da requisição (UUID v4), de 1 a 128 caracteres.
+        schema:
+          type: string
+      - name: order_id
+        in: path
+        required: true
+        description: ID da order a reembolsar (ORD...).
+        schema:
+          type: string
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                  status_detail:
+                    type: string
+                  transactions:
+                    type: object
+                    properties:
+                      refunds:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            transaction_id:
+                              type: string
+                            reference_id:
+                              type: string
+                            amount:
+                              type: string
+                            status:
+                              type: string
+                            e2e_id:
+                              type: string
+              example:
+                id: ORD01J49MMW3SSBK5PSV3DFR32959
+                status: processed
+                status_detail: refunded
+                transactions:
+                  refunds:
+                  - id: REF01J49MMW3SSBK5PSV3DFR32959
+                    transaction_id: PAY01JEVQM06WDW16MAQ8B5SC0MSC
+                    reference_id: 01JEVQM899NWSQC4FYWWW7KTF9
+                    amount: '10.00'
+                    status: processed
+                    e2e_id: E18236120202609281610s04cf5a1234
+        '400':
+          description: 'empty_required_header: Header X-Idempotency-Key obrigatório não enviado.'
+        '409':
+          description: 'idempotency_key_already_used: A chave de idempotência já foi usada em outra requisição.'
+        '404':
+          description: 'order_not_found: Order inexistente ou de outra conta.'
+        '403':
+          description: 'forbidden: A aplicação não tem permissão/escopo para o recurso.'
+        '429':
+          description: 'too_many_requests: Limite de requisições do Client ID atingido no gateway.'
+        '500':
+          description: 'internal_error: Erro genérico do servidor.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transactions:
+                  type: array
+                  description: Transações a reembolsar parcialmente. Omita o corpo inteiro para reembolso total.
+                  items: {}
+  /v1/orders/{order_id}/capture:
+    post:
+      operationId: mercado-pago__cobranca__autorizar__order_captura
+      summary: Capturar order totalmente
+      description: 'Captura integralmente o valor autorizado de uma order criada com capture_mode=manual. Todos os pagamentos
+        associados são capturados. Só vale para cartão de crédito.
+
+
+        Quando usar: Fluxo de reserva e captura: você autoriza o valor no cartão na hora da compra e só captura quando confirma
+        estoque, envia o produto ou conclui o serviço.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api/capture-order/post
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: autorizar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: X-Idempotency-Key
+        in: header
+        required: true
+        description: Chave única da requisição (UUID v4), de 1 a 128 caracteres.
+        schema:
+          type: string
+      - name: order_id
+        in: path
+        required: true
+        description: ID da order cujos valores serão capturados (ORD...).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                  status_detail:
+                    type: string
+                  transactions:
+                    type: object
+                    properties:
+                      payments:
+                        type: array
+              example:
+                id: ORD01J49MMW3SSBK5PSV3DFR32959
+                status: processed
+                status_detail: accredited
+                transactions:
+                  payments:
+                  - id: PAY01J49MMW3SSBK5PSV3DFR32959
+                    amount: '50.00'
+                    status: processed
+                    status_detail: accredited
+        '400':
+          description: 'empty_required_header: Header X-Idempotency-Key obrigatório não enviado.'
+        '409':
+          description: 'idempotency_key_already_used: A chave de idempotência já foi usada em outra requisição.'
+        '402':
+          description: '402: A order foi criada mas alguma transação falhou.'
+        '404':
+          description: 'order_not_found: Order inexistente ou de outra conta.'
+        '401':
+          description: '401: Access Token ausente, inválido, revogado ou do ambiente errado (TEST- x APP_USR-).'
+        '403':
+          description: 'forbidden: A aplicação não tem permissão/escopo para o recurso.'
+        '429':
+          description: 'too_many_requests: Limite de requisições do Client ID atingido no gateway.'
+        '500':
+          description: 'internal_error: Erro genérico do servidor.'
+  /v1/payments:
+    post:
+      operationId: mercado-pago__cobranca__criar
+      summary: Criar pagamento
+      description: 'Cria um pagamento na Payments API: cartão de crédito/débito com token gerado no frontend, Pix (payment_method_id=pix,
+        resposta com QR code em point_of_interaction) ou boleto (payment_method_id=bolbradesco). É a API clássica do Checkout
+        Transparente.
+
+
+        Quando usar: Quando a integração já roda na Payments API, ou quando um recurso ainda não existe na Orders API. Para
+        integração NOVA, a documentação recomenda a Orders API: a Payments API continua funcionando, mas só recebe correções
+        de segurança e estabilidade.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/create-payment/post
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: criar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: X-Idempotency-Key
+        in: header
+        required: true
+        description: Chave única da requisição (UUID v4 recomendado). Evita criar dois pagamentos iguais ao repetir a chamada.
+        schema:
+          type: string
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                  status:
+                    type: string
+                  status_detail:
+                    type: string
+                  date_created:
+                    type: string
+                  date_approved:
+                    type: string
+                  date_last_updated:
+                    type: string
+                  date_of_expiration:
+                    type: string
+                  money_release_date:
+                    type: string
+                  payment_method_id:
+                    type: string
+                  payment_type_id:
+                    type: string
+                  currency_id:
+                    type: string
+                  transaction_amount:
+                    type: number
+                  transaction_amount_refunded:
+                    type: number
+                  external_reference:
+                    type: string
+                  description:
+                    type: string
+                  live_mode:
+                    type: boolean
+                  collector_id:
+                    type: number
+                  payer:
+                    type: object
+                  transaction_details:
+                    type: object
+                  fee_details:
+                    type: array
+                  captured:
+                    type: boolean
+                  installments:
+                    type: number
+                  card:
+                    type: object
+                  point_of_interaction:
+                    type: object
+              example:
+                id: 20359978
+                status: pending
+                status_detail: pending_waiting_transfer
+                date_created: '2026-09-17T14:47:58.000-03:00'
+                date_approved: null
+                date_of_expiration: '2026-09-18T18:00:00.000-03:00'
+                payment_method_id: pix
+                payment_type_id: bank_transfer
+                currency_id: BRL
+                transaction_amount: 50.0
+                transaction_amount_refunded: 0
+                external_reference: PEDIDO-2026-0001
+                description: Pedido 2026-0001
+                live_mode: false
+                collector_id: 448876418
+                payer:
+                  email: comprador@example.com
+                  identification:
+                    type: CPF
+                    number: '00000000000'
+                transaction_details:
+                  net_received_amount: 0
+                  total_paid_amount: 50.0
+        '400':
+          description: '1: Params Error: algum parâmetro está ausente ou malformado.'
+        '401':
+          description: 'unauthorized: Access Token ausente, inválido ou do ambiente errado. Confirmado em 2026-09-17: a resposta
+            vem como {"message":"Unauthorized use of live credentials","error":"unauthorized","status":401,"cause":[{"code":7,...}]}.'
+        '403':
+          description: '4: O chamador não tem autorização para acessar o recurso.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transaction_amount:
+                  type: number
+                  description: Valor do pagamento, com até duas casas decimais.
+                payment_method_id:
+                  type: string
+                  description: 'Identificador do meio: pix, bolbradesco, visa, master, elo, amex... Lista completa em GET
+                    /v1/payment_methods.'
+                token:
+                  type: string
+                  description: Token do cartão gerado no frontend pelo MercadoPago.js. Uso único e validade curta.
+                installments:
+                  type: number
+                  description: Número de parcelas no cartão.
+                issuer_id:
+                  type: string
+                  description: Identificador do banco emissor do cartão.
+                description:
+                  type: string
+                  description: Descrição que aparece para o comprador e no extrato do Mercado Pago.
+                external_reference:
+                  type: string
+                  description: Sua referência interna; é a chave de conciliação com o ERP.
+                notification_url:
+                  type: string
+                  description: URL que receberá o webhook deste pagamento.
+                callback_url:
+                  type: string
+                  description: URL de retorno do comprador.
+                date_of_expiration:
+                  type: string
+                  description: 'Vencimento do pagamento, no formato yyyy-MM-dd''T''HH:mm:ssz (ex.: 2026-11-17T09:37:52.000-03:00).'
+                  format: date-time
+                capture:
+                  type: boolean
+                  description: false reserva o valor no cartão sem debitar (captura diferida); true captura na hora.
+                binary_mode:
+                  type: boolean
+                  description: true força o resultado a ser só aprovado ou recusado, sem estado pendente de análise.
+                statement_descriptor:
+                  type: string
+                  description: Texto que aparece na fatura do cartão do comprador.
+                application_fee:
+                  type: number
+                  description: Comissão da plataforma em integrações de marketplace.
+                coupon_amount:
+                  type: number
+                  description: Valor do desconto de cupom.
+                metadata:
+                  type: object
+                  description: Objeto livre para dados seus; volta nas consultas.
+                payer:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                additional_info:
+                  type: object
+                  description: Dados extras (itens, endereço de entrega, dados do comprador) repassados às camadas de antifraude
+                    e de impostos. Melhora a taxa de aprovação.
+              required:
+              - transaction_amount
+              - payer
+  /v1/payments/{id}:
+    get:
+      operationId: mercado-pago__cobranca__obter
+      summary: Obter pagamento
+      description: 'Devolve todos os dados de um pagamento: status, detalhe do status, valores bruto/líquido/estornado, taxas,
+        meio de pagamento, datas de criação, aprovação e liberação do dinheiro, e os dados do cartão ou do Pix.
+
+
+        Quando usar: Sempre que chegar um webhook do tópico payment: a notificação só traz o id, então o estado real vem daqui.
+        Também para conferir se um boleto foi compensado ou um Pix foi recebido.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/get-payment/get
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: obter
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador numérico do pagamento gerado pelo Mercado Pago.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                  status:
+                    type: string
+                  status_detail:
+                    type: string
+                  date_created:
+                    type: string
+                  date_approved:
+                    type: string
+                  date_last_updated:
+                    type: string
+                  money_release_date:
+                    type: string
+                  payment_method_id:
+                    type: string
+                  payment_type_id:
+                    type: string
+                  currency_id:
+                    type: string
+                  transaction_amount:
+                    type: number
+                  transaction_amount_refunded:
+                    type: number
+                  coupon_amount:
+                    type: number
+                  external_reference:
+                    type: string
+                  description:
+                    type: string
+                  live_mode:
+                    type: boolean
+                  collector_id:
+                    type: number
+                  payer:
+                    type: object
+                  metadata:
+                    type: object
+                  additional_info:
+                    type: object
+                  transaction_details:
+                    type: object
+                  fee_details:
+                    type: array
+                  captured:
+                    type: boolean
+                  installments:
+                    type: number
+                  card:
+                    type: object
+                  point_of_interaction:
+                    type: object
+              example:
+                id: 20359978
+                status: approved
+                status_detail: accredited
+                date_created: '2026-09-17T11:26:38.000-03:00'
+                date_approved: '2026-09-17T11:26:45.000-03:00'
+                date_last_updated: '2026-09-17T11:26:45.000-03:00'
+                money_release_date: '2026-10-01T11:26:38.000-03:00'
+                payment_method_id: visa
+                payment_type_id: credit_card
+                currency_id: BRL
+                transaction_amount: 50.0
+                transaction_amount_refunded: 0
+                external_reference: PEDIDO-2026-0001
+                description: Pedido 2026-0001
+                live_mode: true
+                collector_id: 448876418
+                installments: 1
+                payer:
+                  id: 123
+                  email: comprador@example.com
+                  identification:
+                    type: CPF
+                    number: '00000000000'
+                  type: customer
+                transaction_details:
+                  net_received_amount: 48.53
+                  total_paid_amount: 50.0
+                  installment_amount: 50.0
+                fee_details:
+                - type: mercadopago_fee
+                  amount: 1.47
+                  fee_payer: collector
+                captured: true
+        '401':
+          description: 'unauthorized: Access Token ausente, inválido ou do ambiente errado. Confirmado em 2026-09-17: a resposta
+            vem como {"message":"Unauthorized use of live credentials","error":"unauthorized","status":401,"cause":[{"code":7,...}]}.'
+        '403':
+          description: '4: O chamador não tem autorização para acessar o recurso.'
+        '404':
+          description: '2000: Pagamento não encontrado — inclusive quando o id existe em outra conta ou no outro ambiente.'
+        '400':
+          description: '400: Id em formato inválido.'
+    put:
+      operationId: mercado-pago__cobranca__atualizar
+      summary: Atualizar pagamento / Criar cancelamento
+      description: 'Altera um pagamento existente. Serve para três coisas: capturar um valor autorizado (capture=true), cancelar
+        um pagamento ainda não concluído (status=cancelled) e mudar a data de vencimento (date_of_expiration) ou o valor capturado
+        (transaction_amount, captura parcial).
+
+
+        Quando usar: Capturar uma reserva de cartão depois de confirmar o pedido; cancelar um boleto ou Pix que o cliente
+        não vai pagar; prorrogar o vencimento de um boleto. O cancelamento só é aceito quando o status atual é in_process,
+        pending ou authorized.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/update-payment/put
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: atualizar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador numérico do pagamento.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                  status:
+                    type: string
+                  status_detail:
+                    type: string
+                  date_last_updated:
+                    type: string
+                  captured:
+                    type: boolean
+                  transaction_amount:
+                    type: number
+                  date_of_expiration:
+                    type: string
+              example:
+                id: 18746874919
+                status: cancelled
+                status_detail: by_collector
+                date_created: '2026-09-10T17:13:23.000-03:00'
+                date_last_updated: '2026-09-10T17:31:34.000-03:00'
+                date_of_expiration: '2026-09-13T22:59:59.000-03:00'
+                payment_method_id: bolbradesco
+                payment_type_id: ticket
+                transaction_amount: 50.0
+                captured: false
+        '400':
+          description: '2018: A ação pedida não vale para o estado atual do pagamento (ex.: cancelar um pagamento já aprovado).'
+        '401':
+          description: '5: Access Token não enviado.'
+        '403':
+          description: '4: O chamador não tem autorização para acessar o recurso.'
+        '404':
+          description: '2000: Pagamento não encontrado — inclusive quando o id existe em outra conta ou no outro ambiente.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                capture:
+                  type: boolean
+                  description: true captura o valor previamente autorizado no cartão; false mantém apenas a reserva.
+                status:
+                  type: string
+                  description: Só aceita o valor cancelled, para cancelar o pagamento.
+                  enum:
+                  - cancelled
+                transaction_amount:
+                  type: number
+                  description: Novo valor, usado em captura parcial de cartão.
+                date_of_expiration:
+                  type: string
+                  description: Nova data de vencimento, no formato yyyy-MM-dd'T'HH:mm:ssz.
+                  format: date-time
+  /v1/payments/search:
+    get:
+      operationId: mercado-pago__cobranca__listar
+      summary: Buscar em pagamentos
+      description: 'Busca pagamentos da conta com filtros de período, ordenação e referência externa. A resposta é um envelope
+        com paging (total, limit, offset) e results[] com os pagamentos completos. Cobre apenas os últimos doze meses contados
+        da data da consulta.
+
+
+        Quando usar: É o endpoint central para extrair vendas para planilha, Power BI e conciliação: aprovados, recusados,
+        estornados, por meio de pagamento e por período. Para integrações no Checkout Transparente novo, o equivalente é GET
+        /v1/orders.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/search-payments/get
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: sort
+        in: query
+        required: false
+        description: Campo de ordenação.
+        schema:
+          type: string
+          enum:
+          - date_approved
+          - date_created
+          - date_last_updated
+          - id
+          - money_release_date
+      - name: criteria
+        in: query
+        required: false
+        description: Sentido da ordenação.
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+      - name: range
+        in: query
+        required: false
+        description: Campo de data usado no recorte por período.
+        schema:
+          type: string
+          enum:
+          - date_created
+          - date_last_updated
+          - date_approved
+          - money_release_date
+      - name: begin_date
+        in: query
+        required: false
+        description: Início do período. Aceita data relativa (NOW-30DAYS, NOW-1MONTH) ou absoluta em ISO 8601 (2026-08-23).
+          Padrão NOW-3MONTHS.
+        schema:
+          type: string
+      - name: end_date
+        in: query
+        required: false
+        description: Fim do período, relativo ou absoluto. Padrão NOW.
+        schema:
+          type: string
+      - name: external_reference
+        in: query
+        required: false
+        description: Filtra pela sua referência interna.
+        schema:
+          type: string
+      - name: store_id
+        in: query
+        required: false
+        description: Filtra pela loja física à qual o ponto de venda pertence.
+        schema:
+          type: string
+      - name: pos_id
+        in: query
+        required: false
+        description: Filtra pelo ponto de venda (POS) que originou o pagamento.
+        schema:
+          type: string
+      - name: collector.id
+        in: query
+        required: false
+        description: Filtra pelo recebedor do pagamento.
+        schema:
+          type: string
+      - name: payer.id
+        in: query
+        required: false
+        description: Filtra pelo pagador.
+        schema:
+          type: string
+      - name: offset
+        in: query
+        required: false
+        description: Deslocamento da paginação, começando em 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Quantidade de registros por página. Padrão 30.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  paging:
+                    type: object
+                    properties:
+                      total:
+                        type: number
+                      limit:
+                        type: number
+                      offset:
+                        type: number
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: number
+                        date_created:
+                          type: string
+                        date_approved:
+                          type: string
+                        date_last_updated:
+                          type: string
+                        money_release_date:
+                          type: string
+                        payment_method_id:
+                          type: string
+                        payment_type_id:
+                          type: string
+                        status:
+                          type: string
+                        status_detail:
+                          type: string
+                        currency_id:
+                          type: string
+                        description:
+                          type: string
+                        collector_id:
+                          type: number
+                        payer:
+                          type: object
+                        external_reference:
+                          type: string
+                        transaction_amount:
+                          type: number
+                        transaction_amount_refunded:
+                          type: number
+                        transaction_details:
+                          type: object
+                        installments:
+                          type: number
+                        card:
+                          type: object
+              example:
+                paging:
+                  total: 17493
+                  limit: 30
+                  offset: 0
+                results:
+                - id: 20359978
+                  date_created: '2026-08-31T11:26:38.000-03:00'
+                  date_approved: '2026-08-31T11:26:38.000-03:00'
+                  date_last_updated: '2026-08-31T11:26:38.000-03:00'
+                  money_release_date: '2026-09-14T11:26:38.000-03:00'
+                  payment_method_id: visa
+                  payment_type_id: credit_card
+                  status: approved
+                  status_detail: accredited
+                  currency_id: BRL
+                  description: Pedido 2026-0001
+                  collector_id: 448876418
+                  external_reference: PEDIDO-2026-0001
+                  transaction_amount: 50.0
+                  transaction_amount_refunded: 0
+                  installments: 1
+                  transaction_details:
+                    net_received_amount: 48.53
+                    total_paid_amount: 50.0
+        '400':
+          description: '1: Params Error: parâmetro inválido.'
+        '403':
+          description: '4: O chamador não tem autorização para acessar o recurso.'
+        '401':
+          description: 'unauthorized: Access Token ausente, inválido ou do ambiente errado. Confirmado em 2026-09-17: a resposta
+            vem como {"message":"Unauthorized use of live credentials","error":"unauthorized","status":401,"cause":[{"code":7,...}]}.'
+        '404':
+          description: '2000: Pagamento não encontrado — inclusive quando o id existe em outra conta ou no outro ambiente.'
+  /v1/payments/{id}/refunds:
+    post:
+      operationId: mercado-pago__cobranca__estornar
+      summary: Criar reembolso
+      description: 'Devolve ao comprador o valor de um pagamento já aprovado. Com o campo amount no corpo, o reembolso é parcial;
+        sem ele, é total.
+
+
+        Quando usar: Devolução de venda, acordo comercial, cancelamento após compensação do boleto ou recebimento do Pix.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/create-refund/post
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: estornar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: X-Idempotency-Key
+        in: header
+        required: true
+        description: Chave única da requisição (UUID v4). Evita dois reembolsos iguais.
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        description: Identificador numérico do pagamento a reembolsar.
+        schema:
+          type: integer
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                  payment_id:
+                    type: number
+                  amount:
+                    type: number
+                  status:
+                    type: string
+                  date_created:
+                    type: string
+                  refund_mode:
+                    type: string
+                  adjustment_amount:
+                    type: number
+                  unique_sequence_number:
+                    type: string
+                  source:
+                    type: array
+                  reason:
+                    type: string
+              example:
+                id: 1009042015
+                payment_id: 18552260055
+                amount: 10.0
+                date_created: '2026-09-17T13:58:49.312-03:00'
+                unique_sequence_number: null
+                refund_mode: standard
+                adjustment_amount: 0
+                status: approved
+                reason: null
+        '400':
+          description: '2063: A ação não é válida para o estado atual do pagamento.'
+        '401':
+          description: '4040: amount precisa ser positivo.'
+        '404':
+          description: '2000: Pagamento não encontrado.'
+        '403':
+          description: '4: O chamador não tem autorização para acessar o recurso.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  description: Valor a devolver. Omitir o campo faz reembolso total.
+    get:
+      operationId: mercado-pago__cobranca__listar__reembolsos
+      summary: Obter lista de reembolsos
+      description: 'Lista todos os reembolsos, totais e parciais, feitos sobre um pagamento. A resposta é um array na raiz,
+        sem envelope de paginação.
+
+
+        Quando usar: Auditoria de devoluções, conferência de quanto já foi estornado de uma venda e montagem da coluna de
+        estornos na planilha de conciliação.'
+      tags:
+      - Cobranca
+      x-confianca: inferido
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/get-refunds/get
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador numérico do pagamento.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+                    payment_id:
+                      type: number
+                    amount:
+                      type: number
+                    status:
+                      type: string
+                    date_created:
+                      type: string
+                    refund_mode:
+                      type: string
+                    adjustment_amount:
+                      type: number
+                    unique_sequence_number:
+                      type: string
+                    reason:
+                      type: string
+              example:
+              - id: 1032332129
+                payment_id: 18552260055
+                amount: 10.0
+                date_created: '2026-09-17T13:58:49.312-03:00'
+                unique_sequence_number: null
+                refund_mode: standard
+                adjustment_amount: 0
+                status: approved
+                reason: null
+        '400':
+          description: '400: Requisição malformada.'
+        '401':
+          description: '5: Access Token não enviado.'
+        '404':
+          description: '2000: Pagamento não encontrado.'
+        '403':
+          description: '4: O chamador não tem autorização para acessar o recurso.'
+  /v1/payments/{id}/refunds/{refund_id}:
+    get:
+      operationId: mercado-pago__cobranca__obter__reembolso
+      summary: Obter reembolso específico
+      description: 'Devolve os dados de um reembolso específico de um pagamento: valor, status, modo e data.
+
+
+        Quando usar: Confirmar se uma devolução foi efetivada, depois de criá-la ou ao receber uma notificação sobre o pagamento.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/get-refund/get
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: obter
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador numérico do pagamento.
+        schema:
+          type: integer
+      - name: refund_id
+        in: path
+        required: true
+        description: Identificador do reembolso.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                  payment_id:
+                    type: number
+                  amount:
+                    type: number
+                  status:
+                    type: string
+                  date_created:
+                    type: string
+                  refund_mode:
+                    type: string
+                  adjustment_amount:
+                    type: number
+                  unique_sequence_number:
+                    type: string
+                  reason:
+                    type: string
+              example:
+                id: 1032332129
+                payment_id: 18552260055
+                amount: 10.0
+                date_created: '2026-09-17T13:58:49.312-03:00'
+                unique_sequence_number: null
+                refund_mode: standard
+                adjustment_amount: 0
+                status: approved
+                reason: null
+        '400':
+          description: '400: Requisição malformada.'
+        '401':
+          description: '5: Access Token não enviado.'
+        '404':
+          description: '2000: Pagamento não encontrado.'
+        '403':
+          description: '4: O chamador não tem autorização para acessar o recurso.'
+  /v1/chargebacks/search:
+    get:
+      operationId: mercado-pago__contestacao__listar
+      summary: Buscar contestações
+      description: 'Busca os casos de chargeback (contestação) ligados a um pagamento, com o valor contestado, o motivo, se
+        a cobertura do Mercado Pago se aplica, o status da documentação comprobatória e o prazo para enviá-la.
+
+
+        Quando usar: Ao receber notificação do tópico topic_chargebacks_wh, e para montar o painel de perdas por contestação.
+        O prazo de envio de documentação (date_documentation_deadline) é o dado mais crítico.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/chargebacks/search-chargebacks/get
+      x-entidade-canonica: Contestacao
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: X-Caller-Id
+        in: header
+        required: true
+        description: ID do usuário autenticado (seller ID), dono do recurso consultado.
+        schema:
+          type: integer
+      - name: payment_id
+        in: query
+        required: true
+        description: ID do pagamento cujas contestações se quer consultar, obtido na notificação do tópico chargebacks.
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        description: Deslocamento da paginação. Mínimo e padrão 0.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Resultados por página. Mínimo 1, padrão 10.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  paging:
+                    type: object
+                    properties:
+                      offset:
+                        type: number
+                      limit:
+                        type: number
+                      total:
+                        type: number
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        payments:
+                          type: array
+                        currency:
+                          type: string
+                        amount:
+                          type: string
+                        reason:
+                          type: string
+                        reason_id:
+                          type: string
+                        coverage_applied:
+                          type: boolean
+                        coverage_eligible:
+                          type: boolean
+                        documentation_required:
+                          type: boolean
+                        documentation_status:
+                          type: string
+                        documentation:
+                          type: array
+                        date_documentation_deadline:
+                          type: string
+                        date_created:
+                          type: string
+                        date_last_updated:
+                          type: string
+                        live_mode:
+                          type: boolean
+              example:
+                paging:
+                  offset: 0
+                  limit: 10
+                  total: 1
+                results:
+                - id: '123456789'
+                  payments:
+                  - 987654321
+                  currency: BRL
+                  amount: '50.00'
+                  reason: unauthorized
+                  reason_id: '6'
+                  coverage_applied: true
+                  coverage_eligible: true
+                  documentation_required: true
+                  documentation_status: pending
+                  date_documentation_deadline: '2026-09-30T23:59:59.000-03:00'
+                  date_created: '2026-09-15T10:30:00.000-03:00'
+                  date_last_updated: '2026-09-16T14:00:00.000-03:00'
+                  live_mode: true
+        '400':
+          description: 'invalid_payment_id: payment_id ausente ou inválido.'
+        '403':
+          description: 'unauthorized_payment_access: A conta que consulta não é a vendedora do pagamento.'
+        '500':
+          description: 'internal_error: Erro genérico.'
+  /checkout/preferences:
+    post:
+      operationId: mercado-pago__cobranca__criar__preferencia
+      summary: Criar preferência
+      description: 'Cria uma preferência de pagamento do Checkout Pro: a descrição da venda (itens, valores, comprador, meios
+        aceitos, parcelas, frete, vencimento) que gera o link init_point para onde o comprador é levado para pagar na página
+        hospedada pelo Mercado Pago.
+
+
+        Quando usar: Quando você quer uma página de pagamento pronta, sem construir formulário nem lidar com PCI. É o caminho
+        mais rápido para cobrar num e-commerce próprio ou por link.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro-preferences/create-preference/post
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: criar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  init_point:
+                    type: string
+                  sandbox_init_point:
+                    type: string
+                  client_id:
+                    type: string
+                  collector_id:
+                    type: number
+                  date_created:
+                    type: string
+                  items:
+                    type: array
+                  payer:
+                    type: object
+                  back_urls:
+                    type: object
+                  auto_return:
+                    type: string
+                  notification_url:
+                    type: string
+                  external_reference:
+                    type: string
+                  operation_type:
+                    type: string
+                  expires:
+                    type: boolean
+                  expiration_date_from:
+                    type: string
+                  expiration_date_to:
+                    type: string
+                  marketplace:
+                    type: string
+              example:
+                id: 202809963-a2201f8d-11cb-443f-adf6-de5a42eed67d
+                init_point: https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=202809963-a2201f8d-11cb-443f-adf6-de5a42eed67d
+                collector_id: 202809963
+                date_created: '2026-09-17T09:37:52.000-03:00'
+                external_reference: PEDIDO-2026-0001
+                operation_type: regular_payment
+                items:
+                - id: SKU-001
+                  title: Assinatura mensal
+                  quantity: 1
+                  currency_id: BRL
+                  unit_price: 99.9
+        '400':
+          description: 'invalid_items: unit_price inválido ou item malformado.'
+        '401':
+          description: 'invalid_token: Access Token ausente, inválido ou do ambiente errado.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  description: Itens da venda. Ao menos um item com title, quantity e unit_price.
+                  items: {}
+                payer:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                payment_methods:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                back_urls:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                auto_return:
+                  type: string
+                  description: Redireciona o comprador automaticamente depois do pagamento.
+                  enum:
+                  - approved
+                  - all
+                notification_url:
+                  type: string
+                  description: URL que receberá os webhooks desta preferência.
+                external_reference:
+                  type: string
+                  description: Sua referência interna, para conciliação.
+                statement_descriptor:
+                  type: string
+                  description: Texto que aparece na fatura do cartão.
+                additional_info:
+                  type: string
+                  description: Texto livre com informações extras.
+                expires:
+                  type: boolean
+                  description: true faz a preferência ter janela de validade.
+                expiration_date_from:
+                  type: string
+                  description: Início da validade da preferência.
+                  format: date-time
+                expiration_date_to:
+                  type: string
+                  description: Fim da validade da preferência.
+                  format: date-time
+                marketplace:
+                  type: string
+                  description: Identificador do marketplace.
+                marketplace_fee:
+                  type: number
+                  description: Comissão do marketplace. Não pode ser maior que o total.
+                binary_mode:
+                  type: boolean
+                  description: true força resultado só aprovado ou recusado.
+                shipments:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                metadata:
+                  type: object
+                  description: Objeto livre com dados seus.
+              required:
+              - items
+  /checkout/preferences/{id}:
+    get:
+      operationId: mercado-pago__cobranca__obter__preferencia
+      summary: Obter preferência
+      description: 'Devolve todos os dados de uma preferência do Checkout Pro: itens, comprador, meios aceitos, URLs de retorno,
+        validade e o link init_point.
+
+
+        Quando usar: Conferir a configuração de um link de pagamento, recuperar o init_point para reenviar ao cliente e consultar
+        preferências mais antigas que 90 dias (a busca só cobre os últimos 3 meses).'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro-preferences/get-preference/get
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: obter
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID da preferência (formato <collector_id>-<uuid>).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  init_point:
+                    type: string
+                  client_id:
+                    type: string
+                  collector_id:
+                    type: number
+                  date_created:
+                    type: string
+                  items:
+                    type: array
+                  payer:
+                    type: object
+                  back_urls:
+                    type: object
+                  auto_return:
+                    type: string
+                  notification_url:
+                    type: string
+                  external_reference:
+                    type: string
+                  operation_type:
+                    type: string
+                  expires:
+                    type: boolean
+                  expiration_date_from:
+                    type: string
+                  expiration_date_to:
+                    type: string
+                  marketplace:
+                    type: string
+                  marketplace_fee:
+                    type: number
+                  statement_descriptor:
+                    type: string
+              example:
+                id: 202809963-a2201f8d-11cb-443f-adf6-de5a42eed67d
+                init_point: https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=202809963-a2201f8d-11cb-443f-adf6-de5a42eed67d
+                collector_id: 202809963
+                date_created: '2026-09-17T09:37:52.000-03:00'
+                expires: false
+                external_reference: PEDIDO-2026-0001
+                operation_type: regular_payment
+                statement_descriptor: MERCADOPAGO
+                items:
+                - id: SKU-001
+                  title: Assinatura mensal
+                  quantity: 1
+                  currency_id: BRL
+                  unit_price: 99.9
+        '400':
+          description: 'invalid_id: preference_id não encontrado.'
+        '401':
+          description: 'invalid_token: Access Token ausente, inválido ou do ambiente errado.'
+    put:
+      operationId: mercado-pago__cobranca__atualizar__preferencia
+      summary: Atualizar preferência
+      description: 'Altera uma preferência já criada: itens, valores, meios de pagamento aceitos, parcelas, URLs de retorno,
+        validade e referência externa. O link init_point continua o mesmo.
+
+
+        Quando usar: Corrigir o valor de um link de pagamento já enviado ao cliente, estender a validade de uma preferência
+        que expirou ou bloquear um meio de pagamento sem gerar link novo.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro-preferences/update-preference/put
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: atualizar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID da preferência a alterar.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  init_point:
+                    type: string
+                  items:
+                    type: array
+                  date_created:
+                    type: string
+                  external_reference:
+                    type: string
+                  expires:
+                    type: boolean
+                  expiration_date_to:
+                    type: string
+              example:
+                id: 202809963-a2201f8d-11cb-443f-adf6-de5a42eed67d
+                init_point: https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=202809963-a2201f8d-11cb-443f-adf6-de5a42eed67d
+                external_reference: PEDIDO-2026-0001
+                expires: true
+                expiration_date_to: '2026-09-30T23:59:59.000-03:00'
+                items:
+                - id: SKU-001
+                  title: Assinatura mensal
+                  quantity: 1
+                  currency_id: BRL
+                  unit_price: 129.9
+        '400':
+          description: 'invalid_id: preference_id não encontrado.'
+        '401':
+          description: 'invalid_token: Access Token ausente, inválido ou do ambiente errado.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  description: Nova lista de itens (substitui a anterior).
+                  items: {}
+                payer:
+                  type: object
+                  description: Dados do comprador.
+                payment_methods:
+                  type: object
+                  description: Meios excluídos, meio padrão e limite de parcelas.
+                back_urls:
+                  type: object
+                  description: URLs de retorno.
+                auto_return:
+                  type: string
+                  description: Redirecionamento automático.
+                  enum:
+                  - approved
+                  - all
+                notification_url:
+                  type: string
+                  description: URL de webhook desta preferência.
+                external_reference:
+                  type: string
+                  description: Sua referência interna.
+                expires:
+                  type: boolean
+                  description: Liga ou desliga a janela de validade.
+                expiration_date_from:
+                  type: string
+                  description: Início da validade.
+                  format: date-time
+                expiration_date_to:
+                  type: string
+                  description: Fim da validade.
+                  format: date-time
+                marketplace_fee:
+                  type: number
+                  description: Comissão do marketplace.
+                metadata:
+                  type: object
+                  description: Objeto livre com dados seus.
+  /checkout/preferences/search:
+    get:
+      operationId: mercado-pago__cobranca__listar__preferencias
+      summary: Buscar em preferências
+      description: 'Lista preferências do Checkout Pro criadas nos últimos 90 dias, com filtros por referência externa, marketplace
+        e patrocinador, e paginação por offset/limit. O envelope traz elements[], next_offset e total.
+
+
+        Quando usar: Auditar links de pagamento gerados, achar a preferência de um pedido pelo external_reference e montar
+        relatório de links criados no período.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro-preferences/search-preferences/get
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: external_reference
+        in: query
+        required: false
+        description: Filtra pela sua referência interna.
+        schema:
+          type: string
+      - name: sponsor_id
+        in: query
+        required: false
+        description: Identificador do patrocinador (plataforma onde o checkout foi iniciado).
+        schema:
+          type: string
+      - name: site_id
+        in: query
+        required: false
+        description: Identificador do site/país. No Brasil, MLB.
+        schema:
+          type: string
+      - name: marketplace
+        in: query
+        required: false
+        description: Identificador do marketplace.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Máximo de registros por página. Padrão 30.
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        description: Ponto de início da paginação. Padrão 0.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  elements:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        client_id:
+                          type: string
+                        collector_id:
+                          type: number
+                        date_created:
+                          type: string
+                        expiration_date_from:
+                          type: string
+                        expiration_date_to:
+                          type: string
+                        expires:
+                          type: boolean
+                        external_reference:
+                          type: string
+                        items:
+                          type: array
+                        last_updated:
+                          type: string
+                        live_mode:
+                          type: boolean
+                        marketplace:
+                          type: string
+                        operation_type:
+                          type: string
+                        payer_email:
+                          type: string
+                        site_id:
+                          type: string
+                        sponsor_id:
+                          type: number
+                  next_offset:
+                    type: number
+                  total:
+                    type: number
+              example:
+                elements:
+                - id: 202809963-a2201f8d-11cb-443f-adf6-de5a42eed67d
+                  client_id: '6295877106812064'
+                  collector_id: 202809963
+                  date_created: '2026-09-17T19:18:51.150Z'
+                  expires: false
+                  external_reference: PEDIDO-2026-0001
+                  items:
+                  - Assinatura mensal
+                  live_mode: true
+                  marketplace: NONE
+                  operation_type: regular_payment
+                  site_id: MLB
+                  sponsor_id: 0
+                next_offset: 1
+                total: 1
+        '400':
+          description: 'ds_search_query: Consulta de busca inválida (filtro ou formato de data errado).'
+        '401':
+          description: 'invalid_token: Access Token ausente, inválido ou do ambiente errado.'
+  /merchant_orders/{id}:
+    get:
+      operationId: mercado-pago__pedido__obter
+      summary: Obter pedido comercial (merchant order)
+      description: 'Devolve o pedido comercial do Checkout Pro, que agrupa uma preferência e todas as tentativas de pagamento
+        feitas sobre ela, mais envios, itens, valor total, valor pago e valor reembolsado.
+
+
+        Quando usar: É a forma correta de saber se um pedido do Checkout Pro foi quitado: o campo paid_amount comparado com
+        total_amount, e o status closed. Um único pedido pode ter vários pagamentos (tentativas recusadas, pagamento parcial).'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro-preferences/merchant-orders/get-merchant-order/get
+      x-entidade-canonica: Pedido
+      x-acao-canonica: obter
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador numérico do pedido comercial.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                  status:
+                    type: string
+                  external_reference:
+                    type: string
+                  preference_id:
+                    type: string
+                  payments:
+                    type: array
+                  shipments:
+                    type: array
+                  collector:
+                    type: object
+                  payer:
+                    type: object
+                  items:
+                    type: array
+                  marketplace:
+                    type: string
+                  notification_url:
+                    type: string
+                  date_created:
+                    type: string
+                  last_updated:
+                    type: string
+                  shipping_cost:
+                    type: number
+                  total_amount:
+                    type: number
+                  paid_amount:
+                    type: number
+                  refunded_amount:
+                    type: number
+                  site_id:
+                    type: string
+                  canceled:
+                    type: boolean
+              example:
+                id: 9999999999
+                status: closed
+                external_reference: PEDIDO-2026-0001
+                preference_id: 202809963-a2201f8d-11cb-443f-adf6-de5a42eed67d
+                payments:
+                - id: 20359978
+                  transaction_amount: 99.9
+                  total_paid_amount: 99.9
+                  currency_id: BRL
+                  status: approved
+                  status_detail: accredited
+                  operation_type: regular_payment
+                  date_approved: '2026-09-17T17:11:43.000-03:00'
+                  date_created: '2026-09-17T17:11:31.000-03:00'
+                  amount_refunded: 0
+                collector:
+                  id: 202809963
+                  nickname: MINHALOJA
+                payer:
+                  id: 999999999
+                  email: comprador@example.com
+                marketplace: NONE
+                date_created: '2026-09-17T17:11:31.000-03:00'
+                last_updated: '2026-09-17T17:11:43.000-03:00'
+                shipping_cost: 0
+                total_amount: 99.9
+                paid_amount: 99.9
+                refunded_amount: 0
+                site_id: MLB
+                canceled: false
+        '404':
+          description: 'not_found: Pedido comercial não encontrado, de outra conta ou do outro ambiente.'
+        '401':
+          description: 'invalid_token: Access Token ausente, inválido ou do ambiente errado.'
+  /merchant_orders/search:
+    get:
+      operationId: mercado-pago__pedido__listar
+      summary: Buscar pedidos comerciais
+      description: 'Busca pedidos comerciais do Checkout Pro criados nos últimos 90 dias, com filtros por status, preferência,
+        pagador, referência externa e janelas de data de criação e de última atualização. Envelope elements[] com next_offset
+        e total.
+
+
+        Quando usar: Extração de vendas do Checkout Pro para planilha com valor total, valor pago e valor reembolsado por
+        pedido — visão mais próxima do pedido do que a busca de pagamentos.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro-preferences/merchant-orders/search-merchant-order/get
+      x-entidade-canonica: Pedido
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        description: Estado do pedido comercial (opened, closed...).
+        schema:
+          type: string
+      - name: preference_id
+        in: query
+        required: false
+        description: Preferência associada ao pedido.
+        schema:
+          type: string
+      - name: application_id
+        in: query
+        required: false
+        description: Identificador da aplicação.
+        schema:
+          type: string
+      - name: payer_id
+        in: query
+        required: false
+        description: Identificador do pagador.
+        schema:
+          type: string
+      - name: sponsor_id
+        in: query
+        required: false
+        description: Identificador do patrocinador.
+        schema:
+          type: string
+      - name: external_reference
+        in: query
+        required: false
+        description: Sua referência interna.
+        schema:
+          type: string
+      - name: site_id
+        in: query
+        required: false
+        description: País do pedido. No Brasil, MLB.
+        schema:
+          type: string
+      - name: marketplace
+        in: query
+        required: false
+        description: Origem do pagamento.
+        schema:
+          type: string
+      - name: date_created_from
+        in: query
+        required: false
+        description: Início da janela por data de criação.
+        schema:
+          type: string
+          format: date-time
+      - name: date_created_to
+        in: query
+        required: false
+        description: Fim da janela por data de criação.
+        schema:
+          type: string
+          format: date-time
+      - name: last_updated_from
+        in: query
+        required: false
+        description: Início da janela por data de atualização.
+        schema:
+          type: string
+          format: date-time
+      - name: last_updated_to
+        in: query
+        required: false
+        description: Fim da janela por data de atualização.
+        schema:
+          type: string
+          format: date-time
+      - name: items
+        in: query
+        required: false
+        description: Filtro por informação de itens.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Quantidade máxima de registros por página.
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        description: Deslocamento da paginação.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  elements:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: number
+                        status:
+                          type: string
+                        external_reference:
+                          type: string
+                        preference_id:
+                          type: string
+                        payments:
+                          type: array
+                        shipments:
+                          type: array
+                        collector:
+                          type: object
+                        payer:
+                          type: object
+                        items:
+                          type: array
+                        date_created:
+                          type: string
+                        last_updated:
+                          type: string
+                        total_amount:
+                          type: number
+                        paid_amount:
+                          type: number
+                        refunded_amount:
+                          type: number
+                        shipping_cost:
+                          type: number
+                        site_id:
+                          type: string
+                        canceled:
+                          type: boolean
+                  next_offset:
+                    type: number
+                  total:
+                    type: number
+              example:
+                elements:
+                - id: 9999999999
+                  status: closed
+                  external_reference: PEDIDO-2026-0001
+                  preference_id: 202809963-a2201f8d-11cb-443f-adf6-de5a42eed67d
+                  collector:
+                    id: 202809963
+                    nickname: MINHALOJA
+                  payer:
+                    id: 999999999
+                    email: comprador@example.com
+                  marketplace: NONE
+                  date_created: '2026-09-14T17:11:31.000-03:00'
+                  last_updated: '2026-09-14T17:11:43.000-03:00'
+                  shipping_cost: 0
+                  total_amount: 99.9
+                  paid_amount: 99.9
+                  refunded_amount: 0
+                  site_id: MLB
+                  canceled: false
+                next_offset: 1
+                total: 1
+        '400':
+          description: 'ds_search_query: Consulta de busca inválida (filtro ou formato de data errado).'
+        '401':
+          description: 'invalid_token: Access Token ausente, inválido ou do ambiente errado.'
+  /v1/customers:
+    post:
+      operationId: mercado-pago__cliente__criar
+      summary: Criar cliente
+      description: 'Cadastra um comprador no cofre de clientes do Mercado Pago. É o pré-requisito para guardar cartões e oferecer
+        compra com um clique, já que os cartões ficam sempre pendurados em um customer.
+
+
+        Quando usar: Antes de salvar o primeiro cartão de um comprador. Consulte por e-mail antes de criar: o e-mail é único
+        por conta e uma segunda criação devolve erro 101.'
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/customers/create-customer/post
+      x-entidade-canonica: Cliente
+      x-acao-canonica: criar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+                  first_name:
+                    type: string
+                  last_name:
+                    type: string
+                  phone:
+                    type: object
+                  identification:
+                    type: object
+                  address:
+                    type: object
+                  description:
+                    type: string
+                  date_created:
+                    type: string
+                  date_last_updated:
+                    type: string
+                  default_card:
+                    type: string
+                  default_address:
+                    type: string
+                  cards:
+                    type: array
+                  addresses:
+                    type: array
+                  live_mode:
+                    type: boolean
+              example:
+                id: 000000001-sT93QZFAsfxU9P5
+                email: comprador@example.com
+                first_name: Maria
+                last_name: Souza
+                phone:
+                  area_code: '11'
+                  number: '900000000'
+                identification:
+                  type: CPF
+                  number: '00000000000'
+                description: Cliente vindo do ERP, código CLI-001
+                date_created: '2026-09-17T15:36:23.541Z'
+                cards: []
+                addresses: []
+                live_mode: true
+        '400':
+          description: '100: Credenciais não enviadas.'
+        '401':
+          description: 'invalid_token: Access Token ausente, inválido ou do ambiente errado.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: E-mail do cliente. É a chave única dentro da conta e NÃO pode ser alterado depois.
+                first_name:
+                  type: string
+                  description: Nome.
+                last_name:
+                  type: string
+                  description: Sobrenome.
+                phone:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                identification:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                address:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                default_address:
+                  type: string
+                  description: ID do endereço padrão do cliente.
+                default_card:
+                  type: string
+                  description: ID do cartão padrão do cliente.
+                date_registered:
+                  type: string
+                  description: Data de cadastro do cliente no seu sistema.
+                  format: date-time
+                description:
+                  type: string
+                  description: Descrição livre.
+              required:
+              - email
+  /v1/customers/{id}:
+    get:
+      operationId: mercado-pago__cliente__obter
+      summary: Obter cliente
+      description: 'Devolve os dados de um cliente do cofre, com os cartões salvos e os endereços cadastrados.
+
+
+        Quando usar: Montar a tela de pagamento com os cartões já salvos do comprador, ou conferir quais dados pessoais estão
+        guardados (útil para responder a um pedido de acesso do titular sob a LGPD).'
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/customers/get-customer/get
+      x-entidade-canonica: Cliente
+      x-acao-canonica: obter
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador do cliente (formato 000000000-xxxxxxxxxxxxxxx).
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+                  first_name:
+                    type: string
+                  last_name:
+                    type: string
+                  phone:
+                    type: object
+                  identification:
+                    type: object
+                  address:
+                    type: object
+                  description:
+                    type: string
+                  date_created:
+                    type: string
+                  date_last_updated:
+                    type: string
+                  default_card:
+                    type: string
+                  default_address:
+                    type: string
+                  cards:
+                    type: array
+                  addresses:
+                    type: array
+                  live_mode:
+                    type: boolean
+              example:
+                id: 000000001-sT93QZFAsfxU9P5
+                email: comprador@example.com
+                first_name: Maria
+                last_name: Souza
+                identification:
+                  type: CPF
+                  number: '00000000000'
+                date_created: '2026-05-05T04:00:00.000Z'
+                date_last_updated: '2026-09-17T13:23:25.021Z'
+                default_card: '1493990563105'
+                default_address: '1162600213'
+                cards: []
+                addresses: []
+                live_mode: true
+        '400':
+          description: '100: Credenciais não enviadas.'
+        '401':
+          description: 'invalid_token: Access Token ausente, inválido ou do ambiente errado.'
+  /v1/customers/search:
+    get:
+      operationId: mercado-pago__cliente__listar
+      summary: Buscar clientes
+      description: 'Procura clientes do cofre pelo e-mail. A resposta vem no envelope paging (limit, offset, total) + results[]
+        com os clientes completos.
+
+
+        Quando usar: Antes de criar um cliente, para não duplicar (erro 101), e para recuperar o id do cliente a partir do
+        e-mail na hora de cobrar com cartão salvo.'
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/customers/search-customer/get
+      x-entidade-canonica: Cliente
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: email
+        in: query
+        required: true
+        description: E-mail do cliente procurado.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  paging:
+                    type: object
+                    properties:
+                      limit:
+                        type: number
+                      offset:
+                        type: number
+                      total:
+                        type: number
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        email:
+                          type: string
+                        first_name:
+                          type: string
+                        last_name:
+                          type: string
+                        identification:
+                          type: object
+                        address:
+                          type: object
+                        cards:
+                          type: array
+                        addresses:
+                          type: array
+                        date_created:
+                          type: string
+                        date_last_updated:
+                          type: string
+                        default_card:
+                          type: string
+                        default_address:
+                          type: string
+                        live_mode:
+                          type: boolean
+              example:
+                paging:
+                  limit: 10
+                  offset: 0
+                  total: 1
+                results:
+                - id: 000000001-sT93QZFAsfxU9P5
+                  email: comprador@example.com
+                  first_name: Maria
+                  last_name: Souza
+                  identification:
+                    type: CPF
+                    number: '00000000000'
+                  date_created: '2026-05-05T04:00:00.000Z'
+                  date_last_updated: '2026-09-17T13:23:25.021Z'
+                  default_card: '1493990563105'
+                  default_address: '1162600213'
+                  cards: []
+                  addresses: []
+                  live_mode: true
+        '400':
+          description: '100: Credenciais não enviadas.'
+        '401':
+          description: 'invalid_token: Access Token ausente, inválido ou do ambiente errado.'
+  /v1/customers/{customer_id}/cards:
+    post:
+      operationId: mercado-pago__cartao__criar
+      summary: Salvar cartão
+      description: 'Guarda a referência de um cartão no cofre do Mercado Pago, associada a um cliente. O servidor da loja
+        nunca armazena o número do cartão: envia-se apenas o token gerado no frontend pelo MercadoPago.js.
+
+
+        Quando usar: Depois do primeiro pagamento aprovado, para oferecer compra com um clique e recorrência sem pedir o cartão
+        de novo.'
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/cards/save-card/post
+      x-entidade-canonica: Cartao
+      x-acao-canonica: criar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        description: Identificador do cliente dono do cartão.
+        schema:
+          type: string
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                  customer_id:
+                    type: string
+                  user_id:
+                    type: number
+                  expiration_month:
+                    type: number
+                  expiration_year:
+                    type: number
+                  first_six_digits:
+                    type: string
+                  last_four_digits:
+                    type: string
+                  payment_method:
+                    type: object
+                  security_code:
+                    type: object
+                  issuer:
+                    type: object
+                  cardholder:
+                    type: object
+                  date_created:
+                    type: string
+                  date_last_updated:
+                    type: string
+                  live_mode:
+                    type: boolean
+              example:
+                id: 1562188766852
+                expiration_month: 11
+                expiration_year: 2030
+                first_six_digits: '423564'
+                last_four_digits: '5682'
+                payment_method:
+                  id: visa
+                  name: visa
+                  payment_type_id: credit_card
+                security_code:
+                  length: 3
+                  card_location: back
+                issuer:
+                  id: 25
+                  name: visa
+                cardholder:
+                  name: MARIA SOUZA
+                  identification:
+                    number: '00000000000'
+                    type: CPF
+                date_created: '2026-09-17T21:15:35.000Z'
+                date_last_updated: '2026-09-17T21:19:18.000Z'
+                customer_id: 000000001-sT93QZFAsfxU9P5
+                user_id: 448870796
+                live_mode: true
+        '400':
+          description: '100: Credenciais não enviadas.'
+        '401':
+          description: 'invalid_token: Access Token ausente, inválido ou do ambiente errado.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: Token do cartão gerado no frontend. Uso único e validade curta.
+              required:
+              - token
+    get:
+      operationId: mercado-pago__cartao__listar
+      summary: Obter cartões do cliente
+      description: 'Lista os cartões salvos de um cliente, com bandeira, primeiros seis e últimos quatro dígitos, validade
+        e emissor. A resposta é um array na raiz, sem envelope.
+
+
+        Quando usar: Montar a tela de escolha de cartão salvo no checkout e conferir quais cartões estão perto de vencer.'
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/cards/get-customer-cards/get
+      x-entidade-canonica: Cartao
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: customer_id
+        in: path
+        required: true
+        description: Identificador do cliente.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    customer_id:
+                      type: string
+                    user_id:
+                      type: string
+                    expiration_month:
+                      type: number
+                    expiration_year:
+                      type: number
+                    first_six_digits:
+                      type: string
+                    last_four_digits:
+                      type: string
+                    payment_method:
+                      type: object
+                    security_code:
+                      type: object
+                    issuer:
+                      type: object
+                    cardholder:
+                      type: object
+                    date_created:
+                      type: string
+                    date_last_updated:
+                      type: string
+                    live_mode:
+                      type: boolean
+              example:
+              - id: '277090284'
+                date_created: '2026-07-18T13:28:32.000-03:00'
+                date_last_updated: '2026-08-07T12:21:32.243-03:00'
+                customer_id: 000000001-sT93QZFAsfxU9P5
+                expiration_month: 11
+                expiration_year: 2030
+                first_six_digits: '423564'
+                last_four_digits: '5682'
+                payment_method:
+                  id: visa
+                  name: visa
+                  payment_type_id: credit_card
+                security_code:
+                  length: 3
+                  card_location: back
+                issuer:
+                  id: 25
+                  name: visa
+                cardholder:
+                  name: MARIA SOUZA
+                  identification:
+                    number: '00000000000'
+                    type: CPF
+                live_mode: true
+        '400':
+          description: '100: Credenciais não enviadas.'
+        '401':
+          description: 'invalid_token: Access Token ausente, inválido ou do ambiente errado.'
+  /v1/payment_methods:
+    get:
+      operationId: mercado-pago__tabela_auxiliar__listar__meios_pagamento
+      summary: Obter meios de pagamento
+      description: 'Lista os meios de pagamento habilitados para a conta, com id, bandeira, tipo, status, valores mínimo e
+        máximo aceitos, tempo de acreditação em minutos, regras do número do cartão e do código de segurança.
+
+
+        Quando usar: Montar dinamicamente a tela de pagamento, descobrir o payment_method_id correto antes de criar um pagamento
+        e checar limites mínimo e máximo por meio.'
+      tags:
+      - TabelaAuxiliar
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/payment-methods/get
+      x-entidade-canonica: TabelaAuxiliar
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    payment_type_id:
+                      type: string
+                    status:
+                      type: string
+                    secure_thumbnail:
+                      type: string
+                    thumbnail:
+                      type: string
+                    deferred_capture:
+                      type: string
+                    settings:
+                      type: object
+                    additional_info_needed:
+                      type: array
+                    min_allowed_amount:
+                      type: number
+                    max_allowed_amount:
+                      type: number
+                    accreditation_time:
+                      type: number
+                    financial_institutions:
+                      type: object
+                    processing_modes:
+                      type: string
+              example:
+              - id: visa
+                name: visa
+                payment_type_id: credit_card
+                status: active
+                deferred_capture: supported
+                settings:
+                  card_number:
+                    length: 16
+                    validation: standard
+                  security_code:
+                    mode: mandatory
+                    length: 3
+                    card_location: back
+                min_allowed_amount: 0.5
+                max_allowed_amount: 60000
+                accreditation_time: 2880
+                processing_modes: aggregator
+        '400':
+          description: '1000: Credenciais não enviadas.'
+        '401':
+          description: 'unauthorized: Credencial inválida.'
+        '404':
+          description: 'not_found: Recurso não encontrado.'
+  /v1/identification_types:
+    get:
+      operationId: mercado-pago__tabela_auxiliar__listar__tipos_documento
+      summary: Obter tipos de documento
+      description: 'Lista os tipos de documento aceitos no país da conta, com id, nome, tipo de dado e tamanhos mínimo e máximo.
+        No Brasil, CPF e CNPJ.
+
+
+        Quando usar: Preencher o seletor de tipo de documento no formulário de pagamento e validar o tamanho do número antes
+        de enviar, evitando os erros 111 e 112.'
+      tags:
+      - TabelaAuxiliar
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/identification-types/get
+      x-entidade-canonica: TabelaAuxiliar
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    type:
+                      type: string
+                    min_length:
+                      type: number
+                    max_length:
+                      type: number
+              example:
+              - id: CPF
+                name: CPF
+                type: number
+                min_length: 11
+                max_length: 11
+              - id: CNPJ
+                name: CNPJ
+                type: number
+                min_length: 14
+                max_length: 14
+        '400':
+          description: '1001: public_key não encontrada.'
+        '401':
+          description: '1000: Credenciais obrigatórias não enviadas.'
+        '404':
+          description: '1004: Tipos de documento não encontrados.'
+  /preapproval_plan:
+    post:
+      operationId: mercado-pago__plano__criar
+      summary: Criar plano de assinatura
+      description: 'Cria um plano: o molde que define com que frequência e quanto cobrar. Suporta período de teste grátis,
+        número limitado de ciclos, dia fixo de cobrança no mês e cobrança proporcional na adesão. Assinaturas criadas a partir
+        de um plano acompanham as alterações feitas nele.
+
+
+        Quando usar: Quando você tem preços padronizados (Básico, Pro, Enterprise) e quer que uma mudança de valor ou de descrição
+        se propague para todos os assinantes daquele plano.'
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/create-preapproval-plan/post
+      x-entidade-canonica: Plano
+      x-acao-canonica: criar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  application_id:
+                    type: number
+                  collector_id:
+                    type: number
+                  reason:
+                    type: string
+                  auto_recurring:
+                    type: object
+                  payment_methods_allowed:
+                    type: object
+                  back_url:
+                    type: string
+                  external_reference:
+                    type: string
+                  init_point:
+                    type: string
+                  date_created:
+                    type: string
+                  last_modified:
+                    type: string
+                  status:
+                    type: string
+              example:
+                id: 2c938084726fca480172750000000000
+                application_id: 1234567812345678
+                collector_id: 100200300
+                reason: Plano Pro mensal
+                auto_recurring:
+                  frequency: 1
+                  frequency_type: months
+                  billing_day: 10
+                  billing_day_proportional: true
+                  free_trial:
+                    frequency: 7
+                    frequency_type: days
+                  transaction_amount: 99.9
+                  currency_id: BRL
+                back_url: https://minha-loja.example.com/assinatura/retorno
+                external_reference: PLANO-PRO
+                init_point: https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=2c938084726fca480172750000000000
+                date_created: '2026-09-17T15:12:25.892Z'
+                last_modified: '2026-09-17T15:12:25.892Z'
+                status: active
+        '400':
+          description: '400: Requisição inválida: campo obrigatório ausente, formato errado ou combinação de recorrência não
+            aceita.'
+        '401':
+          description: '401: Access Token ausente, inválido ou do ambiente errado.'
+        '404':
+          description: '404: Recurso não encontrado.'
+        '500':
+          description: '500: Erro interno.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Descrição curta que o assinante vê no checkout e nas notificações.
+                auto_recurring:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                payment_methods_allowed:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                back_url:
+                  type: string
+                  description: URL de retorno depois da adesão pelo checkout de assinaturas.
+                external_reference:
+                  type: string
+                  description: Sua referência interna do plano.
+              required:
+              - reason
+              - auto_recurring
+  /preapproval_plan/search:
+    get:
+      operationId: mercado-pago__plano__listar
+      summary: Buscar planos de assinatura
+      description: 'Lista os planos de assinatura da conta, com filtro por status e busca livre, ordenação e paginação offset/limit.
+        Cada plano traz o número de assinantes no campo subscribed.
+
+
+        Quando usar: Painel de recorrência: quantos planos existem, quanto cada um cobra e quantos assinantes cada um tem.
+        Base para calcular MRR por plano.'
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/search-preapproval-plan/get
+      x-entidade-canonica: Plano
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        description: Status do plano (active, inactive).
+        schema:
+          type: string
+      - name: q
+        in: query
+        required: false
+        description: Busca livre por texto.
+        schema:
+          type: string
+      - name: sort
+        in: query
+        required: false
+        description: Campo de ordenação.
+        schema:
+          type: string
+      - name: criteria
+        in: query
+        required: false
+        description: Sentido da ordenação.
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+      - name: offset
+        in: query
+        required: false
+        description: Deslocamento do primeiro item.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Máximo de itens por página. O padrão observado nos exemplos é 20; o máximo não é publicado.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  paging:
+                    type: object
+                    properties:
+                      offset:
+                        type: number
+                      limit:
+                        type: number
+                      total:
+                        type: number
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        application_id:
+                          type: number
+                        collector_id:
+                          type: number
+                        reason:
+                          type: string
+                        auto_recurring:
+                          type: object
+                        payment_methods_allowed:
+                          type: object
+                        back_url:
+                          type: string
+                        external_reference:
+                          type: string
+                        init_point:
+                          type: string
+                        date_created:
+                          type: string
+                        last_modified:
+                          type: string
+                        subscribed:
+                          type: number
+                        status:
+                          type: string
+              example:
+                paging:
+                  offset: 0
+                  limit: 20
+                  total: 3
+                results:
+                - id: 2c938084726fca480172750000000000
+                  collector_id: 100200300
+                  reason: Plano Pro mensal
+                  auto_recurring:
+                    frequency: 1
+                    frequency_type: months
+                    repetitions: 12
+                    billing_day: 10
+                    transaction_amount: 99.9
+                    currency_id: BRL
+                  external_reference: PLANO-PRO
+                  date_created: '2026-09-01T11:12:25.892-03:00'
+                  last_modified: '2026-09-01T11:12:25.892-03:00'
+                  subscribed: 50
+                  status: active
+        '400':
+          description: '400: Filtro inválido.'
+        '401':
+          description: '401: Access Token ausente, inválido ou do ambiente errado.'
+        '500':
+          description: '500: Erro interno.'
+  /preapproval:
+    post:
+      operationId: mercado-pago__assinatura__criar
+      summary: Criar assinatura
+      description: 'Cria uma assinatura: a ligação entre um assinante e uma recorrência. Pode ser criada a partir de um plano
+        (preapproval_plan_id) ou sem plano, declarando reason, external_reference e auto_recurring. Com card_token_id ela
+        já nasce autorizada; sem ele, nasce pending e o assinante conclui pelo init_point.
+
+
+        Quando usar: Mensalidade de SaaS, clube de assinatura, academia, escola. É o caminho para cobrança recorrente automática
+        em cartão, sem precisar guardar o cartão você mesmo.'
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/create-preapproval/post
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: criar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  version:
+                    type: number
+                  application_id:
+                    type: number
+                  collector_id:
+                    type: number
+                  preapproval_plan_id:
+                    type: string
+                  reason:
+                    type: string
+                  external_reference:
+                    type: string
+                  back_url:
+                    type: string
+                  init_point:
+                    type: string
+                  auto_recurring:
+                    type: object
+                  payer_id:
+                    type: number
+                  card_id:
+                    type: number
+                  payment_method_id:
+                    type: string
+                  next_payment_date:
+                    type: string
+                  date_created:
+                    type: string
+                  last_modified:
+                    type: string
+                  status:
+                    type: string
+                  summarized:
+                    type: object
+              example:
+                id: 2c938084726fca480172750000000000
+                version: 0
+                collector_id: 100200300
+                preapproval_plan_id: 2c938084726fca480172750000000000
+                reason: Plano Pro mensal
+                external_reference: ASSIN-2026-0001
+                init_point: https://www.mercadopago.com.br/subscriptions/checkout?preapproval_id=2c938084726fca480172750000000000
+                auto_recurring:
+                  frequency: 1
+                  frequency_type: months
+                  start_date: '2026-09-17T13:07:14.260Z'
+                  currency_id: BRL
+                  transaction_amount: 99.9
+                payer_id: 123123123
+                card_id: 123123123
+                payment_method_id: visa
+                next_payment_date: '2026-10-17T11:12:25.892-03:00'
+                date_created: '2026-09-17T11:12:25.892-03:00'
+                last_modified: '2026-09-17T11:12:25.892-03:00'
+                status: authorized
+        '400':
+          description: '400: Requisição inválida: campo obrigatório ausente, formato errado ou combinação de recorrência não
+            aceita.'
+        '401':
+          description: '401: Access Token ausente, inválido ou do ambiente errado.'
+        '403':
+          description: '403: Sem permissão para o recurso.'
+        '500':
+          description: '500: Erro interno.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                preapproval_plan_id:
+                  type: string
+                  description: ID do plano. Com plano, a recorrência vem do plano e alterações no plano se propagam.
+                reason:
+                  type: string
+                  description: Descrição curta vista pelo assinante. Obrigatória em assinatura sem plano.
+                external_reference:
+                  type: string
+                  description: Sua referência interna. Obrigatória em assinatura sem plano.
+                payer_email:
+                  type: string
+                  description: E-mail do assinante. É o identificador único do assinante.
+                card_token_id:
+                  type: string
+                  description: Token do cartão gerado no frontend. Com ele a assinatura já nasce autorizada.
+                auto_recurring:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                back_url:
+                  type: string
+                  description: URL de retorno depois da adesão pelo checkout de assinaturas.
+                status:
+                  type: string
+                  description: Status inicial desejado.
+                  enum:
+                  - pending
+                  - authorized
+              required:
+              - payer_email
+  /preapproval/{id}:
+    get:
+      operationId: mercado-pago__assinatura__obter
+      summary: Obter assinatura
+      description: 'Devolve os dados de uma assinatura: plano vinculado, assinante, cartão, recorrência, próxima data de cobrança,
+        status e o resumo (summarized) com cobranças feitas, valores cobrados e pendências.
+
+
+        Quando usar: Ao receber notificação do tópico subscription_preapproval, para saber o estado real; e na tela de conta
+        do cliente, para mostrar próxima cobrança e histórico.'
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/get-preapproval/get
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: obter
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador da assinatura.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  version:
+                    type: number
+                  application_id:
+                    type: number
+                  collector_id:
+                    type: number
+                  preapproval_plan_id:
+                    type: string
+                  reason:
+                    type: string
+                  external_reference:
+                    type: string
+                  back_url:
+                    type: string
+                  init_point:
+                    type: string
+                  auto_recurring:
+                    type: object
+                  first_invoice_offset:
+                    type: number
+                  payer_id:
+                    type: number
+                  payer_first_name:
+                    type: string
+                  payer_last_name:
+                    type: string
+                  card_id:
+                    type: number
+                  payment_method_id:
+                    type: string
+                  next_payment_date:
+                    type: string
+                  date_created:
+                    type: string
+                  last_modified:
+                    type: string
+                  status:
+                    type: string
+                  summarized:
+                    type: object
+              example:
+                id: 2c938084726fca480172750000000000
+                collector_id: 100200300
+                preapproval_plan_id: 2c938084726fca480172750000000000
+                reason: Plano Pro mensal
+                external_reference: ASSIN-2026-0001
+                auto_recurring:
+                  frequency: 1
+                  frequency_type: months
+                  currency_id: BRL
+                  transaction_amount: 99.9
+                payer_id: 123123123
+                card_id: 123123123
+                payment_method_id: visa
+                next_payment_date: '2026-10-17T11:12:25.892-03:00'
+                date_created: '2026-01-17T11:12:25.892-03:00'
+                last_modified: '2026-09-17T11:12:25.892-03:00'
+                status: authorized
+                summarized:
+                  quotas: 12
+                  charged_quantity: 8
+                  charged_amount: 799.2
+                  pending_charge_quantity: 1
+                  pending_charge_amount: 99.9
+        '400':
+          description: '400: Requisição inválida: campo obrigatório ausente, formato errado ou combinação de recorrência não
+            aceita.'
+        '401':
+          description: '401: Access Token ausente, inválido ou do ambiente errado.'
+        '404':
+          description: '404: Recurso não encontrado.'
+        '500':
+          description: '500: Erro interno.'
+    put:
+      operationId: mercado-pago__assinatura__atualizar
+      summary: Atualizar assinatura
+      description: 'Altera uma assinatura existente: descrição, valor, moeda, cartão usado, referência externa, URL de retorno
+        e status. É por aqui que se PAUSA (status=paused) e se CANCELA (status=cancelled) uma assinatura.
+
+
+        Quando usar: Mudança de plano do cliente, reajuste de preço, troca de cartão, pausa temporária a pedido do assinante
+        e cancelamento.'
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/update-preapproval/put
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: atualizar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador da assinatura a alterar.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                  reason:
+                    type: string
+                  external_reference:
+                    type: string
+                  auto_recurring:
+                    type: object
+                  card_id:
+                    type: number
+                  payment_method_id:
+                    type: string
+                  next_payment_date:
+                    type: string
+                  last_modified:
+                    type: string
+                  summarized:
+                    type: object
+              example:
+                id: 2c938084726fca480172750000000000
+                reason: Plano Pro mensal
+                external_reference: ASSIN-2026-0001
+                auto_recurring:
+                  frequency: 1
+                  frequency_type: months
+                  currency_id: BRL
+                  transaction_amount: 129.9
+                card_id: 123123123
+                payment_method_id: visa
+                next_payment_date: '2026-10-17T11:12:25.892-03:00'
+                last_modified: '2026-09-17T11:12:25.892-03:00'
+                status: paused
+        '400':
+          description: '400: Requisição inválida: campo obrigatório ausente, formato errado ou combinação de recorrência não
+            aceita.'
+        '401':
+          description: '401: Access Token ausente, inválido ou do ambiente errado.'
+        '500':
+          description: '500: Erro interno.'
+        '404':
+          description: '404: Assinatura não encontrada.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Nova descrição vista pelo assinante.
+                external_reference:
+                  type: string
+                  description: Nova referência interna.
+                back_url:
+                  type: string
+                  description: Nova URL de retorno.
+                auto_recurring:
+                  type: object
+                  description: Objeto composto; veja os campos com notação de ponto em endpoints.json.
+                card_token_id:
+                  type: number
+                  description: Token do novo cartão, para trocar o meio de pagamento.
+                card_token_id_secondary:
+                  type: number
+                  description: Token do cartão secundário. Usar junto com payment_method_id_secondary.
+                payment_method_id_secondary:
+                  type: string
+                  description: Meio de pagamento secundário. Obrigatório quando se usa cartão secundário.
+                status:
+                  type: string
+                  description: Novo status.
+                  enum:
+                  - pending
+                  - authorized
+                  - paused
+                  - cancelled
+  /preapproval/search:
+    get:
+      operationId: mercado-pago__assinatura__listar
+      summary: Buscar em assinaturas
+      description: 'Busca assinaturas com filtros por assinante, plano, valor, status e busca livre, com ordenação e paginação
+        offset/limit. Envelope paging + results[], cada assinatura com o bloco summarized de cobranças.
+
+
+        Quando usar: Extração da carteira de assinantes para planilha: base ativa, valor por ciclo, próxima cobrança, quanto
+        já foi cobrado e quanto está pendente. É a fonte natural para calcular MRR e churn.'
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/search-preapproval/get
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: q
+        in: query
+        required: false
+        description: Busca livre.
+        schema:
+          type: string
+      - name: payer_id
+        in: query
+        required: false
+        description: Identificador do assinante.
+        schema:
+          type: integer
+      - name: payer_email
+        in: query
+        required: false
+        description: E-mail do assinante.
+        schema:
+          type: string
+      - name: preapproval_plan_id
+        in: query
+        required: false
+        description: Filtra pelas assinaturas de um plano.
+        schema:
+          type: string
+      - name: transaction_amount
+        in: query
+        required: false
+        description: Filtra pelo valor da assinatura.
+        schema:
+          type: number
+      - name: semaphore
+        in: query
+        required: false
+        description: Status de controle da assinatura (indicador de saúde da cobrança).
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Status da assinatura. Aceita um, vários ou nenhum.
+        schema:
+          type: string
+          enum:
+          - pending
+          - authorized
+          - paused
+          - cancelled
+      - name: sort
+        in: query
+        required: false
+        description: 'Ordenação no formato nome_do_campo:sentido (ex.: date_created:desc).'
+        schema:
+          type: string
+      - name: offset
+        in: query
+        required: false
+        description: Deslocamento do primeiro item.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: 'Máximo de itens por página. Padrão observado nos exemplos: 20.'
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  paging:
+                    type: object
+                    properties:
+                      offset:
+                        type: number
+                      limit:
+                        type: number
+                      total:
+                        type: number
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        collector_id:
+                          type: number
+                        preapproval_plan_id:
+                          type: string
+                        reason:
+                          type: string
+                        external_reference:
+                          type: string
+                        init_point:
+                          type: string
+                        auto_recurring:
+                          type: object
+                        first_invoice_offset:
+                          type: number
+                        payer_id:
+                          type: number
+                        payer_first_name:
+                          type: string
+                        payer_last_name:
+                          type: string
+                        card_id:
+                          type: number
+                        payment_method_id:
+                          type: string
+                        next_payment_date:
+                          type: string
+                        date_created:
+                          type: string
+                        last_modified:
+                          type: string
+                        summarized:
+                          type: object
+                        status:
+                          type: string
+              example:
+                paging:
+                  offset: 0
+                  limit: 20
+                  total: 100
+                results:
+                - id: 2c938084726fca480172750000000000
+                  collector_id: 100200300
+                  preapproval_plan_id: 2c938084726fca480172750000000000
+                  reason: Plano Pro mensal
+                  external_reference: ASSIN-2026-0001
+                  auto_recurring:
+                    frequency: 1
+                    frequency_type: months
+                    currency_id: BRL
+                    transaction_amount: 99.9
+                  payer_id: 123123123
+                  payer_first_name: Maria
+                  payer_last_name: Souza
+                  card_id: 123123123
+                  payment_method_id: visa
+                  next_payment_date: '2026-10-17T11:12:25.892-03:00'
+                  date_created: '2026-01-17T11:12:25.892-03:00'
+                  last_modified: '2026-09-17T11:12:25.892-03:00'
+                  summarized:
+                    quotas: 12
+                    charged_quantity: 8
+                    charged_amount: 799.2
+                    pending_charge_quantity: 1
+                    pending_charge_amount: 99.9
+                  status: authorized
+        '400':
+          description: '400: Filtro inválido.'
+        '401':
+          description: '401: Access Token ausente, inválido ou do ambiente errado.'
+        '500':
+          description: '500: Erro interno.'
+  /authorized_payments/search:
+    get:
+      operationId: mercado-pago__assinatura__listar__faturas
+      summary: Buscar em faturas
+      description: 'Busca as faturas (authorized payments) geradas pelas assinaturas, com filtros por assinatura, pagamento
+        e pagador. Cada fatura traz a data de débito, o número da tentativa de retry, o status e o pagamento associado.
+
+
+        Quando usar: Relatório de cobrança recorrente: o que foi cobrado, o que falhou e está em retry, e quanto está agendado.
+        É a visão fatura a fatura que falta no objeto da assinatura.'
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/authorized-payment-search/get
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: query
+        required: false
+        description: Identificador de uma fatura específica.
+        schema:
+          type: integer
+      - name: preapproval_id
+        in: query
+        required: false
+        description: Assinatura cujas faturas se quer listar.
+        schema:
+          type: string
+      - name: payment_id
+        in: query
+        required: false
+        description: Pagamento cuja fatura se quer encontrar.
+        schema:
+          type: integer
+      - name: payer_id
+        in: query
+        required: false
+        description: Assinante cujas faturas se quer listar.
+        schema:
+          type: integer
+      - name: offset
+        in: query
+        required: false
+        description: Deslocamento do primeiro item.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: 'Máximo de itens por página. Padrão observado: 20.'
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  paging:
+                    type: object
+                    properties:
+                      offset:
+                        type: number
+                      limit:
+                        type: number
+                      total:
+                        type: number
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: number
+                        type:
+                          type: string
+                        date_created:
+                          type: string
+                        last_modified:
+                          type: string
+                        preapproval_id:
+                          type: string
+                        reason:
+                          type: string
+                        external_reference:
+                          type: string
+                        currency_id:
+                          type: string
+                        transaction_amount:
+                          type: number
+                        debit_date:
+                          type: string
+                        retry_attempt:
+                          type: number
+                        status:
+                          type: string
+                        summarized:
+                          type: string
+                        payment:
+                          type: object
+                          properties:
+                            id:
+                              type: number
+                            status:
+                              type: string
+                            status_detail:
+                              type: string
+              example:
+                paging:
+                  offset: 0
+                  limit: 20
+                  total: 8
+                results:
+                - id: 6114264375
+                  type: scheduled
+                  date_created: '2026-09-01T11:12:25.892-03:00'
+                  last_modified: '2026-09-01T11:12:25.892-03:00'
+                  preapproval_id: 2c938084726fca480172750000000000
+                  reason: Plano Pro mensal
+                  external_reference: ASSIN-2026-0001
+                  currency_id: BRL
+                  transaction_amount: 99.9
+                  debit_date: '2026-09-10T11:12:25.892-03:00'
+                  retry_attempt: 0
+                  status: scheduled
+                  summarized: pending
+                  payment:
+                    id: 19951521071
+                    status: approved
+                    status_detail: accredited
+        '400':
+          description: '400: Filtro inválido.'
+        '401':
+          description: '401: Access Token ausente, inválido ou do ambiente errado.'
+        '500':
+          description: '500: Erro interno.'
+  /authorized_payments/{id}:
+    get:
+      operationId: mercado-pago__assinatura__obter__fatura
+      summary: Obter dados da fatura
+      description: 'Devolve os dados de uma fatura de assinatura: valor, data de débito, número da tentativa, status e o pagamento
+        gerado.
+
+
+        Quando usar: Ao receber notificação do tópico subscription_authorized_payment, para saber se a mensalidade foi cobrada
+        com sucesso ou se entrou em retry.'
+      tags:
+      - Assinatura
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/get-authorized-payment/get
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: obter
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador da fatura (authorized payment).
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                  type:
+                    type: string
+                  date_created:
+                    type: string
+                  last_modified:
+                    type: string
+                  preapproval_id:
+                    type: string
+                  reason:
+                    type: string
+                  external_reference:
+                    type: string
+                  currency_id:
+                    type: string
+                  transaction_amount:
+                    type: number
+                  debit_date:
+                    type: string
+                  retry_attempt:
+                    type: number
+                  status:
+                    type: string
+                  summarized:
+                    type: string
+                  payment:
+                    type: object
+              example:
+                id: 6114264375
+                type: scheduled
+                date_created: '2026-09-01T11:12:25.892-03:00'
+                last_modified: '2026-09-10T11:12:25.892-03:00'
+                preapproval_id: 2c938084726fca480172750000000000
+                reason: Plano Pro mensal
+                external_reference: ASSIN-2026-0001
+                currency_id: BRL
+                transaction_amount: 99.9
+                debit_date: '2026-09-10T11:12:25.892-03:00'
+                retry_attempt: 0
+                status: processed
+                summarized: pending
+                payment:
+                  id: 19951521071
+                  status: approved
+                  status_detail: accredited
+        '400':
+          description: '400: Requisição inválida: campo obrigatório ausente, formato errado ou combinação de recorrência não
+            aceita.'
+        '401':
+          description: '401: Access Token ausente, inválido ou do ambiente errado.'
+        '500':
+          description: '500: Erro interno.'
+        '404':
+          description: '404: Fatura não encontrada.'
+  /preapproval/export:
+    get:
+      operationId: mercado-pago__assinatura__baixar_arquivo__exportacao
+      summary: Exportar assinaturas
+      description: 'Baixa um arquivo CSV com todas as assinaturas que atendem aos filtros informados. É o caminho para tirar
+        a carteira inteira de uma vez, sem paginar.
+
+
+        Quando usar: Extração completa da base de assinantes para planilha ou BI, quando a busca paginada ficaria lenta demais.'
+      tags:
+      - Assinatura
+      x-confianca: inferido
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/export-preapproval/get
+      x-entidade-canonica: Assinatura
+      x-acao-canonica: baixar_arquivo
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: collector_id
+        in: query
+        required: true
+        description: ID do recebedor que está pedindo as assinaturas (user_id do vendedor).
+        schema:
+          type: integer
+      - name: preapproval_plan_id
+        in: query
+        required: false
+        description: Filtra por plano.
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Filtra por status. Aceita um, vários ou nenhum.
+        schema:
+          type: string
+      - name: sort
+        in: query
+        required: false
+        description: Ordenação no formato nome_do_campo:sentido.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  arquivo:
+                    type: string
+              example:
+                observacao: A resposta é um arquivo CSV; a referência não publica a lista de colunas.
+        '401':
+          description: '401: Access Token ausente, inválido ou do ambiente errado.'
+        '500':
+          description: '500: Erro interno.'
+  /v1/account/release_report:
+    post:
+      operationId: mercado-pago__relatorio__criar__liberacao
+      summary: Criar relatório de liberações
+      description: 'Dispara a geração manual do relatório de liberação de dinheiro (Releases) para um intervalo de datas.
+        A geração é assíncrona: a resposta é 202 sem corpo, e o arquivo aparece depois na lista de relatórios.
+
+
+        Quando usar: Fechamento financeiro e conciliação: este relatório é a composição do saldo disponível, com valor bruto,
+        taxa do Mercado Pago, taxa de parcelamento, frete, impostos, valor líquido e data de liberação de cada movimento.'
+      tags:
+      - Transacao
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/releases-report/create-report/post
+      x-entidade-canonica: Relatorio
+      x-acao-canonica: criar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  corpo:
+                    type: string
+              example:
+                observacao: 202 Accepted sem corpo de resposta. Acompanhe pela consulta da task ou pela lista de relatórios.
+        '400':
+          description: 'invalid_begin_date: begin_date não informado ou inválido.'
+        '401':
+          description: 'Invalid token: Access Token inválido para a requisição.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                begin_date:
+                  type: string
+                  description: 'Início do intervalo, em UTC com sufixo Z (ex.: 2026-09-01T00:00:00Z).'
+                  format: date-time
+                end_date:
+                  type: string
+                  description: Fim do intervalo, em UTC com sufixo Z.
+                  format: date-time
+              required:
+              - begin_date
+              - end_date
+  /v1/account/release_report/task/{task-id}:
+    get:
+      operationId: mercado-pago__relatorio__consultar_status__liberacao
+      summary: Consultar tarefa de criação de relatório
+      description: 'Consulta o andamento de uma geração de relatório de liberações pelo id da tarefa: status (pending, processing,
+        processed, failed, deleted), formato, número de tentativas e, quando pronto, o file_name do arquivo.
+
+
+        Quando usar: Depois de disparar a geração, para saber quando o arquivo está pronto sem ficar baixando a lista inteira.'
+      tags:
+      - Transacao
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/releases-report/search-task/get
+      x-entidade-canonica: Relatorio
+      x-acao-canonica: consultar_status
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: task-id
+        in: path
+        required: true
+        description: Identificador da tarefa, obtido na resposta da criação do relatório.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+                  user_id:
+                    type: number
+                  account_id:
+                    type: number
+                  begin_date:
+                    type: string
+                  end_date:
+                    type: string
+                  created_from:
+                    type: string
+                  is_test:
+                    type: boolean
+                  is_reserve:
+                    type: boolean
+                  status:
+                    type: string
+                  report_type:
+                    type: string
+                  generation_date:
+                    type: string
+                  report_id:
+                    type: number
+                  last_modified:
+                    type: string
+                  retries:
+                    type: number
+                  sub_type:
+                    type: string
+                  currency_id:
+                    type: string
+                  format:
+                    type: string
+                  file_name:
+                    type: string
+              example:
+                id: 3333
+                user_id: 574264905
+                account_id: 574264905
+                begin_date: '2026-09-01T00:00:00.000Z'
+                end_date: '2026-09-30T23:59:59.999Z'
+                created_from: manual
+                is_test: false
+                is_reserve: false
+                status: processed
+                report_type: release
+                generation_date: '2026-09-17T10:15:30.000Z'
+                report_id: 17012160
+                last_modified: '2026-09-17T10:16:02.000Z'
+                retries: 0
+                sub_type: release
+                currency_id: BRL
+                format: CSV
+                file_name: release-report-USER_ID-2026-09-17-101602.csv
+        '400':
+          description: 'invalid_parameter: task-id inválido.'
+        '401':
+          description: 'Invalid token: Access Token inválido para esta requisição.'
+        '404':
+          description: 'task_not_found_for_user: Tarefa não encontrada para este usuário.'
+        '500':
+          description: 'internal_error: Erro interno do servidor.'
+  /v1/account/release_report/search:
+    get:
+      operationId: mercado-pago__relatorio__listar__liberacao
+      summary: Consultar lista de relatórios de liberações
+      description: 'Busca os relatórios de liberação de dinheiro já gerados, com filtros por período reportado, janela de
+        criação, origem (manual ou agendado), moeda e formato, e paginação offset/limit com envelope paging + results[]. Cada
+        resultado traz o file_name usado no download.
+
+
+        Quando usar: Primeiro passo da rotina automática de conciliação: descobrir qual arquivo baixar. Ordenado por data
+        de criação, do mais recente para o mais antigo.'
+      tags:
+      - Transacao
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/releases-report/search-report/get
+      x-entidade-canonica: Relatorio
+      x-acao-canonica: listar
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: query
+        required: false
+        description: Identificador específico do relatório.
+        schema:
+          type: integer
+      - name: file_name
+        in: query
+        required: false
+        description: Nome exato do arquivo. Diferencia maiúsculas de minúsculas.
+        schema:
+          type: string
+      - name: begin_date
+        in: query
+        required: false
+        description: Início do período REPORTADO (não é a data de criação do relatório). ISO 8601 UTC.
+        schema:
+          type: string
+          format: date-time
+      - name: end_date
+        in: query
+        required: false
+        description: Fim do período reportado. ISO 8601 UTC.
+        schema:
+          type: string
+          format: date-time
+      - name: created_from
+        in: query
+        required: false
+        description: Origem do relatório.
+        schema:
+          type: string
+          enum:
+          - manual
+          - schedule
+      - name: range
+        in: query
+        required: false
+        description: Campo do filtro por janela. Só aceita date_created; exige range_begin_date e range_end_date.
+        schema:
+          type: string
+          enum:
+          - date_created
+      - name: range_begin_date
+        in: query
+        required: false
+        description: Início da janela de criação. Obrigatório quando range é enviado.
+        schema:
+          type: string
+          format: date-time
+      - name: range_end_date
+        in: query
+        required: false
+        description: Fim da janela de criação. Obrigatório quando range é enviado.
+        schema:
+          type: string
+          format: date-time
+      - name: account_id
+        in: query
+        required: false
+        description: Conta associada ao relatório.
+        schema:
+          type: integer
+      - name: currency_id
+        in: query
+        required: false
+        description: Moeda do relatório, em ISO 4217, só maiúsculas, até 10 caracteres.
+        schema:
+          type: string
+      - name: format
+        in: query
+        required: false
+        description: Formato do arquivo.
+        schema:
+          type: string
+          enum:
+          - CSV
+          - XLSX
+      - name: offset
+        in: query
+        required: false
+        description: Início da paginação. Máximo 10000.
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        description: Registros por página. De 1 a 500. Padrão 30.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  paging:
+                    type: object
+                    properties:
+                      total:
+                        type: number
+                      limit:
+                        type: number
+                      offset:
+                        type: number
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: number
+                        user_id:
+                          type: number
+                        account_id:
+                          type: number
+                        begin_date:
+                          type: string
+                        end_date:
+                          type: string
+                        file_name:
+                          type: string
+                        created_from:
+                          type: string
+                        date_created:
+                          type: string
+                        download_date:
+                          type: string
+                        status:
+                          type: string
+                        origin:
+                          type: string
+                        sub_type:
+                          type: string
+                        metadata:
+                          type: string
+                        model:
+                          type: string
+                        currency_id:
+                          type: string
+                        format:
+                          type: string
+              example:
+                paging:
+                  total: 4
+                  limit: 30
+                  offset: 0
+                results:
+                - id: 17001104
+                  user_id: 574264905
+                  account_id: 208361929
+                  begin_date: '2026-09-01T03:00:00Z'
+                  end_date: '2026-10-01T02:59:59Z'
+                  file_name: release-report-USER_ID-2026-09-17-104118.csv
+                  created_from: manual
+                  date_created: '2026-09-17T10:41:19.000-03:00'
+                  download_date: null
+                  status: enabled
+                  origin: date_range
+                  sub_type: release
+                  model: release
+                  currency_id: BRL
+                  format: CSV
+        '400':
+          description: 'invalid_offset: offset inválido ou acima de 10000.'
+        '401':
+          description: 'unauthorized_user_id: Usuário não autorizado a acessar o recurso.'
+        '500':
+          description: 'internal_error: Erro interno do servidor.'
+  /v1/account/release_report/{file_name}:
+    get:
+      operationId: mercado-pago__relatorio__baixar_arquivo__liberacao
+      summary: Baixar relatório de liberações
+      description: 'Baixa o arquivo do relatório de liberação de dinheiro, em CSV ou XLSX, pelo nome do arquivo. É a extração
+        financeira mais completa do Mercado Pago: uma linha por movimento, com valor bruto, taxas, frete, impostos, valor
+        líquido, parcelas, meio de pagamento, referência externa, loja, ponto de venda e id de reembolso.
+
+
+        Quando usar: É o melhor endpoint para montar a planilha de conciliação: ele já vem com as taxas discriminadas, o que
+        a busca de pagamentos não entrega de forma somável. Use junto com a listagem, que dá o file_name.'
+      tags:
+      - Transacao
+      x-confianca: verificado
+      x-fonte-url: https://www.mercadopago.com.br/developers/pt/reference/releases-report/download-report/get
+      x-entidade-canonica: Relatorio
+      x-acao-canonica: baixar_arquivo
+      x-data-consulta: '2026-09-17'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: file_name
+        in: path
+        required: true
+        description: 'Nome do arquivo do relatório, exatamente como veio na listagem (ex.: release-report-USER_ID-2026-09-17-104118.csv).'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  arquivo:
+                    type: string
+              example:
+                cabecalho: DATE,SOURCE_ID,EXTERNAL_REFERENCE,RECORD_TYPE,DESCRIPTION,NET_CREDIT_AMOUNT,NET_DEBIT_AMOUNT,GROSS_AMOUNT,SELLER_AMOUNT,MP_FEE_AMOUNT,FINANCING_FEE_AMOUNT,SHIPPING_FEE_AMOUNT,TAXES_AMOUNT,COUPON_AMOUNT,INSTALLMENTS,PAYMENT_METHOD,TAX_DETAIL,TAX_AMOUNT_TELCO,TRANSACTION_APPROVAL_DATE,POS_ID,POS_NAME,EXTERNAL_POS_ID,STORE_ID,STORE_NAME,EXTERNAL_STORE_ID,TAXES_DISAGGREGATED,METADATA,REFUND_ID
+                observacao: As colunas efetivas dependem da configuração salva em /v1/account/release_report/config.
+        '401':
+          description: 'Invalid token: Access Token inválido.'
+        '404':
+          description: 'not_found: Arquivo não encontrado.'

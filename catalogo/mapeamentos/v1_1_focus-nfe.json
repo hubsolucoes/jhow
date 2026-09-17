@@ -1,0 +1,8 @@
+{
+  "sistema": "focus-nfe",
+  "detalhados": [
+    {"de": "focus-nfe.nota_fiscal.atualizar.encerrar_mdfe", "para": "focus-nfe.nota_fiscal.encerrar.mdfe", "entidade": "NotaFiscal", "acao": "encerrar"},
+    {"de": "focus-nfe.nota_fiscal.emitir.manifesto_nfe_recebida", "para": "focus-nfe.nota_fiscal.manifestar.nfe_recebida", "entidade": "NotaFiscal", "acao": "manifestar"}
+  ],
+  "secundarios": []
+}

@@ -1,0 +1,14 @@
+{
+  "sistema": "pix-bacen",
+  "detalhados": [
+    {"de": "pix-bacen.cobranca.criar.location", "para": "pix-bacen.location_pagamento.criar", "entidade": "LocationPagamento", "acao": "criar"},
+    {"de": "pix-bacen.cobranca.obter.location", "para": "pix-bacen.location_pagamento.obter", "entidade": "LocationPagamento", "acao": "obter"},
+    {"de": "pix-bacen.cobranca.listar.location", "para": "pix-bacen.location_pagamento.listar", "entidade": "LocationPagamento", "acao": "listar"},
+    {"de": "pix-bacen.cobranca.excluir.location_txid", "para": "pix-bacen.location_pagamento.desvincular.txid", "entidade": "LocationPagamento", "acao": "desvincular"},
+    {"de": "pix-bacen.assinatura.criar.location", "para": "pix-bacen.location_pagamento.criar.recorrencia", "entidade": "LocationPagamento", "acao": "criar"},
+    {"de": "pix-bacen.assinatura.obter.location", "para": "pix-bacen.location_pagamento.obter.recorrencia", "entidade": "LocationPagamento", "acao": "obter"},
+    {"de": "pix-bacen.assinatura.listar.location", "para": "pix-bacen.location_pagamento.listar.recorrencia", "entidade": "LocationPagamento", "acao": "listar"},
+    {"de": "pix-bacen.assinatura.excluir.location_id_rec", "para": "pix-bacen.location_pagamento.desvincular.id_rec", "entidade": "LocationPagamento", "acao": "desvincular"}
+  ],
+  "secundarios": []
+}

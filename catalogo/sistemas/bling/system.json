@@ -1,0 +1,640 @@
+{
+  "slug": "bling",
+  "nome": "Bling",
+  "categoria": "erp_nacional",
+  "fornecedor": {
+    "razao_social": null,
+    "pais": "BR",
+    "site": "https://www.bling.com.br"
+  },
+  "descricao_curta": "ERP em nuvem para pequenas e médias empresas (vendas, estoque, fiscal, financeiro, logística e integração com marketplaces), com API REST v3 autenticada por OAuth 2.0.",
+  "porte_alvo": [
+    "pequena",
+    "media"
+  ],
+  "verticais": [
+    "varejo",
+    "e-commerce",
+    "marketplaces",
+    "distribuicao",
+    "servicos"
+  ],
+  "status": "documentado",
+  "api": {
+    "estilo": "REST",
+    "base_urls": {
+      "producao": "https://api.bling.com.br/Api/v3",
+      "sandbox": null
+    },
+    "versao_atual": "v3 (spec oficial info.version 3.0)",
+    "politica_versionamento": "Versão maior no path (/Api/v3). Mudanças incrementais publicadas no registro de alterações (changelogs por release, ex.: v351, v353 em 2026). Não há política formal de depreciação publicada. A v2 (chave de API) foi substituída pela v3; a data oficial de desativação não foi confirmada em página oficial nesta sessão. Autenticação com token opaco está descontinuada em favor de JWT (header enable-jwt: 1), com data de bloqueio 'em definição'.",
+    "formatos": [
+      "json"
+    ],
+    "spec_oficial_url": "https://developer.bling.com.br/build/assets/openapi-DKXp8d1e.json",
+    "openapi_disponivel": true,
+    "observacao": "A spec oficial é OpenAPI 3.0.0 com 162 paths / 257 operações e é servida pelo Swagger da página /referencia (o nome do arquivo contém hash de build e pode mudar). A spec declara um segundo servidor, https://developer.bling.com.br/api/bling, descrito como ambiente de teste da documentação; seu uso fora do console não é documentado."
+  },
+  "autenticacao": {
+    "tipos": [
+      "oauth2_authorization_code"
+    ],
+    "fluxo_resumido": "1) O integrador cadastra um aplicativo (Central de Extensões > Área do Integrador) com link de redirecionamento e escopos, e recebe client_id/client_secret. 2) O usuário da conta Bling abre https://www.bling.com.br/Api/v3/oauth/authorize?response_type=code&client_id=...&state=... e autoriza. 3) O Bling redireciona para o link cadastrado com code (validade de 1 minuto, uso único) e state. 4) O servidor do integrador faz POST https://api.bling.com.br/Api/v3/oauth/token (form-urlencoded, Basic client_id:client_secret, grant_type=authorization_code, header enable-jwt: 1). 5) Chamadas usam Authorization: Bearer <access_token> e enable-jwt: 1. 6) Renovação com grant_type=refresh_token no mesmo endpoint. Revogação em POST /oauth/revoke (com revoke_action logout|uninstall e revoke_target user|company).",
+    "escopos_permissoes": [
+      "Escopos são escolhidos por módulo na tela do aplicativo (lista não publicada na documentação pública).",
+      "A resposta de token traz scope como lista de IDs numéricos separados por espaço.",
+      "Adicionar ou remover escopos revoga os tokens de todos os usuários do app.",
+      "Webhook de um recurso só aparece se o app tiver o escopo correspondente.",
+      "O acesso também é limitado pelas permissões do usuário que autorizou."
+    ],
+    "expiracao_token": "access_token: a documentação só mostra expires_in=21600 (6 h) no exemplo; use o valor devolvido. refresh_token: 30 dias. authorization code: 1 minuto. JWT pode ter de 1.500 a 3.000 caracteres.",
+    "renovacao": "POST /Api/v3/oauth/token com grant_type=refresh_token e Basic client_id:client_secret; a resposta tem o mesmo formato da troca inicial, com refresh_token. A doc não afirma se o refresh_token anterior continua válido; persista o novo. Mais de 20 chamadas a /oauth/token em 60 s bloqueiam o IP por 60 minutos. Empresa inativa não consegue renovar.",
+    "ip_allowlist_obrigatorio": false,
+    "fonte_url": "https://developer.bling.com.br/aplicativos",
+    "data_consulta": "2026-09-17"
+  },
+  "execucao_auth": {
+    "tipo": "oauth2_refresh_token",
+    "header": "Authorization",
+    "prefixo": "Bearer ",
+    "usuario_basic_e_a_credencial": false,
+    "headers_fixos": {
+      "enable-jwt": "1",
+      "Accept": "application/json"
+    },
+    "token_url": "https://api.bling.com.br/Api/v3/oauth/token",
+    "token_request": {
+      "metodo": "POST",
+      "content_type": "application/x-www-form-urlencoded",
+      "autenticacao_do_cliente": "basic_client_id_client_secret",
+      "corpo": {
+        "grant_type": "refresh_token",
+        "refresh_token": "<<REFRESH_TOKEN_GUARDADO>>"
+      },
+      "headers": {
+        "enable-jwt": "1"
+      },
+      "campo_access_token": "access_token",
+      "campo_expiracao_segundos": "expires_in",
+      "campo_refresh_token_novo": "refresh_token",
+      "observacao": "O header enable-jwt: 1 vai tanto na obtenção/renovação do token quanto nas chamadas de dados. A resposta devolve um novo refresh_token: persista-o no lugar do anterior. A documentação não afirma se o refresh_token antigo continua válido."
+    },
+    "credenciais_necessarias": [
+      {
+        "nome": "client_id",
+        "rotulo": "Client ID do aplicativo Bling",
+        "segredo": false,
+        "onde_obter": "Bling > Central de Extensões > Área do Integrador > cadastrar aplicativo (privado já serve) com link de redirecionamento e escopos; o Client ID aparece na tela do aplicativo.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "client_secret",
+        "rotulo": "Client Secret do aplicativo Bling",
+        "segredo": true,
+        "onde_obter": "Mesma tela do aplicativo, na Área do Integrador. É também a chave HMAC-SHA256 usada para conferir a assinatura dos webhooks.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "refresh_token",
+        "rotulo": "Refresh token da conta Bling",
+        "segredo": true,
+        "onde_obter": "Sai uma única vez do fluxo authorization code: o usuário da conta autoriza em https://www.bling.com.br/Api/v3/oauth/authorize?response_type=code&client_id=<client_id>&state=<estado>, o Bling redireciona com 'code' (válido 1 minuto, uso único) e o POST em /Api/v3/oauth/token com grant_type=authorization_code devolve access_token e refresh_token. Validade do refresh_token: 30 dias, renovada a cada uso.",
+        "obrigatoria": true
+      }
+    ],
+    "base_url_por_ambiente": {
+      "producao": "https://api.bling.com.br/Api/v3",
+      "sandbox": null
+    },
+    "ambiente_padrao": "producao",
+    "expiracao_access_token_segundos": 21600,
+    "renovar_em": [
+      "401 invalid_token",
+      "antes de expirar o expires_in devolvido"
+    ],
+    "observacao": "Não há sandbox nem client_credentials: toda execução roda na conta real do cliente, e por isso o assistente só executa leitura. O cofre precisa guardar o refresh_token e reescrevê-lo a cada renovação (validade de 30 dias); se ele vencer, ou se os escopos do aplicativo mudarem, o cliente refaz a autorização interativa. Limites que afetam o executor: 3 req/s e 120.000 req/dia por conta Bling, e no máximo 20 chamadas a /oauth/token em 60 s (acima disso o IP fica bloqueado por 60 minutos) — guarde o access_token em cache. O valor 21600 s (6 h) vem do exemplo da documentação; use sempre o expires_in da resposta.",
+    "fonte_url": "https://developer.bling.com.br/aplicativos",
+    "data_consulta": "2026-09-17"
+  },
+  "ambiente_testes": {
+    "sandbox": false,
+    "como_obter": "Não há sandbox com dados fictícios. Os testes são feitos em uma conta Bling real (o Bling oferece 30 dias gratuitos em qualquer plano), com um aplicativo privado cadastrado nessa conta. Para apps públicos, a etapa de homologação usa endpoints dedicados (/homologacao/produtos) numa sequência cronometrada. O console Swagger da referência usa um 'ambiente de teste da documentação' cujo comportamento não é documentado.",
+    "custo": "Conta de teste gratuita por 30 dias; depois, plano pago. A API não é cobrada à parte.",
+    "dados_ficticios": false,
+    "fonte_url": "https://www.bling.com.br/planos-e-precos",
+    "data_consulta": "2026-09-17"
+  },
+  "limites": {
+    "rate_limit": "3 requisições por segundo e 120.000 por dia, por conta Bling (somando todos os módulos e apps). Plano Elite anuncia capacidade de API flexível (até 8x).",
+    "janela": "segundo e dia",
+    "burst": "Bloqueio de IP: 300 erros em 10 s (10 min), 600 requisições em 10 s (10 min), 20 chamadas a /oauth/token em 60 s (60 min); reincidência pode bloquear o IP por tempo indeterminado.",
+    "paginacao": {
+      "estilo": "page",
+      "parametros": [
+        "pagina (início 1)",
+        "limite (padrão 100)"
+      ],
+      "tamanho_max": null,
+      "observacao": "Respostas não trazem total nem próxima página: pare quando a página vier com menos itens que o limite. Filtros de período com intervalo maior que 1 ano retornam 400."
+    },
+    "tamanho_max_payload": null,
+    "timeout_recomendado": "60 s para leituras (valor do catálogo, não documentado pelo Bling)",
+    "politica_retry": "429 TOO_MANY_REQUESTS traz limit e period (second|day): aguarde e repita com backoff; com period=day, só no dia seguinte. 401 invalid_token: renove uma vez e repita. 5xx: backoff; em escritas, consulte antes de repetir.",
+    "idempotencia": {
+      "suportada": false,
+      "header": null,
+      "observacao": "Nenhum mecanismo de idempotência documentado para a API. Use numeroLoja/numeroDocumento/codigo como chave externa e consulte antes de recriar."
+    },
+    "volatil": true,
+    "fonte_url": "https://developer.bling.com.br/limites",
+    "data_consulta": "2026-09-17"
+  },
+  "webhooks": {
+    "suportados": true,
+    "eventos": [
+      "order.created",
+      "order.updated",
+      "order.deleted",
+      "product.created",
+      "product.updated",
+      "product.deleted",
+      "stock.created",
+      "stock.updated",
+      "stock.deleted",
+      "virtual_stock.updated",
+      "product_supplier.created",
+      "product_supplier.updated",
+      "product_supplier.deleted",
+      "invoice.created",
+      "invoice.updated",
+      "invoice.deleted",
+      "consumer_invoice.created",
+      "consumer_invoice.updated",
+      "consumer_invoice.deleted"
+    ],
+    "verificacao_assinatura": "Cabeçalho X-Bling-Signature-256 com valor 'sha256=<hex>', HMAC-SHA256 do corpo JSON recebido usando o client_secret do aplicativo como chave (UTF-8). Calcule sobre o corpo bruto e compare em tempo constante.",
+    "politica_reentrega": "Entrega bem-sucedida = resposta 2xx em até 5 segundos. Falhas são reenviadas com intervalos crescentes por até 3 dias; se continuar falhando, a configuração do recurso é desabilitada e precisa ser reativada manualmente no app. Pode haver entrega duplicada e fora de ordem. Não há endpoint de reenvio manual documentado.",
+    "requer_endpoint_publico": true,
+    "configuracao": "Somente pelo painel do aplicativo (aba Webhooks): servidores, recursos, ações e versão do payload (v1). Não há API de gestão de webhooks. Eventos começam a chegar depois que a conta autoriza o app.",
+    "formato_payload": "{eventId, date (ISO 8601), version, event ('recurso.acao'), companyId, data}. companyId corresponde ao id de GET /empresas/me/dados-basicos.",
+    "observacoes": [
+      "deleted só ocorre em exclusão definitiva; mudar a situação para excluído gera updated.",
+      "virtual_stock é habilitado junto com stock e é disparado por reservas e composições; o payload pode trazer vinculoComplexo quando mais de 200 produtos vinculados mudaram (buscar saldos pela API).",
+      "Não há webhooks para contatos, contas a pagar/receber, NFS-e ou propostas."
+    ],
+    "fonte_url": "https://developer.bling.com.br/webhooks",
+    "data_consulta": "2026-09-17"
+  },
+  "erros": {
+    "formato": "JSON {\"error\": {\"type\", \"message\", \"description\", \"fields\": [{\"code\", \"msg\", \"element\", \"namespace\", \"collection\": [{\"index\", \"code\", \"msg\", \"element\"}]}]}}. Em 429 vêm também limit e period. Erros da etapa authorize voltam como parâmetros error/error_description/state na URL de redirecionamento.",
+    "codigos_principais": [
+      {
+        "status": 400,
+        "type": "VALIDATION_ERROR",
+        "significado": "Falha de validação de campos ou regra de negócio (ver fields[])."
+      },
+      {
+        "status": 400,
+        "type": "MISSING_REQUIRED_FIELD_ERROR",
+        "significado": "Campo obrigatório ausente / corpo vazio."
+      },
+      {
+        "status": 400,
+        "type": "UNKNOWN_ERROR",
+        "significado": "Operação não concluída."
+      },
+      {
+        "status": 400,
+        "type": "invalid_client / invalid_grant",
+        "significado": "Credenciais do app inválidas / code expirado (etapa de token)."
+      },
+      {
+        "status": 401,
+        "type": "invalid_token",
+        "significado": "Token inválido ou expirado."
+      },
+      {
+        "status": 403,
+        "type": "insufficient_scope",
+        "significado": "App/usuário sem permissão no escopo."
+      },
+      {
+        "status": 404,
+        "type": "RESOURCE_NOT_FOUND",
+        "significado": "Path ou ID inexistente."
+      },
+      {
+        "status": 429,
+        "type": "TOO_MANY_REQUESTS",
+        "significado": "Limite por segundo ou por dia atingido."
+      },
+      {
+        "status": 500,
+        "type": "SERVER_ERROR",
+        "significado": "Falha interna."
+      }
+    ],
+    "fonte_url": "https://developer.bling.com.br/erros-comuns",
+    "data_consulta": "2026-09-17"
+  },
+  "sdks_oficiais": [
+    {
+      "nome": "Coleção Postman / spec OpenAPI",
+      "url": "https://developer.bling.com.br/como-testar",
+      "observacao": "Arquivo da coleção disponível na página Como testar; não é SDK."
+    },
+    {
+      "nome": "MCP Server do Bling (hospedado)",
+      "url": "https://developer.bling.com.br/mcp-server",
+      "observacao": "Servidor MCP oficial em https://mcp.bling.com.br/mcp (Streamable HTTP, OAuth 2.1 com PKCE) para assistentes de IA; usa os mesmos limites de API do plano."
+    }
+  ],
+  "comercial": {
+    "modelo_acesso": "plano_pago",
+    "custo_api": "Sem cobrança específica pela API; é preciso uma conta Bling ativa. Tabela exibida em 2026-09-17 (com promoções temporárias): Cobalto R$ 720/ano (~R$ 60/mês; até 200 pedidos importados de marketplace/API por mês), Titânio a partir de R$ 1.440/ano (faixas de 500 a 5.000 pedidos), Diamante R$ 7.800/ano (até 10.000 pedidos), Elite sob medida (acima de 10.000 pedidos e capacidade de API ampliada). Pedidos criados via API consomem a cota de pedidos importados do plano.",
+    "exige_homologacao": true,
+    "observacao_homologacao": "Só para aplicativos públicos (listados na Central de Extensões): revisão de cadastro (logo, descrição, links, escopos) + teste automatizado de 5 chamadas à API de homologação em até 10 s. Situações: em desenvolvimento, em revisão, aprovado, rejeitado, inativado. Apps privados (uso na própria conta ou de clientes específicos) não passam por homologação.",
+    "tempo_medio_aprovacao": null,
+    "volatil": true,
+    "fonte_url": "https://developer.bling.com.br/homologacao",
+    "data_consulta": "2026-09-17"
+  },
+  "conformidade": {
+    "trafega_dado_pessoal": true,
+    "dado_sensivel": false,
+    "base_legal_tipica": "Execução de contrato (vendas, faturamento) e cumprimento de obrigação legal/regulatória (documentos fiscais); o integrador atua como operador em nome da empresa cliente.",
+    "exige_certificado_digital": false,
+    "observacao_certificado": "A integração não usa certificado; a emissão de NF-e/NFC-e/NFS-e depende de certificado digital configurado dentro da conta Bling pelo cliente.",
+    "regulador": "SEFAZ/prefeituras (documentos fiscais emitidos pelo Bling)",
+    "residencia_dados": null,
+    "termos_uso_url": "https://www.bling.com.br/termos-de-uso",
+    "politica_privacidade_url": "https://www.bling.com.br/politicas",
+    "permite_uso_em_produto_terceiro": "sim",
+    "observacao_uso_terceiro": "A documentação declara a API pública para estender o Bling e criar aplicativos; apps públicos passam por homologação e podem ser inativados em caso de abuso. Cláusulas contratuais dos termos de uso não foram analisadas."
+  },
+  "esforco_integracao": {
+    "complexidade": "media",
+    "horas_estimadas_mvp": 60,
+    "premissa_horas": "Julgamento do catálogo: app privado + OAuth com persistência de tokens (~12 h), sincronização de um fluxo (ex.: pedidos + contatos + produtos, com paginação e backoff; ~24 h), webhooks com HMAC e fila (~12 h), testes em conta real (~12 h). App público com homologação e emissão fiscal pode dobrar o esforço.",
+    "principais_armadilhas": [
+      "Só existe OAuth authorization code: integrações 'robôs' e Power BI precisam de um processo que guarde e renove o refresh_token (30 dias).",
+      "code expira em 1 minuto e é de uso único; reutilizar revoga o usuário.",
+      "Header enable-jwt: 1 deve ir na obtenção/renovação e nas chamadas; token opaco está descontinuado e JWT tem até ~3.000 caracteres.",
+      "Limite de 3 req/s por conta, compartilhado entre todos os apps da empresa; listagens resumidas forçam uma chamada por item (N+1) para detalhes.",
+      "Paginação sem total: pare na página incompleta; períodos acima de 1 ano dão 400.",
+      "IDs de situação de pedidos são personalizados por conta; descubra via /situacoes/modulos.",
+      "Sem idempotência: retries cegos duplicam pedidos, lançamentos de estoque e baixas.",
+      "Sem sandbox: testes em conta real, cuidado com emissão fiscal em produção.",
+      "Não há endpoint para cancelar NF-e/NFC-e nem para gerir webhooks via API.",
+      "Formatos de resposta variam (alguns sem envelope data, ex.: proposta obter, boletos, gerar-nfe).",
+      "Pedidos criados via API consomem a cota mensal de pedidos importados do plano."
+    ]
+  },
+  "casos_uso_negocio": [
+    {
+      "titulo": "Dashboards de vendas, estoque e financeiro no Power BI/Excel",
+      "dor_resolvida": "Relatórios nativos limitados e exportações manuais de planilhas.",
+      "endpoints_envolvidos": [
+        "bling.pedido.listar.venda",
+        "bling.produto.listar",
+        "bling.estoque.listar.saldos",
+        "bling.nota_fiscal.listar.nfe",
+        "bling.conta_receber.listar",
+        "bling.conta_pagar.listar",
+        "bling.plano_contas.listar"
+      ],
+      "valor_percebido": "Faturamento, margem, ruptura e fluxo de caixa atualizados sem trabalho manual."
+    },
+    {
+      "titulo": "Importar pedidos de loja própria, B2B ou força de vendas",
+      "dor_resolvida": "Digitação de pedidos e divergência de cadastro entre sistemas.",
+      "endpoints_envolvidos": [
+        "bling.pessoa.listar",
+        "bling.pessoa.criar",
+        "bling.produto.listar",
+        "bling.pedido.criar.venda",
+        "bling.pedido.atualizar.venda_situacao"
+      ],
+      "valor_percebido": "Pedidos entram prontos para faturar e expedir; status volta para a origem via webhook order.updated."
+    },
+    {
+      "titulo": "Faturamento automático pedido -> NF-e",
+      "dor_resolvida": "Emissão manual de notas e envio de XML/DANFE.",
+      "endpoints_envolvidos": [
+        "bling.nota_fiscal.criar.nfe_de_pedido",
+        "bling.nota_fiscal.emitir.nfe",
+        "bling.nota_fiscal.obter.nfe",
+        "bling.nota_fiscal.baixar_arquivo.nfe"
+      ],
+      "valor_percebido": "Notas emitidas em lote com o certificado já configurado no Bling e XML arquivado automaticamente."
+    },
+    {
+      "titulo": "Conciliação de recebimentos (PSP/banco -> Bling)",
+      "dor_resolvida": "Baixa manual de títulos pagos por Pix, boleto ou cartão.",
+      "endpoints_envolvidos": [
+        "bling.conta_receber.listar",
+        "bling.conta_receber.obter",
+        "bling.conta_receber.liquidar",
+        "bling.cobranca.listar.boletos"
+      ],
+      "valor_percebido": "Contas a receber refletem o caixa real no mesmo dia."
+    },
+    {
+      "titulo": "Compras e contas a pagar integradas",
+      "dor_resolvida": "Pedidos de compra e despesas lançados em duplicidade.",
+      "endpoints_envolvidos": [
+        "bling.pedido.criar.compra",
+        "bling.conta_pagar.criar",
+        "bling.conta_pagar.liquidar",
+        "bling.tabela_auxiliar.listar.formas_pagamento"
+      ],
+      "valor_percebido": "Reposição automática a partir do estoque e programação de pagamentos confiável."
+    },
+    {
+      "titulo": "Sincronização de catálogo e estoque com canais de venda",
+      "dor_resolvida": "Venda sem estoque e preço desatualizado.",
+      "endpoints_envolvidos": [
+        "bling.produto.listar",
+        "bling.produto.atualizar",
+        "bling.estoque.listar.saldos",
+        "bling.estoque.criar"
+      ],
+      "valor_percebido": "Disponibilidade correta em tempo real (webhooks product.* e stock.*)."
+    },
+    {
+      "titulo": "Expedição com logística própria",
+      "dor_resolvida": "Rastreio e etiquetas fora do ERP.",
+      "endpoints_envolvidos": [
+        "bling.envio.criar",
+        "bling.envio.obter",
+        "bling.envio.baixar_arquivo.etiquetas",
+        "bling.envio.criar.remessa"
+      ],
+      "valor_percebido": "Rastreio visível no pedido e etiquetas PDF/ZPL prontas para impressão."
+    }
+  ],
+  "indice_integrabilidade": {
+    "score": 64,
+    "componentes": {
+      "documentacao": {
+        "peso": 20,
+        "pontos": 16,
+        "justificativa": "Spec OpenAPI oficial baixável (257 operações), guias de OAuth, erros, limites, webhooks, homologação e changelog. Perde pontos por lista de escopos não pública, expiração do access_token só por exemplo, URLs de token inconsistentes entre páginas, resposta da revogação não descrita e inconsistências de enum na spec (ex.: situação de NFS-e)."
+      },
+      "sandbox": {
+        "peso": 15,
+        "pontos": 4,
+        "justificativa": "Não há sandbox com dados fictícios; testes exigem conta real (30 dias grátis). A API de homologação cobre só um produto fictício para o processo de aprovação."
+      },
+      "autenticacao": {
+        "peso": 15,
+        "pontos": 12,
+        "justificativa": "OAuth 2.0 com JWT, refresh de 30 dias e revogação granular. Sem client credentials: toda automação depende de autorização interativa e armazenamento de refresh_token; code de 1 minuto."
+      },
+      "webhooks": {
+        "peso": 15,
+        "pontos": 11,
+        "justificativa": "HMAC-SHA256 com client_secret, retentativas por até 3 dias, payload versionado. Cobre só 7 recursos (sem financeiro/contatos/NFS-e), configuração apenas pelo painel, sem reenvio manual e com desativação automática após falhas."
+      },
+      "limites_paginacao": {
+        "peso": 10,
+        "pontos": 5,
+        "justificativa": "3 req/s por conta é baixo para cargas reais e as listagens resumidas forçam N+1; paginação por página sem total; janelas de data limitadas a 1 ano. Limites e respostas 429 bem documentados."
+      },
+      "sdks_comunidade": {
+        "peso": 10,
+        "pontos": 6,
+        "justificativa": "Sem SDKs oficiais; há coleção Postman/spec e um servidor MCP oficial hospedado. Ecossistema grande de integradores (Central de Extensões), mas bibliotecas de comunidade não foram avaliadas."
+      },
+      "acesso_sem_barreira": {
+        "peso": 10,
+        "pontos": 7,
+        "justificativa": "API disponível em qualquer plano e apps privados sem aprovação; exige conta paga após 30 dias e homologação para apps públicos. Pedidos via API contam na cota do plano."
+      },
+      "versionamento": {
+        "peso": 5,
+        "pontos": 3,
+        "justificativa": "Versão no path e changelog público por release, mas sem política de depreciação formal; migrações (v2->v3, opaco->JWT) com datas não claramente publicadas."
+      }
+    }
+  },
+  "qualidade_doc": {
+    "nota": 7.5,
+    "observacoes": "Referência completa e navegável (Swagger) com schemas e enums; guias bem escritos em português. Pontos fracos: escopos não listados publicamente, alguns schemas marcam campos somente leitura como obrigatórios, respostas com e sem envelope data, descrições de enum divergentes e exemplos de URL de token inconsistentes."
+  },
+  "monitoramento": {
+    "changelog_url": "https://developer.bling.com.br/changelogs",
+    "canal_breaking_changes": "Registro de alterações da API (https://developer.bling.com.br/changelogs) e de webhooks (https://developer.bling.com.br/webhooks.changelogs); avisos no painel do Bling. A migração para JWT tem data de bloqueio 'em definição' (acompanhar https://developer.bling.com.br/migracao-jwt).",
+    "frequencia_revisao_sugerida": "mensal",
+    "observacao": "Mensal por envolver emissão fiscal e pela migração JWT pendente. O nome do arquivo da spec (openapi-<hash>.json) muda a cada build da documentação: descubra o atual em /build/assets/reference-*.js."
+  },
+  "lacunas": [
+    {
+      "campo": "autenticacao.escopos_permissoes",
+      "descricao": "A lista de escopos (IDs e nomes por módulo) não está publicada na documentação pública; só aparece na tela do aplicativo.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "autenticacao.expiracao_token",
+      "descricao": "Validade do access_token não é declarada em texto; só o exemplo expires_in=21600. Também não está claro se o refresh_token anterior é invalidado após a renovação.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "autenticacao.urls",
+      "descricao": "A doc usa https://api.bling.com.br/Api/v3/oauth/token, um exemplo da página de JWT usa https://api.bling.com.br/oauth/token e a spec declara https://bling.com.br/Api/v3/oauth/token. A revogação aparece como /oauth/revoke no host api.bling.com.br, sem /Api/v3; resposta de sucesso não descrita (endpoint marcado inferido).",
+      "impacto": "medio"
+    },
+    {
+      "campo": "api.politica_versionamento",
+      "descricao": "Data oficial de desativação da API v2 não confirmada em página oficial nesta sessão (fontes de terceiros citam 01/08/2024; a página de ajuda oficial retornou conteúdo dinâmico/403). Data de bloqueio do token opaco está 'em definição'.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "limites.paginacao.tamanho_max",
+      "descricao": "Valor máximo aceito para 'limite' não documentado (só o padrão 100).",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "limites.tamanho_max_payload",
+      "descricao": "Tamanho máximo de corpo e quantidade máxima de IDs em filtros como idsProdutos[] não documentados.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "ambiente_testes",
+      "descricao": "Não há sandbox; o servidor 'ambiente de teste da documentação' (developer.bling.com.br/api/bling) não tem uso documentado.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "endpoints.nota_fiscal.cancelar",
+      "descricao": "A referência v3 não tem endpoint de cancelamento, carta de correção ou inutilização de NF-e/NFC-e (só cancelamento de NFS-e). Nem consulta de status separada.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "webhooks",
+      "descricao": "Sem API para cadastrar/listar webhooks, sem reenvio manual e sem eventos para financeiro, contatos, NFS-e e propostas. Intervalos exatos das retentativas não publicados.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "endpoints.envio.criar.remessa",
+      "descricao": "Estrutura de objetos[] da remessa e obrigatoriedade de campos somente leitura pouco claras; exemplo inferido.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "endpoints (schemas)",
+      "descricao": "Vários schemas oficiais marcam campos somente leitura (id, situacao, saldo) como obrigatórios e há divergências de enum (situação de NFS-e 0-3 x filtro 1-4; NFC-e filtro até 12). Registrado como está na spec.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "kit.powerquery",
+      "descricao": "O refresh da planilha (saida/Bling.xlsx) foi executado em 2026-09-17 apenas com token inválido: todas as 9 consultas chegaram à API e retornaram a mensagem de credencial recusada. O caminho de sucesso (HTTP 200, paginação, tipagem) não foi testado com a API real por falta de credencial de teste. Observação: com HTTP 401/403 o Excel entrega a resposta sem Response.Status (null), por isso o fnApi trata status nulo.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "comercial.tempo_medio_aprovacao",
+      "descricao": "Prazo da revisão de apps públicos não publicado.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "conformidade.residencia_dados",
+      "descricao": "Local de hospedagem dos dados não informado na documentação consultada.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "fornecedor.razao_social",
+      "descricao": "Razão social não confirmada nas páginas consultadas.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "taxonomia",
+      "descricao": "Sugestões de extensão: entidade 'Deposito' (hoje mapeado em Estoque), 'OrdemProducao' (mapeado em Pedido), 'Anuncio' de marketplace (mapeado em Produto) e 'Situacao/Workflow' (mapeado em TabelaAuxiliar); ação 'baixar' (liquidar título) hoje mapeada como Pagamento/criar.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "endpoints.execucao.lista_em (respostas sem envelope)",
+      "descricao": "A maioria das respostas vem com envelope 'data', mas GET /propostas-comerciais/{id} devolve o objeto na raiz e GET /contas/receber/boletos devolve o array em 'contas'. Não há regra publicada: cada endpoint foi conferido na spec oficial, um a um.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "execucao_auth.expiracao_access_token_segundos",
+      "descricao": "A documentação não declara em texto a validade do access_token; 21600 s (6 h) aparece apenas no exemplo de resposta de /oauth/token. O executor deve confiar no expires_in de cada resposta.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "execucao_auth.token_url",
+      "descricao": "Há três URLs de token na documentação oficial (api.bling.com.br/Api/v3/oauth/token nos guias, api.bling.com.br/oauth/token no exemplo da página de JWT e bling.com.br/Api/v3/oauth/token no securitySchemes da spec). Adotamos a dos guias; pode ser preciso um fallback.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "execucao_auth.credenciais_necessarias.refresh_token",
+      "descricao": "A documentação não afirma se o refresh_token anterior é invalidado depois da renovação. O executor deve sempre gravar o mais recente e tratar a rotação como obrigatória.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "endpoints.execucao.paginacao.tamanho_max",
+      "descricao": "A spec oficial declara 'limite' com default 100 e mínimo 1, sem máximo. Na falta de valor documentado, o executor pagina com limite=100.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "endpoints.execucao.campo_total",
+      "descricao": "Nenhuma listagem da v3 devolve total de registros nem link de próxima página: campo_total é null em todos os endpoints e o fim da paginação é sempre detectado por página incompleta.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "endpoints.execucao.filtros_recomendados (janela de datas)",
+      "descricao": "A documentação diz que filtros de período acima de 1 ano retornam 400, mas não detalha em quais endpoints a regra vale nem se ela se aplica aos filtros de dataAlteração. Por precaução o executor fatia períodos longos em janelas de até 12 meses.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "endpoints.execucao.colunas_sugeridas (listagens resumidas)",
+      "descricao": "As listagens devolvem um subconjunto de campos: itens, parcelas e endereços só existem no obter por ID, o que exige N+1 chamadas sob o limite de 3 req/s. As colunas sugeridas das listagens ficam restritas ao que a própria listagem retorna.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "endpoints.execucao.colunas_sugeridas (menos de 5 colunas)",
+      "descricao": "Quatro endpoints ficam abaixo do mínimo de 5 colunas da seção 7.1 porque a resposta oficial não tem mais campos: bling.estoque.listar.saldo_deposito (4), bling.plano_contas.listar (4), bling.envio.baixar_arquivo.etiquetas (3) e bling.nota_fiscal.baixar_arquivo.nfe (2, e um deles é o arquivo em gzip+base64). Preferimos respeitar a resposta real a inventar colunas.",
+      "impacto": "baixo"
+    }
+  ],
+  "fontes": [
+    {
+      "url": "https://developer.bling.com.br/bling-api",
+      "titulo": "Bling API - Introdução e autenticação",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/aplicativos",
+      "titulo": "Aplicativos (cadastro, escopos, OAuth 2.0, refresh, revogação)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/migracao-jwt",
+      "titulo": "Migração para autenticação JWT",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/limites",
+      "titulo": "Limites",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/erros-comuns",
+      "titulo": "Erros comuns",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/boas-praticas",
+      "titulo": "Boas práticas (paginação, erros, segurança)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/webhooks",
+      "titulo": "Webhooks",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/homologacao",
+      "titulo": "Homologação de aplicativos",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/como-testar",
+      "titulo": "Como testar (Postman)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/perguntas-frequentes",
+      "titulo": "Perguntas frequentes",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/mcp-server",
+      "titulo": "MCP Server do Bling",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/referencia",
+      "titulo": "Referência da API (Swagger)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/build/assets/openapi-DKXp8d1e.json",
+      "titulo": "Spec OpenAPI oficial (3.0.0, versão 3.0)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://developer.bling.com.br/changelogs",
+      "titulo": "Registro de alterações",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.bling.com.br/planos-e-precos",
+      "titulo": "Planos e preços",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.bling.com.br/termos-de-uso",
+      "titulo": "Termos de uso",
+      "data_consulta": "2026-09-17"
+    }
+  ]
+}

@@ -1,0 +1,2240 @@
+{
+  "sistema": "mercado-pago",
+  "tools": [
+    {
+      "name": "mercado-pago__autenticacao__autenticar",
+      "title": "Criar e atualizar token",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Criar e atualizar token: POST /oauth/token. Emite ou renova o Access Token de uma aplicação Mercado Pago. Atende os três fluxos OAuth 2.0 suportados: authorization_code (o vendedor autoriza a plataforma por redirecionamento), refresh_token (renova sem interação) e client_credentials (token da própria aplicação, sem usuário). QUANDO USAR: Em integrações de marketplace ou plataforma, quando você cobra em nome de outros vendedores e precisa de um token por vendedor. Para operar só na sua conta, não use este endpoint: copie o Access Token direto do painel Suas integrações. NÃO USE para consultar: esta operação ESCREVE (Emite e rotaciona credenciais; no fluxo refresh_token invalida o refresh_token anterior. O assistente não executa: o token de leitura já vem do cofre do backend.). PRÉ-REQUISITOS: Aplicação criada em Suas integrações com Client ID e Client Secret; Redirect URL cadastrada na aplicação (para o fluxo authorization_code); Vendedor autorizando a aplicação pela URL de autorização (para o fluxo authorization_code). ATENÇÃO: O refresh_token é de uso único. Duas renovações concorrentes derrubam o acesso do vendedor — serialize a renovação. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "[body] Identificador único da sua aplicação (par de credenciais Client ID/Client Secret do painel)."
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "[body] Chave privada da aplicação. Nunca exponha no frontend. Guarde em cofre; a referência marca o campo como opcional, mas nenhum fluxo funciona sem ele."
+          },
+          "grant_type": {
+            "type": "string",
+            "description": "[body] Fluxo desejado.",
+            "enum": [
+              "authorization_code",
+              "refresh_token",
+              "client_credentials"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "description": "[body] Código devolvido pelo servidor de autorização no redirecionamento. Vale 10 minutos. Obrigatório quando grant_type=authorization_code."
+          },
+          "redirect_uri": {
+            "type": "string",
+            "description": "[body] URL estática cadastrada no campo Redirect URLs da aplicação. Obrigatória quando grant_type=authorization_code e precisa bater exatamente com a cadastrada."
+          },
+          "code_verifier": {
+            "type": "string",
+            "description": "[body] Verificador PKCE, quando a aplicação usa PKCE no fluxo authorization_code."
+          },
+          "refresh_token": {
+            "type": "string",
+            "description": "[body] Concessão temporária recebida junto do Access Token. Obrigatória quando grant_type=refresh_token. Uso único: depois de trocado, o valor antigo deixa de valer e a resposta traz um refresh_token novo, que precisa ser gravado."
+          },
+          "test_token": {
+            "type": "string",
+            "description": "[body] Enviar com valor true apenas quando se quer gerar credenciais de teste."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "client_id",
+          "client_secret",
+          "grant_type"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__criar__order",
+      "title": "Criar order",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Criar order: POST /v1/orders. Cria uma order do Checkout Transparente, que é o contêiner da venda e das transações de pagamento. Em processing_mode=automatic a order já é processada na mesma chamada; em manual ela nasce com status created e devolve um client_token para o frontend completar o pagamento. É por aqui que se emitem Pix (payment_method.id=pix, type=bank_transfer), boleto (id=boleto, type=ticket) e cartão tokenizado. QUANDO USAR: Integração nova de Checkout Transparente. A documentação recomenda a Orders API para quem está começando; a Payments API antiga continua funcionando, mas só recebe correções de segurança e estabilidade. NÃO USE para consultar: esta operação ESCREVE (Cria e processa uma cobrança real (Pix, boleto ou débito em cartão). O assistente só executa leitura; para criar, ele entrega o código e quem roda é o cliente.). PRÉ-REQUISITOS: Access Token da aplicação; Chave Pix cadastrada na conta, para cobrar por Pix; Token de cartão gerado no frontend pelo MercadoPago.js, para cobrar no cartão; Endereço completo do pagador, para boleto. ATENÇÃO: X-Idempotency-Key é obrigatório. Reenviar sem a mesma chave cria uma segunda cobrança. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "X_Idempotency_Key": {
+            "type": "string",
+            "description": "[header] Chave única da requisição (UUID v4 recomendado), de 1 a 128 caracteres. Repetir a mesma chave não cria uma segunda order."
+          },
+          "type": {
+            "type": "string",
+            "description": "[body] Tipo da order. Para pagamento online, o único valor possível é online.",
+            "enum": [
+              "online"
+            ]
+          },
+          "processing_mode": {
+            "type": "string",
+            "description": "[body] Define se a transação é processada na criação (automatic) ou depois, em etapas (manual).",
+            "enum": [
+              "automatic",
+              "manual"
+            ]
+          },
+          "capture_mode": {
+            "type": "string",
+            "description": "[body] Como o valor é capturado. automatic captura junto com a autorização; manual reserva o valor no cartão para captura posterior; automatic_async permite processamento assíncrono.",
+            "enum": [
+              "automatic",
+              "manual",
+              "automatic_async"
+            ]
+          },
+          "total_amount": {
+            "type": "string",
+            "description": "[body] Valor total da order, como string decimal (ex.: \"50.00\")."
+          },
+          "external_reference": {
+            "type": "string",
+            "description": "[body] Sua referência interna. Máximo 64 caracteres, só números, letras, hífen e underscore. Obrigatória para Pix."
+          },
+          "description": {
+            "type": "string",
+            "description": "[body] Descrição da venda."
+          },
+          "transactions_payments": {
+            "type": "array",
+            "description": "[body] Lista de transações de pagamento da order. Em modo manual pode vir vazia e ser preenchida depois.",
+            "items": {}
+          },
+          "transactions_payments_item_amount": {
+            "type": "string",
+            "description": "[body] Valor desta transação, como string decimal."
+          },
+          "transactions_payments_item_payment_method_id": {
+            "type": "string",
+            "description": "[body] Meio de pagamento: pix, boleto, visa, master, elo... Consulte GET /v1/payment_methods."
+          },
+          "transactions_payments_item_payment_method_type": {
+            "type": "string",
+            "description": "[body] Tipo do meio: bank_transfer (Pix), ticket (boleto), credit_card, debit_card, account_money."
+          },
+          "transactions_payments_item_payment_method_token": {
+            "type": "string",
+            "description": "[body] Token do cartão gerado no frontend pelo MercadoPago.js. Uso único e validade curta. Não existe para Pix e boleto."
+          },
+          "transactions_payments_item_payment_method_installments": {
+            "type": "integer",
+            "description": "[body] Número de parcelas no cartão."
+          },
+          "transactions_payments_item_payment_method_statement_descriptor": {
+            "type": "string",
+            "description": "[body] Texto que aparece na fatura do comprador."
+          },
+          "transactions_payments_item_expiration_time": {
+            "type": "string",
+            "description": "[body] Vencimento em formato de duração ISO 8601 (ex.: P1D, PT30M). Pix: padrão 24 h, mínimo 30 min, máximo 30 dias. Boleto: padrão 3 dias úteis; se cair em fim de semana, é ajustado para o próximo dia útil."
+          },
+          "payer_email": {
+            "type": "string",
+            "description": "[body] E-mail do comprador."
+          },
+          "payer_entity_type": {
+            "type": "string",
+            "description": "[body] Tipo de entidade do pagador.",
+            "enum": [
+              "individual",
+              "association"
+            ]
+          },
+          "payer_first_name": {
+            "type": "string",
+            "description": "[body] Nome do comprador."
+          },
+          "payer_last_name": {
+            "type": "string",
+            "description": "[body] Sobrenome do comprador."
+          },
+          "payer_identification_type": {
+            "type": "string",
+            "description": "[body] Tipo de documento (CPF ou CNPJ no Brasil). Lista em GET /v1/identification_types. Obrigatório para boleto."
+          },
+          "payer_identification_number": {
+            "type": "string",
+            "description": "[body] Número do documento, só dígitos. Obrigatório para boleto."
+          },
+          "payer_address_zip_code": {
+            "type": "string",
+            "description": "[body] CEP do pagador. Obrigatório para boleto."
+          },
+          "payer_address_street_name": {
+            "type": "string",
+            "description": "[body] Logradouro. Obrigatório para boleto."
+          },
+          "payer_address_street_number": {
+            "type": "string",
+            "description": "[body] Número; envie \"N/A\" quando não houver. Obrigatório para boleto."
+          },
+          "payer_address_neighborhood": {
+            "type": "string",
+            "description": "[body] Bairro. Obrigatório para boleto."
+          },
+          "payer_address_city": {
+            "type": "string",
+            "description": "[body] Cidade. Obrigatório para boleto."
+          },
+          "payer_address_state": {
+            "type": "string",
+            "description": "[body] UF com 2 letras (ex.: SP). Obrigatório para boleto."
+          },
+          "items": {
+            "type": "array",
+            "description": "[body] Itens da venda (title, unit_price, quantity, description, external_code, category_id...).",
+            "items": {}
+          },
+          "shipment_address": {
+            "type": "object",
+            "description": "[body] Endereço de entrega."
+          },
+          "integration_data_integrator_id": {
+            "type": "string",
+            "description": "[body] Identificador do integrador/parceiro."
+          },
+          "integration_data_platform_id": {
+            "type": "string",
+            "description": "[body] Identificador da plataforma."
+          },
+          "config_online_callback_url": {
+            "type": "string",
+            "description": "[body] URL de retorno do fluxo online."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "X_Idempotency_Key",
+          "total_amount",
+          "payer_email"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__obter__order",
+      "title": "Obter order por ID",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Obter order por ID: GET /v1/orders/{id}. Devolve o estado atual de uma order do Checkout Transparente, com as transações de pagamento, os reembolsos, os itens e o status em tempo real. QUANDO USAR: Ao receber uma notificação do tópico order, para buscar o estado real antes de dar baixa. Também para conferir se o Pix foi pago ou se o boleto foi compensado. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID da order. ATENÇÃO: Order de outra conta ou do outro ambiente devolve 404, não 403. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "[path] Identificador da order devolvido na criação (formato ORD...)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__listar__orders",
+      "title": "Buscar order",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Buscar order: GET /v1/orders. Busca orders do Checkout Transparente em lote, com filtros de período, status, meio de pagamento e referência externa, e paginação por página. O envelope traz data[] com as orders e paging com total, total_pages, offset e limit. QUANDO USAR: Extração para planilha e conciliação de vendas do Checkout Transparente novo. É o endpoint de listagem da Orders API; para integrações antigas em Payments API, use GET /v1/payments/search. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; Período de busca definido (begin_date e end_date são obrigatórios). ATENÇÃO: begin_date e end_date são obrigatórios: sem eles vem 400 required_search_params. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "begin_date": {
+            "type": "string",
+            "description": "[query] Início do período, pela data de criação, em RFC 3339 (ex.: 2026-09-01T00:00:00Z).",
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": "string",
+            "description": "[query] Fim do período, pela data de criação, em RFC 3339.",
+            "format": "date-time"
+          },
+          "external_reference": {
+            "type": "string",
+            "description": "[query] Filtra pela sua referência interna."
+          },
+          "type": {
+            "type": "string",
+            "description": "[query] Tipo da order. Para pagamento online, online.",
+            "enum": [
+              "online"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "description": "[query] Status atual da order.",
+            "enum": [
+              "created",
+              "processed",
+              "action_required",
+              "failed",
+              "processing",
+              "refunded",
+              "canceled"
+            ]
+          },
+          "status_detail": {
+            "type": "string",
+            "description": "[query] Detalhe do status (accredited, refunded, partially_refunded, waiting_capture, rejected_by_issuer...)."
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "[query] Meio de pagamento (pix, boleto, visa, master...)."
+          },
+          "payment_method_type": {
+            "type": "string",
+            "description": "[query] Tipo do meio (bank_transfer, ticket, credit_card, debit_card, account_money)."
+          },
+          "page": {
+            "type": "integer",
+            "description": "[query] Página, começando em 1.",
+            "default": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "description": "[query] Registros por página. Máximo 100; padrão 20.",
+            "default": 20
+          },
+          "sort_by": {
+            "type": "string",
+            "description": "[query] Ordena por data de criação ou de última atualização.",
+            "default": "created_date"
+          },
+          "sort_order": {
+            "type": "string",
+            "description": "[query] Sentido da ordenação.",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "begin_date",
+          "end_date"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__cancelar__order",
+      "title": "Cancelar order por ID",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Cancelar order por ID: POST /v1/orders/{order_id}/cancel. Cancela uma order e suas transações. Só funciona enquanto a order está em status created ou action_required — depois de processada, o caminho é o reembolso. QUANDO USAR: Para derrubar um Pix ou boleto ainda não pago, ou abandonar uma order em modo manual que o cliente não concluiu. NÃO USE para consultar: esta operação ESCREVE (Cancela uma cobrança de forma irreversível. O assistente só executa leitura; o cancelamento fica com o cliente.). PRÉ-REQUISITOS: Access Token da aplicação; Order em status created ou action_required. ATENÇÃO: Não serve para desfazer pagamento já aprovado — nesse caso é reembolso. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "X_Idempotency_Key": {
+            "type": "string",
+            "description": "[header] Chave única da requisição (UUID v4), de 1 a 128 caracteres."
+          },
+          "order_id": {
+            "type": "string",
+            "description": "[path] ID da order a cancelar (ORD...)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "X_Idempotency_Key",
+          "order_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__estornar__order",
+      "title": "Reembolsar uma order",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Reembolsar uma order: POST /v1/orders/{order_id}/refund. Devolve ao comprador o valor das transações de uma order. Sem corpo na requisição, o reembolso é total; com transactions[].id e amount, é parcial. A order fica totalmente reembolsada quando todas as transações forem devolvidas integralmente. QUANDO USAR: Devolução de venda, cancelamento após pagamento, acordo com o cliente. Para Pix, o reembolso devolve o valor pela própria rede Pix e a resposta traz o e2e_id da devolução. NÃO USE para consultar: esta operação ESCREVE (Devolve dinheiro ao comprador e debita a conta do vendedor. Escrita irreversível; o assistente só executa leitura.). PRÉ-REQUISITOS: Access Token da aplicação; Order com pagamento processado; Saldo suficiente na conta para a devolução. ATENÇÃO: Reembolso total: corpo VAZIO. Se você mandar transactions com amount, vira parcial. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "X_Idempotency_Key": {
+            "type": "string",
+            "description": "[header] Chave única da requisição (UUID v4), de 1 a 128 caracteres."
+          },
+          "order_id": {
+            "type": "string",
+            "description": "[path] ID da order a reembolsar (ORD...)."
+          },
+          "transactions": {
+            "type": "array",
+            "description": "[body] Transações a reembolsar parcialmente. Omita o corpo inteiro para reembolso total.",
+            "items": {}
+          },
+          "transactions_item_id": {
+            "type": "string",
+            "description": "[body] ID da transação de pagamento (PAY...) que será reembolsada."
+          },
+          "transactions_item_amount": {
+            "type": "string",
+            "description": "[body] Valor a devolver naquela transação, como string decimal."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "X_Idempotency_Key",
+          "order_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__autorizar__order_captura",
+      "title": "Capturar order totalmente",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Capturar order totalmente: POST /v1/orders/{order_id}/capture. Captura integralmente o valor autorizado de uma order criada com capture_mode=manual. Todos os pagamentos associados são capturados. Só vale para cartão de crédito. QUANDO USAR: Fluxo de reserva e captura: você autoriza o valor no cartão na hora da compra e só captura quando confirma estoque, envia o produto ou conclui o serviço. NÃO USE para consultar: esta operação ESCREVE (Efetiva a cobrança no cartão do comprador. Escrita com efeito financeiro; o assistente só executa leitura.). PRÉ-REQUISITOS: Access Token da aplicação; Order criada com capture_mode=manual; Pagamento em cartão de crédito autorizado (status_detail=waiting_capture). ATENÇÃO: Só funciona com cartão de crédito. Pix e boleto não têm captura diferida. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "X_Idempotency_Key": {
+            "type": "string",
+            "description": "[header] Chave única da requisição (UUID v4), de 1 a 128 caracteres."
+          },
+          "order_id": {
+            "type": "string",
+            "description": "[path] ID da order cujos valores serão capturados (ORD...)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "X_Idempotency_Key",
+          "order_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__criar",
+      "title": "Criar pagamento",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Criar pagamento: POST /v1/payments. Cria um pagamento na Payments API: cartão de crédito/débito com token gerado no frontend, Pix (payment_method_id=pix, resposta com QR code em point_of_interaction) ou boleto (payment_method_id=bolbradesco). É a API clássica do Checkout Transparente. QUANDO USAR: Quando a integração já roda na Payments API, ou quando um recurso ainda não existe na Orders API. Para integração NOVA, a documentação recomenda a Orders API: a Payments API continua funcionando, mas só recebe correções de segurança e estabilidade. NÃO USE para consultar: esta operação ESCREVE (Cria uma cobrança real e movimenta dinheiro. O assistente só executa leitura; para criar, ele entrega o código e quem roda é o cliente.). PRÉ-REQUISITOS: Access Token da aplicação; Chave Pix cadastrada na conta, para cobrar por Pix; Token de cartão gerado no frontend pelo MercadoPago.js, para cartão. ATENÇÃO: O QR code Pix e o link do boleto voltam em point_of_interaction.transaction_data (qr_code, qr_code_base64, ticket_url), não na raiz. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "X_Idempotency_Key": {
+            "type": "string",
+            "description": "[header] Chave única da requisição (UUID v4 recomendado). Evita criar dois pagamentos iguais ao repetir a chamada."
+          },
+          "transaction_amount": {
+            "type": "number",
+            "description": "[body] Valor do pagamento, com até duas casas decimais."
+          },
+          "payment_method_id": {
+            "type": "string",
+            "description": "[body] Identificador do meio: pix, bolbradesco, visa, master, elo, amex... Lista completa em GET /v1/payment_methods. Obrigatório para Pix e boleto; em cartão pode ser inferido do token."
+          },
+          "token": {
+            "type": "string",
+            "description": "[body] Token do cartão gerado no frontend pelo MercadoPago.js. Uso único e validade curta. Só para cartão."
+          },
+          "installments": {
+            "type": "number",
+            "description": "[body] Número de parcelas no cartão."
+          },
+          "issuer_id": {
+            "type": "string",
+            "description": "[body] Identificador do banco emissor do cartão."
+          },
+          "description": {
+            "type": "string",
+            "description": "[body] Descrição que aparece para o comprador e no extrato do Mercado Pago."
+          },
+          "external_reference": {
+            "type": "string",
+            "description": "[body] Sua referência interna; é a chave de conciliação com o ERP."
+          },
+          "notification_url": {
+            "type": "string",
+            "description": "[body] URL que receberá o webhook deste pagamento. Tem precedência sobre a URL configurada em Suas integrações."
+          },
+          "callback_url": {
+            "type": "string",
+            "description": "[body] URL de retorno do comprador."
+          },
+          "date_of_expiration": {
+            "type": "string",
+            "description": "[body] Vencimento do pagamento, no formato yyyy-MM-dd'T'HH:mm:ssz (ex.: 2026-11-17T09:37:52.000-03:00). Usado em Pix e boleto.",
+            "format": "date-time"
+          },
+          "capture": {
+            "type": "boolean",
+            "description": "[body] false reserva o valor no cartão sem debitar (captura diferida); true captura na hora.",
+            "default": true
+          },
+          "binary_mode": {
+            "type": "boolean",
+            "description": "[body] true força o resultado a ser só aprovado ou recusado, sem estado pendente de análise.",
+            "default": false
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "[body] Texto que aparece na fatura do cartão do comprador."
+          },
+          "application_fee": {
+            "type": "number",
+            "description": "[body] Comissão da plataforma em integrações de marketplace. Exige Access Token obtido por OAuth; com token do painel devolve erro 2059."
+          },
+          "coupon_amount": {
+            "type": "number",
+            "description": "[body] Valor do desconto de cupom."
+          },
+          "metadata": {
+            "type": "object",
+            "description": "[body] Objeto livre para dados seus; volta nas consultas."
+          },
+          "payer_email": {
+            "type": "string",
+            "description": "[body] E-mail do comprador. Em ambiente de teste precisa ser e-mail de usuário de teste (@testuser.com), senão vem erro 2198."
+          },
+          "payer_type": {
+            "type": "string",
+            "description": "[body] Tipo do pagador. Obrigatório quando o pagador é um cliente do cofre.",
+            "enum": [
+              "customer",
+              "guest"
+            ]
+          },
+          "payer_id": {
+            "type": "number",
+            "description": "[body] Identificador do pagador no cofre de clientes (/v1/customers)."
+          },
+          "payer_entity_type": {
+            "type": "string",
+            "description": "[body] Tipo de entidade, só em transferência bancária.",
+            "enum": [
+              "individual",
+              "association"
+            ]
+          },
+          "payer_first_name": {
+            "type": "string",
+            "description": "[body] Nome do pagador."
+          },
+          "payer_last_name": {
+            "type": "string",
+            "description": "[body] Sobrenome do pagador."
+          },
+          "payer_identification_type": {
+            "type": "string",
+            "description": "[body] Tipo de documento (CPF/CNPJ). Lista em GET /v1/identification_types."
+          },
+          "payer_identification_number": {
+            "type": "string",
+            "description": "[body] Número do documento, só dígitos."
+          },
+          "additional_info": {
+            "type": "object",
+            "description": "[body] Dados extras (itens, endereço de entrega, dados do comprador) repassados às camadas de antifraude e de impostos. Melhora a taxa de aprovação."
+          },
+          "additional_info_ip_address": {
+            "type": "string",
+            "description": "[body] IP de origem da requisição (usado em transferência bancária)."
+          },
+          "additional_info_items": {
+            "type": "array",
+            "description": "[body] Lista de itens pagos (id, title, description, category_id, quantity, unit_price).",
+            "items": {}
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "X_Idempotency_Key",
+          "transaction_amount",
+          "payer_email"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__obter",
+      "title": "Obter pagamento",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Obter pagamento: GET /v1/payments/{id}. Devolve todos os dados de um pagamento: status, detalhe do status, valores bruto/líquido/estornado, taxas, meio de pagamento, datas de criação, aprovação e liberação do dinheiro, e os dados do cartão ou do Pix. QUANDO USAR: Sempre que chegar um webhook do tópico payment: a notificação só traz o id, então o estado real vem daqui. Também para conferir se um boleto foi compensado ou um Pix foi recebido. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID numérico do pagamento. ATENÇÃO: money_release_date é a data em que o dinheiro fica disponível — não confunda com date_approved. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "[path] Identificador numérico do pagamento gerado pelo Mercado Pago."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__listar",
+      "title": "Buscar em pagamentos",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Buscar em pagamentos: GET /v1/payments/search. Busca pagamentos da conta com filtros de período, ordenação e referência externa. A resposta é um envelope com paging (total, limit, offset) e results[] com os pagamentos completos. Cobre apenas os últimos doze meses contados da data da consulta. QUANDO USAR: É o endpoint central para extrair vendas para planilha, Power BI e conciliação: aprovados, recusados, estornados, por meio de pagamento e por período. Para integrações no Checkout Transparente novo, o equivalente é GET /v1/orders. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; Período desejado dentro dos últimos 12 meses. ATENÇÃO: Só enxerga os últimos 12 meses; e o intervalo pedido precisa ser menor que 365 dias (erro 9062). Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "sort": {
+            "type": "string",
+            "description": "[query] Campo de ordenação. A referência marca como OBRIGATÓRIO, mas os próprios exemplos de SDK fazem buscas sem informá-lo; tratado aqui como opcional.",
+            "enum": [
+              "date_approved",
+              "date_created",
+              "date_last_updated",
+              "id",
+              "money_release_date"
+            ]
+          },
+          "criteria": {
+            "type": "string",
+            "description": "[query] Sentido da ordenação. Marcado como obrigatório na referência; ver observação em sort.",
+            "enum": [
+              "asc",
+              "desc"
+            ]
+          },
+          "range": {
+            "type": "string",
+            "description": "[query] Campo de data usado no recorte por período. Se não informado, o padrão é date_created.",
+            "enum": [
+              "date_created",
+              "date_last_updated",
+              "date_approved",
+              "money_release_date"
+            ],
+            "default": "date_created"
+          },
+          "begin_date": {
+            "type": "string",
+            "description": "[query] Início do período. Aceita data relativa (NOW-30DAYS, NOW-1MONTH) ou absoluta em ISO 8601 (2026-08-23). Padrão NOW-3MONTHS.",
+            "default": "NOW-3MONTHS"
+          },
+          "end_date": {
+            "type": "string",
+            "description": "[query] Fim do período, relativo ou absoluto. Padrão NOW.",
+            "default": "NOW"
+          },
+          "external_reference": {
+            "type": "string",
+            "description": "[query] Filtra pela sua referência interna."
+          },
+          "store_id": {
+            "type": "string",
+            "description": "[query] Filtra pela loja física à qual o ponto de venda pertence."
+          },
+          "pos_id": {
+            "type": "string",
+            "description": "[query] Filtra pelo ponto de venda (POS) que originou o pagamento."
+          },
+          "collector_id": {
+            "type": "string",
+            "description": "[query] Filtra pelo recebedor do pagamento. Marcado como obrigatório na referência, mas na prática o recebedor é a própria conta do token."
+          },
+          "payer_id": {
+            "type": "string",
+            "description": "[query] Filtra pelo pagador. Marcado como obrigatório na referência; é um filtro opcional."
+          },
+          "offset": {
+            "type": "integer",
+            "description": "[query] Deslocamento da paginação, começando em 0. NÃO consta da tabela de query params da referência, mas existe: aparece no objeto paging da resposta e nos exemplos oficiais de SDK. Confiança inferida para o limite máximo.",
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "description": "[query] Quantidade de registros por página. Padrão 30. Também ausente da tabela de parâmetros; o valor máximo não é publicado. Use 100 e confira paging.limit devolvido.",
+            "default": 30
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__atualizar",
+      "title": "Atualizar pagamento / Criar cancelamento",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Atualizar pagamento / Criar cancelamento: PUT /v1/payments/{id}. Altera um pagamento existente. Serve para três coisas: capturar um valor autorizado (capture=true), cancelar um pagamento ainda não concluído (status=cancelled) e mudar a data de vencimento (date_of_expiration) ou o valor capturado (transaction_amount, captura parcial). QUANDO USAR: Capturar uma reserva de cartão depois de confirmar o pedido; cancelar um boleto ou Pix que o cliente não vai pagar; prorrogar o vencimento de um boleto. O cancelamento só é aceito quando o status atual é in_process, pending ou authorized. NÃO USE para consultar: esta operação ESCREVE (Captura, cancela ou altera uma cobrança existente — efeito financeiro e, no caso do cancelamento, irreversível. O assistente só executa leitura.). PRÉ-REQUISITOS: Access Token da aplicação; Pagamento em status compatível com a operação. ATENÇÃO: Cancelar NÃO é estornar: pagamento já aprovado só sai por POST /v1/payments/{id}/refunds. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "[path] Identificador numérico do pagamento."
+          },
+          "capture": {
+            "type": "boolean",
+            "description": "[body] true captura o valor previamente autorizado no cartão; false mantém apenas a reserva."
+          },
+          "status": {
+            "type": "string",
+            "description": "[body] Só aceita o valor cancelled, para cancelar o pagamento. A referência lista os demais status como leitura; a atualização por este endpoint aceita apenas cancelled.",
+            "enum": [
+              "cancelled"
+            ]
+          },
+          "transaction_amount": {
+            "type": "number",
+            "description": "[body] Novo valor, usado em captura parcial de cartão."
+          },
+          "date_of_expiration": {
+            "type": "string",
+            "description": "[body] Nova data de vencimento, no formato yyyy-MM-dd'T'HH:mm:ssz.",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__estornar",
+      "title": "Criar reembolso",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Criar reembolso: POST /v1/payments/{id}/refunds. Devolve ao comprador o valor de um pagamento já aprovado. Com o campo amount no corpo, o reembolso é parcial; sem ele, é total. QUANDO USAR: Devolução de venda, acordo comercial, cancelamento após compensação do boleto ou recebimento do Pix. NÃO USE para consultar: esta operação ESCREVE (Movimenta dinheiro de volta ao comprador de forma irreversível. O assistente só executa leitura.). PRÉ-REQUISITOS: Access Token da aplicação; Pagamento em status approved; Saldo suficiente na conta. ATENÇÃO: Reembolso total = corpo vazio. Mandar amount igual ao total também funciona, mas alguns meios não aceitam parcial (erro 3024). Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "X_Idempotency_Key": {
+            "type": "string",
+            "description": "[header] Chave única da requisição (UUID v4). Evita dois reembolsos iguais."
+          },
+          "id": {
+            "type": "integer",
+            "description": "[path] Identificador numérico do pagamento a reembolsar."
+          },
+          "amount": {
+            "type": "number",
+            "description": "[body] Valor a devolver. Omitir o campo faz reembolso total."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "X_Idempotency_Key",
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__listar__reembolsos",
+      "title": "Obter lista de reembolsos",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Obter lista de reembolsos: GET /v1/payments/{id}/refunds. Lista todos os reembolsos, totais e parciais, feitos sobre um pagamento. A resposta é um array na raiz, sem envelope de paginação. QUANDO USAR: Auditoria de devoluções, conferência de quanto já foi estornado de uma venda e montagem da coluna de estornos na planilha de conciliação. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID numérico do pagamento. ATENÇÃO: A resposta é um array na raiz, não {results: [...]}: não espere envelope de paginação. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "[path] Identificador numérico do pagamento."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__obter__reembolso",
+      "title": "Obter reembolso específico",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Obter reembolso específico: GET /v1/payments/{id}/refunds/{refund_id}. Devolve os dados de um reembolso específico de um pagamento: valor, status, modo e data. QUANDO USAR: Confirmar se uma devolução foi efetivada, depois de criá-la ou ao receber uma notificação sobre o pagamento. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID do pagamento e ID do reembolso. ATENÇÃO: O status do reembolso pode demorar a virar approved em alguns meios; consulte de novo antes de dar baixa. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "[path] Identificador numérico do pagamento."
+          },
+          "refund_id": {
+            "type": "integer",
+            "description": "[path] Identificador do reembolso."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "refund_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__contestacao__listar",
+      "title": "Buscar contestações",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Buscar contestações: GET /v1/chargebacks/search. Busca os casos de chargeback (contestação) ligados a um pagamento, com o valor contestado, o motivo, se a cobertura do Mercado Pago se aplica, o status da documentação comprobatória e o prazo para enviá-la. QUANDO USAR: Ao receber notificação do tópico topic_chargebacks_wh, e para montar o painel de perdas por contestação. O prazo de envio de documentação (date_documentation_deadline) é o dado mais crítico. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID do pagamento contestado; User ID do vendedor para o header X-Caller-Id. ATENÇÃO: Não existe busca global de chargebacks: a consulta é sempre por payment_id, então é preciso guardar os ids vindos do webhook. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "X_Caller_Id": {
+            "type": "integer",
+            "description": "[header] ID do usuário autenticado (seller ID), dono do recurso consultado."
+          },
+          "payment_id": {
+            "type": "integer",
+            "description": "[query] ID do pagamento cujas contestações se quer consultar, obtido na notificação do tópico chargebacks."
+          },
+          "offset": {
+            "type": "integer",
+            "description": "[query] Deslocamento da paginação. Mínimo e padrão 0.",
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "description": "[query] Resultados por página. Mínimo 1, padrão 10.",
+            "default": 10
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "X_Caller_Id",
+          "payment_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__criar__preferencia",
+      "title": "Criar preferência",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Criar preferência: POST /checkout/preferences. Cria uma preferência de pagamento do Checkout Pro: a descrição da venda (itens, valores, comprador, meios aceitos, parcelas, frete, vencimento) que gera o link init_point para onde o comprador é levado para pagar na página hospedada pelo Mercado Pago. QUANDO USAR: Quando você quer uma página de pagamento pronta, sem construir formulário nem lidar com PCI. É o caminho mais rápido para cobrar num e-commerce próprio ou por link. NÃO USE para consultar: esta operação ESCREVE (Cria um link de cobrança que fica disponível para pagamento. Escrita: o assistente só executa leitura.). PRÉ-REQUISITOS: Access Token da aplicação; URLs públicas de retorno (back_urls), se for usar auto_return. ATENÇÃO: auto_return=approved exige back_urls.success preenchido; sem isso a criação falha. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "[body] Itens da venda. Ao menos um item com title, quantity e unit_price.",
+            "items": {}
+          },
+          "items_item_id": {
+            "type": "string",
+            "description": "[body] Código do item no seu sistema."
+          },
+          "items_item_title": {
+            "type": "string",
+            "description": "[body] Título mostrado no checkout, nas atividades e nos e-mails."
+          },
+          "items_item_description": {
+            "type": "string",
+            "description": "[body] Descrição do item."
+          },
+          "items_item_picture_url": {
+            "type": "string",
+            "description": "[body] Imagem do item. HTTPS obrigatório."
+          },
+          "items_item_category_id": {
+            "type": "string",
+            "description": "[body] Categoria do item."
+          },
+          "items_item_quantity": {
+            "type": "number",
+            "description": "[body] Quantidade."
+          },
+          "items_item_currency_id": {
+            "type": "string",
+            "description": "[body] Moeda. No Brasil, BRL.",
+            "default": "BRL"
+          },
+          "items_item_unit_price": {
+            "type": "number",
+            "description": "[body] Preço unitário."
+          },
+          "payer_name": {
+            "type": "string",
+            "description": "[body] Nome do comprador."
+          },
+          "payer_surname": {
+            "type": "string",
+            "description": "[body] Sobrenome do comprador."
+          },
+          "payer_email": {
+            "type": "string",
+            "description": "[body] E-mail do comprador. Máximo 150 caracteres."
+          },
+          "payer_identification_type": {
+            "type": "string",
+            "description": "[body] Tipo de documento (CPF/CNPJ)."
+          },
+          "payer_identification_number": {
+            "type": "string",
+            "description": "[body] Número do documento."
+          },
+          "payer_phone_area_code": {
+            "type": "string",
+            "description": "[body] DDD."
+          },
+          "payer_phone_number": {
+            "type": "string",
+            "description": "[body] Telefone."
+          },
+          "payer_address_zip_code": {
+            "type": "string",
+            "description": "[body] CEP do comprador."
+          },
+          "payer_address_street_name": {
+            "type": "string",
+            "description": "[body] Logradouro."
+          },
+          "payer_address_street_number": {
+            "type": "string",
+            "description": "[body] Número."
+          },
+          "payment_methods_excluded_payment_methods": {
+            "type": "array",
+            "description": "[body] Meios a excluir do checkout, no formato [{\"id\": \"visa\"}].",
+            "items": {}
+          },
+          "payment_methods_excluded_payment_types": {
+            "type": "array",
+            "description": "[body] Tipos a excluir, ex.: [{\"id\": \"ticket\"}] para tirar o boleto.",
+            "items": {}
+          },
+          "payment_methods_default_payment_method_id": {
+            "type": "string",
+            "description": "[body] Meio pré-selecionado."
+          },
+          "payment_methods_installments": {
+            "type": "number",
+            "description": "[body] Número máximo de parcelas. Entre 1 e 36."
+          },
+          "payment_methods_default_installments": {
+            "type": "number",
+            "description": "[body] Parcelamento pré-selecionado."
+          },
+          "back_urls_success": {
+            "type": "string",
+            "description": "[body] URL de retorno em caso de pagamento aprovado."
+          },
+          "back_urls_pending": {
+            "type": "string",
+            "description": "[body] URL de retorno em caso de pagamento pendente."
+          },
+          "back_urls_failure": {
+            "type": "string",
+            "description": "[body] URL de retorno em caso de recusa."
+          },
+          "auto_return": {
+            "type": "string",
+            "description": "[body] Redireciona o comprador automaticamente depois do pagamento.",
+            "enum": [
+              "approved",
+              "all"
+            ]
+          },
+          "notification_url": {
+            "type": "string",
+            "description": "[body] URL que receberá os webhooks desta preferência. Tem precedência sobre a URL cadastrada em Suas integrações."
+          },
+          "external_reference": {
+            "type": "string",
+            "description": "[body] Sua referência interna, para conciliação."
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "[body] Texto que aparece na fatura do cartão."
+          },
+          "additional_info": {
+            "type": "string",
+            "description": "[body] Texto livre com informações extras."
+          },
+          "expires": {
+            "type": "boolean",
+            "description": "[body] true faz a preferência ter janela de validade.",
+            "default": false
+          },
+          "expiration_date_from": {
+            "type": "string",
+            "description": "[body] Início da validade da preferência.",
+            "format": "date-time"
+          },
+          "expiration_date_to": {
+            "type": "string",
+            "description": "[body] Fim da validade da preferência.",
+            "format": "date-time"
+          },
+          "marketplace": {
+            "type": "string",
+            "description": "[body] Identificador do marketplace."
+          },
+          "marketplace_fee": {
+            "type": "number",
+            "description": "[body] Comissão do marketplace. Não pode ser maior que o total."
+          },
+          "binary_mode": {
+            "type": "boolean",
+            "description": "[body] true força resultado só aprovado ou recusado.",
+            "default": false
+          },
+          "shipments_cost": {
+            "type": "number",
+            "description": "[body] Custo do frete."
+          },
+          "shipments_mode": {
+            "type": "string",
+            "description": "[body] Modo de frete (custom, me2, not_specified)."
+          },
+          "shipments_receiver_address": {
+            "type": "object",
+            "description": "[body] Endereço de entrega."
+          },
+          "metadata": {
+            "type": "object",
+            "description": "[body] Objeto livre com dados seus."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "items"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__obter__preferencia",
+      "title": "Obter preferência",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Obter preferência: GET /checkout/preferences/{id}. Devolve todos os dados de uma preferência do Checkout Pro: itens, comprador, meios aceitos, URLs de retorno, validade e o link init_point. QUANDO USAR: Conferir a configuração de um link de pagamento, recuperar o init_point para reenviar ao cliente e consultar preferências mais antigas que 90 dias (a busca só cobre os últimos 3 meses). Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID da preferência. ATENÇÃO: A busca de preferências só cobre 90 dias; para preferências antigas, este GET por id é o único caminho. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "[path] ID da preferência (formato <collector_id>-<uuid>)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__listar__preferencias",
+      "title": "Buscar em preferências",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Buscar em preferências: GET /checkout/preferences/search. Lista preferências do Checkout Pro criadas nos últimos 90 dias, com filtros por referência externa, marketplace e patrocinador, e paginação por offset/limit. O envelope traz elements[], next_offset e total. QUANDO USAR: Auditar links de pagamento gerados, achar a preferência de um pedido pelo external_reference e montar relatório de links criados no período. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação. ATENÇÃO: Só traz os últimos 90 dias. Para o histórico, guarde os ids no seu banco e use o GET por id. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "external_reference": {
+            "type": "string",
+            "description": "[query] Filtra pela sua referência interna."
+          },
+          "sponsor_id": {
+            "type": "string",
+            "description": "[query] Identificador do patrocinador (plataforma onde o checkout foi iniciado)."
+          },
+          "site_id": {
+            "type": "string",
+            "description": "[query] Identificador do site/país. No Brasil, MLB."
+          },
+          "marketplace": {
+            "type": "string",
+            "description": "[query] Identificador do marketplace.",
+            "default": "NONE"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "[query] Máximo de registros por página. Padrão 30.",
+            "default": 30
+          },
+          "offset": {
+            "type": "integer",
+            "description": "[query] Ponto de início da paginação. Padrão 0.",
+            "default": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cobranca__atualizar__preferencia",
+      "title": "Atualizar preferência",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Atualizar preferência: PUT /checkout/preferences/{id}. Altera uma preferência já criada: itens, valores, meios de pagamento aceitos, parcelas, URLs de retorno, validade e referência externa. O link init_point continua o mesmo. QUANDO USAR: Corrigir o valor de um link de pagamento já enviado ao cliente, estender a validade de uma preferência que expirou ou bloquear um meio de pagamento sem gerar link novo. NÃO USE para consultar: esta operação ESCREVE (Altera o valor e as condições de um link de cobrança já distribuído ao comprador. Escrita: o assistente só executa leitura.). PRÉ-REQUISITOS: Access Token da aplicação; ID da preferência. ATENÇÃO: items é substituído, não mesclado: envie a lista completa. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "[path] ID da preferência a alterar."
+          },
+          "items": {
+            "type": "array",
+            "description": "[body] Nova lista de itens (substitui a anterior).",
+            "items": {}
+          },
+          "payer": {
+            "type": "object",
+            "description": "[body] Dados do comprador."
+          },
+          "payment_methods": {
+            "type": "object",
+            "description": "[body] Meios excluídos, meio padrão e limite de parcelas."
+          },
+          "back_urls": {
+            "type": "object",
+            "description": "[body] URLs de retorno."
+          },
+          "auto_return": {
+            "type": "string",
+            "description": "[body] Redirecionamento automático.",
+            "enum": [
+              "approved",
+              "all"
+            ]
+          },
+          "notification_url": {
+            "type": "string",
+            "description": "[body] URL de webhook desta preferência."
+          },
+          "external_reference": {
+            "type": "string",
+            "description": "[body] Sua referência interna."
+          },
+          "expires": {
+            "type": "boolean",
+            "description": "[body] Liga ou desliga a janela de validade."
+          },
+          "expiration_date_from": {
+            "type": "string",
+            "description": "[body] Início da validade.",
+            "format": "date-time"
+          },
+          "expiration_date_to": {
+            "type": "string",
+            "description": "[body] Fim da validade.",
+            "format": "date-time"
+          },
+          "marketplace_fee": {
+            "type": "number",
+            "description": "[body] Comissão do marketplace."
+          },
+          "metadata": {
+            "type": "object",
+            "description": "[body] Objeto livre com dados seus."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__pedido__obter",
+      "title": "Obter pedido comercial (merchant order)",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Obter pedido comercial (merchant order): GET /merchant_orders/{id}. Devolve o pedido comercial do Checkout Pro, que agrupa uma preferência e todas as tentativas de pagamento feitas sobre ela, mais envios, itens, valor total, valor pago e valor reembolsado. QUANDO USAR: É a forma correta de saber se um pedido do Checkout Pro foi quitado: o campo paid_amount comparado com total_amount, e o status closed. Um único pedido pode ter vários pagamentos (tentativas recusadas, pagamento parcial). Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID do pedido comercial (vem na notificação do tópico merchant_order ou no retorno do checkout). ATENÇÃO: status=closed significa que o pedido foi quitado; opened continua aberto. Compare paid_amount com total_amount antes de dar baixa. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "[path] Identificador numérico do pedido comercial."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__pedido__listar",
+      "title": "Buscar pedidos comerciais",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Buscar pedidos comerciais: GET /merchant_orders/search. Busca pedidos comerciais do Checkout Pro criados nos últimos 90 dias, com filtros por status, preferência, pagador, referência externa e janelas de data de criação e de última atualização. Envelope elements[] com next_offset e total. QUANDO USAR: Extração de vendas do Checkout Pro para planilha com valor total, valor pago e valor reembolsado por pedido — visão mais próxima do pedido do que a busca de pagamentos. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação. ATENÇÃO: Cobre só os últimos 90 dias. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "[query] Estado do pedido comercial (opened, closed...)."
+          },
+          "preference_id": {
+            "type": "string",
+            "description": "[query] Preferência associada ao pedido."
+          },
+          "application_id": {
+            "type": "string",
+            "description": "[query] Identificador da aplicação."
+          },
+          "payer_id": {
+            "type": "string",
+            "description": "[query] Identificador do pagador."
+          },
+          "sponsor_id": {
+            "type": "string",
+            "description": "[query] Identificador do patrocinador."
+          },
+          "external_reference": {
+            "type": "string",
+            "description": "[query] Sua referência interna."
+          },
+          "site_id": {
+            "type": "string",
+            "description": "[query] País do pedido. No Brasil, MLB."
+          },
+          "marketplace": {
+            "type": "string",
+            "description": "[query] Origem do pagamento.",
+            "default": "NONE"
+          },
+          "date_created_from": {
+            "type": "string",
+            "description": "[query] Início da janela por data de criação.",
+            "format": "date-time"
+          },
+          "date_created_to": {
+            "type": "string",
+            "description": "[query] Fim da janela por data de criação.",
+            "format": "date-time"
+          },
+          "last_updated_from": {
+            "type": "string",
+            "description": "[query] Início da janela por data de atualização.",
+            "format": "date-time"
+          },
+          "last_updated_to": {
+            "type": "string",
+            "description": "[query] Fim da janela por data de atualização.",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "string",
+            "description": "[query] Filtro por informação de itens."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "[query] Quantidade máxima de registros por página.",
+            "default": 30
+          },
+          "offset": {
+            "type": "integer",
+            "description": "[query] Deslocamento da paginação.",
+            "default": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cliente__criar",
+      "title": "Criar cliente",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Criar cliente: POST /v1/customers. Cadastra um comprador no cofre de clientes do Mercado Pago. É o pré-requisito para guardar cartões e oferecer compra com um clique, já que os cartões ficam sempre pendurados em um customer. QUANDO USAR: Antes de salvar o primeiro cartão de um comprador. Consulte por e-mail antes de criar: o e-mail é único por conta e uma segunda criação devolve erro 101. NÃO USE para consultar: esta operação ESCREVE (Cria registro com dado pessoal na conta do cliente. Escrita: o assistente só executa leitura.). PRÉ-REQUISITOS: Access Token da aplicação; E-mail do comprador. ATENÇÃO: O e-mail é imutável: tentar alterá-lo depois devolve erro 126. Cadastro errado obriga a criar outro cliente. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "[body] E-mail do cliente. É a chave única dentro da conta e NÃO pode ser alterado depois."
+          },
+          "first_name": {
+            "type": "string",
+            "description": "[body] Nome."
+          },
+          "last_name": {
+            "type": "string",
+            "description": "[body] Sobrenome."
+          },
+          "phone_area_code": {
+            "type": "string",
+            "description": "[body] DDD."
+          },
+          "phone_number": {
+            "type": "string",
+            "description": "[body] Telefone."
+          },
+          "identification_type": {
+            "type": "string",
+            "description": "[body] Tipo de documento (CPF/CNPJ)."
+          },
+          "identification_number": {
+            "type": "string",
+            "description": "[body] Número do documento, só dígitos."
+          },
+          "address_zip_code": {
+            "type": "string",
+            "description": "[body] CEP."
+          },
+          "address_street_name": {
+            "type": "string",
+            "description": "[body] Logradouro."
+          },
+          "address_street_number": {
+            "type": "number",
+            "description": "[body] Número."
+          },
+          "address_city_name": {
+            "type": "string",
+            "description": "[body] Cidade."
+          },
+          "default_address": {
+            "type": "string",
+            "description": "[body] ID do endereço padrão do cliente."
+          },
+          "default_card": {
+            "type": "string",
+            "description": "[body] ID do cartão padrão do cliente."
+          },
+          "date_registered": {
+            "type": "string",
+            "description": "[body] Data de cadastro do cliente no seu sistema.",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string",
+            "description": "[body] Descrição livre."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "email"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cliente__obter",
+      "title": "Obter cliente",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Obter cliente: GET /v1/customers/{id}. Devolve os dados de um cliente do cofre, com os cartões salvos e os endereços cadastrados. QUANDO USAR: Montar a tela de pagamento com os cartões já salvos do comprador, ou conferir quais dados pessoais estão guardados (útil para responder a um pedido de acesso do titular sob a LGPD). Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID do cliente. ATENÇÃO: A resposta traz dado pessoal: não jogue o retorno inteiro em log nem em planilha compartilhada. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "[path] Identificador do cliente (formato 000000000-xxxxxxxxxxxxxxx)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cliente__listar",
+      "title": "Buscar clientes",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Buscar clientes: GET /v1/customers/search. Procura clientes do cofre pelo e-mail. A resposta vem no envelope paging (limit, offset, total) + results[] com os clientes completos. QUANDO USAR: Antes de criar um cliente, para não duplicar (erro 101), e para recuperar o id do cliente a partir do e-mail na hora de cobrar com cartão salvo. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; E-mail do cliente. ATENÇÃO: O único filtro documentado é o e-mail: não existe listagem geral de clientes por período. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "[query] E-mail do cliente procurado."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "email"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cartao__criar",
+      "title": "Salvar cartão",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Salvar cartão: POST /v1/customers/{customer_id}/cards. Guarda a referência de um cartão no cofre do Mercado Pago, associada a um cliente. O servidor da loja nunca armazena o número do cartão: envia-se apenas o token gerado no frontend pelo MercadoPago.js. QUANDO USAR: Depois do primeiro pagamento aprovado, para oferecer compra com um clique e recorrência sem pedir o cartão de novo. NÃO USE para consultar: esta operação ESCREVE (Vincula um meio de pagamento permanente ao cliente, habilitando cobranças futuras. Escrita: o assistente só executa leitura.). PRÉ-REQUISITOS: Access Token da aplicação; Cliente já criado em /v1/customers; Token de cartão recém-gerado no frontend pelo MercadoPago.js. ATENÇÃO: O token é de uso único: se ele já pagou uma compra, gere outro para salvar o cartão. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "[path] Identificador do cliente dono do cartão."
+          },
+          "token": {
+            "type": "string",
+            "description": "[body] Token do cartão gerado no frontend. Uso único e validade curta."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "customer_id",
+          "token"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__cartao__listar",
+      "title": "Obter cartões do cliente",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Obter cartões do cliente: GET /v1/customers/{customer_id}/cards. Lista os cartões salvos de um cliente, com bandeira, primeiros seis e últimos quatro dígitos, validade e emissor. A resposta é um array na raiz, sem envelope. QUANDO USAR: Montar a tela de escolha de cartão salvo no checkout e conferir quais cartões estão perto de vencer. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID do cliente. ATENÇÃO: Array na raiz, sem paginação: um cliente com muitos cartões devolve tudo de uma vez. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "[path] Identificador do cliente."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "customer_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__tabela_auxiliar__listar__meios_pagamento",
+      "title": "Obter meios de pagamento",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Obter meios de pagamento: GET /v1/payment_methods. Lista os meios de pagamento habilitados para a conta, com id, bandeira, tipo, status, valores mínimo e máximo aceitos, tempo de acreditação em minutos, regras do número do cartão e do código de segurança. QUANDO USAR: Montar dinamicamente a tela de pagamento, descobrir o payment_method_id correto antes de criar um pagamento e checar limites mínimo e máximo por meio. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação (ou Public Key, no frontend). ATENÇÃO: A lista varia por conta e por país: não chumbe os ids no código, consulte este endpoint. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__tabela_auxiliar__listar__tipos_documento",
+      "title": "Obter tipos de documento",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Obter tipos de documento: GET /v1/identification_types. Lista os tipos de documento aceitos no país da conta, com id, nome, tipo de dado e tamanhos mínimo e máximo. No Brasil, CPF e CNPJ. QUANDO USAR: Preencher o seletor de tipo de documento no formulário de pagamento e validar o tamanho do número antes de enviar, evitando os erros 111 e 112. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação (ou Public Key, no frontend). ATENÇÃO: O documento deve ir sem máscara: 11 dígitos para CPF, 14 para CNPJ. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__plano__criar",
+      "title": "Criar plano de assinatura",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Criar plano de assinatura: POST /preapproval_plan. Cria um plano: o molde que define com que frequência e quanto cobrar. Suporta período de teste grátis, número limitado de ciclos, dia fixo de cobrança no mês e cobrança proporcional na adesão. Assinaturas criadas a partir de um plano acompanham as alterações feitas nele. QUANDO USAR: Quando você tem preços padronizados (Básico, Pro, Enterprise) e quer que uma mudança de valor ou de descrição se propague para todos os assinantes daquele plano. NÃO USE para consultar: esta operação ESCREVE (Cria um plano de cobrança recorrente na conta. Escrita: o assistente só executa leitura.). PRÉ-REQUISITOS: Access Token da aplicação. ATENÇÃO: billing_day só aceita 1 a 28 e só funciona em assinatura ligada a plano. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "[body] Descrição curta que o assinante vê no checkout e nas notificações."
+          },
+          "auto_recurring_frequency": {
+            "type": "number",
+            "description": "[body] Valor da frequência. Junto com frequency_type define o ciclo de faturamento."
+          },
+          "auto_recurring_frequency_type": {
+            "type": "string",
+            "description": "[body] Unidade da frequência.",
+            "enum": [
+              "days",
+              "months"
+            ]
+          },
+          "auto_recurring_transaction_amount": {
+            "type": "number",
+            "description": "[body] Valor cobrado em cada fatura."
+          },
+          "auto_recurring_currency_id": {
+            "type": "string",
+            "description": "[body] Moeda. No Brasil, BRL.",
+            "default": "BRL"
+          },
+          "auto_recurring_repetitions": {
+            "type": "number",
+            "description": "[body] Número de ciclos da assinatura. Sem este campo, a assinatura só termina quando alguma das partes cancelar."
+          },
+          "auto_recurring_billing_day": {
+            "type": "number",
+            "description": "[body] Dia fixo do mês da cobrança. Aceita apenas de 1 a 28. Só existe em assinatura vinculada a plano. O limite de 28 evita meses curtos."
+          },
+          "auto_recurring_billing_day_proportional": {
+            "type": "boolean",
+            "description": "[body] true cobra proporcional aos dias restantes do ciclo na adesão (ciclo sempre calculado em base 30 dias); false cobra o valor cheio."
+          },
+          "auto_recurring_free_trial_frequency": {
+            "type": "number",
+            "description": "[body] Duração do período grátis."
+          },
+          "auto_recurring_free_trial_frequency_type": {
+            "type": "string",
+            "description": "[body] Unidade do período grátis.",
+            "enum": [
+              "days",
+              "months"
+            ]
+          },
+          "payment_methods_allowed_payment_types": {
+            "type": "array",
+            "description": "[body] Tipos de meio permitidos no plano.",
+            "items": {}
+          },
+          "payment_methods_allowed_payment_methods": {
+            "type": "array",
+            "description": "[body] Meios específicos permitidos no plano.",
+            "items": {}
+          },
+          "back_url": {
+            "type": "string",
+            "description": "[body] URL de retorno depois da adesão pelo checkout de assinaturas."
+          },
+          "external_reference": {
+            "type": "string",
+            "description": "[body] Sua referência interna do plano."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "reason",
+          "auto_recurring_frequency",
+          "auto_recurring_frequency_type",
+          "auto_recurring_transaction_amount",
+          "auto_recurring_currency_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__plano__listar",
+      "title": "Buscar planos de assinatura",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Buscar planos de assinatura: GET /preapproval_plan/search. Lista os planos de assinatura da conta, com filtro por status e busca livre, ordenação e paginação offset/limit. Cada plano traz o número de assinantes no campo subscribed. QUANDO USAR: Painel de recorrência: quantos planos existem, quanto cada um cobra e quantos assinantes cada um tem. Base para calcular MRR por plano. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação. ATENÇÃO: subscribed conta os assinantes do plano, mas não distingue ativos de pausados: para MRR real, cruze com a busca de assinaturas filtrando status=authorized. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "[query] Status do plano (active, inactive)."
+          },
+          "q": {
+            "type": "string",
+            "description": "[query] Busca livre por texto."
+          },
+          "sort": {
+            "type": "string",
+            "description": "[query] Campo de ordenação."
+          },
+          "criteria": {
+            "type": "string",
+            "description": "[query] Sentido da ordenação.",
+            "enum": [
+              "asc",
+              "desc"
+            ]
+          },
+          "offset": {
+            "type": "integer",
+            "description": "[query] Deslocamento do primeiro item.",
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "description": "[query] Máximo de itens por página. O padrão observado nos exemplos é 20; o máximo não é publicado.",
+            "default": 20
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__assinatura__criar",
+      "title": "Criar assinatura",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Criar assinatura: POST /preapproval. Cria uma assinatura: a ligação entre um assinante e uma recorrência. Pode ser criada a partir de um plano (preapproval_plan_id) ou sem plano, declarando reason, external_reference e auto_recurring. Com card_token_id ela já nasce autorizada; sem ele, nasce pending e o assinante conclui pelo init_point. QUANDO USAR: Mensalidade de SaaS, clube de assinatura, academia, escola. É o caminho para cobrança recorrente automática em cartão, sem precisar guardar o cartão você mesmo. NÃO USE para consultar: esta operação ESCREVE (Cria uma cobrança recorrente automática no cartão do assinante. Escrita com efeito financeiro continuado; o assistente só executa leitura.). PRÉ-REQUISITOS: Access Token da aplicação; Plano criado (se for assinatura com plano); Token de cartão gerado no frontend (para nascer autorizada). ATENÇÃO: Assinatura sem plano exige reason e external_reference; com plano, esses campos vêm do plano. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "preapproval_plan_id": {
+            "type": "string",
+            "description": "[body] ID do plano. Com plano, a recorrência vem do plano e alterações no plano se propagam."
+          },
+          "reason": {
+            "type": "string",
+            "description": "[body] Descrição curta vista pelo assinante. Obrigatória em assinatura sem plano."
+          },
+          "external_reference": {
+            "type": "string",
+            "description": "[body] Sua referência interna. Obrigatória em assinatura sem plano."
+          },
+          "payer_email": {
+            "type": "string",
+            "description": "[body] E-mail do assinante. É o identificador único do assinante. Em assinatura sem plano, o Mercado Pago valida no pagamento que este e-mail bate com o do pagador; se não bater, o pagamento é recusado."
+          },
+          "card_token_id": {
+            "type": "string",
+            "description": "[body] Token do cartão gerado no frontend. Com ele a assinatura já nasce autorizada."
+          },
+          "auto_recurring_frequency": {
+            "type": "number",
+            "description": "[body] Valor da frequência do ciclo."
+          },
+          "auto_recurring_frequency_type": {
+            "type": "string",
+            "description": "[body] Unidade da frequência.",
+            "enum": [
+              "days",
+              "months"
+            ]
+          },
+          "auto_recurring_start_date": {
+            "type": "string",
+            "description": "[body] Data a partir da qual a assinatura fica ativa e começa a gerar faturas. Só funciona em conjunto com end_date.",
+            "format": "date-time"
+          },
+          "auto_recurring_end_date": {
+            "type": "string",
+            "description": "[body] Data de término da assinatura.",
+            "format": "date-time"
+          },
+          "auto_recurring_transaction_amount": {
+            "type": "number",
+            "description": "[body] Valor de cada fatura."
+          },
+          "auto_recurring_currency_id": {
+            "type": "string",
+            "description": "[body] Moeda. No Brasil, BRL.",
+            "default": "BRL"
+          },
+          "auto_recurring_free_trial_frequency": {
+            "type": "number",
+            "description": "[body] Duração do período grátis."
+          },
+          "auto_recurring_free_trial_frequency_type": {
+            "type": "string",
+            "description": "[body] Unidade do período grátis.",
+            "enum": [
+              "days",
+              "months"
+            ]
+          },
+          "back_url": {
+            "type": "string",
+            "description": "[body] URL de retorno depois da adesão pelo checkout de assinaturas."
+          },
+          "status": {
+            "type": "string",
+            "description": "[body] Status inicial desejado.",
+            "enum": [
+              "pending",
+              "authorized"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "payer_email"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__assinatura__obter",
+      "title": "Obter assinatura",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Obter assinatura: GET /preapproval/{id}. Devolve os dados de uma assinatura: plano vinculado, assinante, cartão, recorrência, próxima data de cobrança, status e o resumo (summarized) com cobranças feitas, valores cobrados e pendências. QUANDO USAR: Ao receber notificação do tópico subscription_preapproval, para saber o estado real; e na tela de conta do cliente, para mostrar próxima cobrança e histórico. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID da assinatura. ATENÇÃO: status=paused é temporário, canceled é irreversível. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "[path] Identificador da assinatura."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__assinatura__listar",
+      "title": "Buscar em assinaturas",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Buscar em assinaturas: GET /preapproval/search. Busca assinaturas com filtros por assinante, plano, valor, status e busca livre, com ordenação e paginação offset/limit. Envelope paging + results[], cada assinatura com o bloco summarized de cobranças. QUANDO USAR: Extração da carteira de assinantes para planilha: base ativa, valor por ciclo, próxima cobrança, quanto já foi cobrado e quanto está pendente. É a fonte natural para calcular MRR e churn. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação. ATENÇÃO: Não há filtro de período documentado: a janela precisa ser feita depois, no seu lado, por date_created. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "description": "[query] Busca livre."
+          },
+          "payer_id": {
+            "type": "integer",
+            "description": "[query] Identificador do assinante."
+          },
+          "payer_email": {
+            "type": "string",
+            "description": "[query] E-mail do assinante."
+          },
+          "preapproval_plan_id": {
+            "type": "string",
+            "description": "[query] Filtra pelas assinaturas de um plano."
+          },
+          "transaction_amount": {
+            "type": "number",
+            "description": "[query] Filtra pelo valor da assinatura."
+          },
+          "semaphore": {
+            "type": "string",
+            "description": "[query] Status de controle da assinatura (indicador de saúde da cobrança)."
+          },
+          "status": {
+            "type": "string",
+            "description": "[query] Status da assinatura. Aceita um, vários ou nenhum.",
+            "enum": [
+              "pending",
+              "authorized",
+              "paused",
+              "cancelled"
+            ]
+          },
+          "sort": {
+            "type": "string",
+            "description": "[query] Ordenação no formato nome_do_campo:sentido (ex.: date_created:desc)."
+          },
+          "offset": {
+            "type": "integer",
+            "description": "[query] Deslocamento do primeiro item.",
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "description": "[query] Máximo de itens por página. Padrão observado nos exemplos: 20.",
+            "default": 20
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__assinatura__atualizar",
+      "title": "Atualizar assinatura",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Atualizar assinatura: PUT /preapproval/{id}. Altera uma assinatura existente: descrição, valor, moeda, cartão usado, referência externa, URL de retorno e status. É por aqui que se PAUSA (status=paused) e se CANCELA (status=cancelled) uma assinatura. QUANDO USAR: Mudança de plano do cliente, reajuste de preço, troca de cartão, pausa temporária a pedido do assinante e cancelamento. NÃO USE para consultar: esta operação ESCREVE (Altera valor, meio de pagamento ou status de uma cobrança recorrente; o cancelamento é irreversível. O assistente só executa leitura.). PRÉ-REQUISITOS: Access Token da aplicação; ID da assinatura. ATENÇÃO: cancelled é estado terminal: para interromper e retomar depois, use paused. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "[path] Identificador da assinatura a alterar."
+          },
+          "reason": {
+            "type": "string",
+            "description": "[body] Nova descrição vista pelo assinante."
+          },
+          "external_reference": {
+            "type": "string",
+            "description": "[body] Nova referência interna."
+          },
+          "back_url": {
+            "type": "string",
+            "description": "[body] Nova URL de retorno."
+          },
+          "auto_recurring_transaction_amount": {
+            "type": "number",
+            "description": "[body] Novo valor cobrado a cada fatura."
+          },
+          "auto_recurring_currency_id": {
+            "type": "string",
+            "description": "[body] Moeda usada no pagamento."
+          },
+          "card_token_id": {
+            "type": "number",
+            "description": "[body] Token do novo cartão, para trocar o meio de pagamento."
+          },
+          "card_token_id_secondary": {
+            "type": "number",
+            "description": "[body] Token do cartão secundário. Usar junto com payment_method_id_secondary."
+          },
+          "payment_method_id_secondary": {
+            "type": "string",
+            "description": "[body] Meio de pagamento secundário. Obrigatório quando se usa cartão secundário."
+          },
+          "status": {
+            "type": "string",
+            "description": "[body] Novo status. cancelled é irreversível: uma assinatura cancelada não volta.",
+            "enum": [
+              "pending",
+              "authorized",
+              "paused",
+              "cancelled"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__assinatura__listar__faturas",
+      "title": "Buscar em faturas",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Buscar em faturas: GET /authorized_payments/search. Busca as faturas (authorized payments) geradas pelas assinaturas, com filtros por assinatura, pagamento e pagador. Cada fatura traz a data de débito, o número da tentativa de retry, o status e o pagamento associado. QUANDO USAR: Relatório de cobrança recorrente: o que foi cobrado, o que falhou e está em retry, e quanto está agendado. É a visão fatura a fatura que falta no objeto da assinatura. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID da assinatura, do pagamento ou do pagador para filtrar. ATENÇÃO: retry_attempt maior que zero indica cobrança que falhou e está sendo reprocessada — é o indicador de inadimplência na recorrência. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "[query] Identificador de uma fatura específica. A referência marca como obrigatório, mas então a busca seria inútil; tratado como filtro opcional."
+          },
+          "preapproval_id": {
+            "type": "string",
+            "description": "[query] Assinatura cujas faturas se quer listar. Marcado como obrigatório na referência; é o filtro mais útil na prática."
+          },
+          "payment_id": {
+            "type": "integer",
+            "description": "[query] Pagamento cuja fatura se quer encontrar. Marcado como obrigatório na referência."
+          },
+          "payer_id": {
+            "type": "integer",
+            "description": "[query] Assinante cujas faturas se quer listar. Marcado como obrigatório na referência."
+          },
+          "offset": {
+            "type": "integer",
+            "description": "[query] Deslocamento do primeiro item.",
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "description": "[query] Máximo de itens por página. Padrão observado: 20.",
+            "default": 20
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__assinatura__obter__fatura",
+      "title": "Obter dados da fatura",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Obter dados da fatura: GET /authorized_payments/{id}. Devolve os dados de uma fatura de assinatura: valor, data de débito, número da tentativa, status e o pagamento gerado. QUANDO USAR: Ao receber notificação do tópico subscription_authorized_payment, para saber se a mensalidade foi cobrada com sucesso ou se entrou em retry. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID da fatura. ATENÇÃO: A notificação do tópico subscription_authorized_payment traz só o id: o estado vem daqui. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "[path] Identificador da fatura (authorized payment)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__assinatura__baixar_arquivo__exportacao",
+      "title": "Exportar assinaturas",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Exportar assinaturas: GET /preapproval/export. Baixa um arquivo CSV com todas as assinaturas que atendem aos filtros informados. É o caminho para tirar a carteira inteira de uma vez, sem paginar. QUANDO USAR: Extração completa da base de assinantes para planilha ou BI, quando a busca paginada ficaria lenta demais. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; user_id do vendedor (collector_id). ATENÇÃO: A resposta é um CSV, não JSON: no Power Query use Csv.Document em vez de Json.Document. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "collector_id": {
+            "type": "integer",
+            "description": "[query] ID do recebedor que está pedindo as assinaturas (user_id do vendedor)."
+          },
+          "preapproval_plan_id": {
+            "type": "string",
+            "description": "[query] Filtra por plano."
+          },
+          "status": {
+            "type": "string",
+            "description": "[query] Filtra por status. Aceita um, vários ou nenhum."
+          },
+          "sort": {
+            "type": "string",
+            "description": "[query] Ordenação no formato nome_do_campo:sentido."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "collector_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__relatorio__criar__liberacao",
+      "title": "Criar relatório de liberações",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Criar relatório de liberações: POST /v1/account/release_report. Dispara a geração manual do relatório de liberação de dinheiro (Releases) para um intervalo de datas. A geração é assíncrona: a resposta é 202 sem corpo, e o arquivo aparece depois na lista de relatórios. QUANDO USAR: Fechamento financeiro e conciliação: este relatório é a composição do saldo disponível, com valor bruto, taxa do Mercado Pago, taxa de parcelamento, frete, impostos, valor líquido e data de liberação de cada movimento. NÃO USE para consultar: esta operação ESCREVE (Cria um recurso novo na conta (arquivo de relatório) e consome processamento assíncrono. Por ser escrita, o assistente não executa: ele orienta o cliente a gerar, ou usa um relatório já existente pela listagem e pelo download.). PRÉ-REQUISITOS: Access Token da aplicação; Configuração do relatório criada uma vez por conta em POST /v1/account/release_report/config (define colunas, formato CSV ou XLSX e frequência). ATENÇÃO: 202 sem corpo: a resposta NÃO traz o nome do arquivo. Use a consulta de task ou a busca de relatórios para descobrir o file_name. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "begin_date": {
+            "type": "string",
+            "description": "[body] Início do intervalo, em UTC com sufixo Z (ex.: 2026-09-01T00:00:00Z).",
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": "string",
+            "description": "[body] Fim do intervalo, em UTC com sufixo Z.",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "begin_date",
+          "end_date"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__relatorio__consultar_status__liberacao",
+      "title": "Consultar tarefa de criação de relatório",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Consultar tarefa de criação de relatório: GET /v1/account/release_report/task/{task-id}. Consulta o andamento de uma geração de relatório de liberações pelo id da tarefa: status (pending, processing, processed, failed, deleted), formato, número de tentativas e, quando pronto, o file_name do arquivo. QUANDO USAR: Depois de disparar a geração, para saber quando o arquivo está pronto sem ficar baixando a lista inteira. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; ID da tarefa de geração. ATENÇÃO: file_name só é preenchido quando status=processed; nos demais estados vem null. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "description": "[path] Identificador da tarefa, obtido na resposta da criação do relatório."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "task_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__relatorio__listar__liberacao",
+      "title": "Consultar lista de relatórios de liberações",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Consultar lista de relatórios de liberações: GET /v1/account/release_report/search. Busca os relatórios de liberação de dinheiro já gerados, com filtros por período reportado, janela de criação, origem (manual ou agendado), moeda e formato, e paginação offset/limit com envelope paging + results[]. Cada resultado traz o file_name usado no download. QUANDO USAR: Primeiro passo da rotina automática de conciliação: descobrir qual arquivo baixar. Ordenado por data de criação, do mais recente para o mais antigo. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; Ao menos um relatório já gerado (manualmente ou por agendamento). ATENÇÃO: begin_date/end_date filtram o período REPORTADO; para filtrar pela data em que o relatório foi criado use range=date_created com range_begin_date e range_end_date. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "[query] Identificador específico do relatório."
+          },
+          "file_name": {
+            "type": "string",
+            "description": "[query] Nome exato do arquivo. Diferencia maiúsculas de minúsculas."
+          },
+          "begin_date": {
+            "type": "string",
+            "description": "[query] Início do período REPORTADO (não é a data de criação do relatório). ISO 8601 UTC.",
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": "string",
+            "description": "[query] Fim do período reportado. ISO 8601 UTC.",
+            "format": "date-time"
+          },
+          "created_from": {
+            "type": "string",
+            "description": "[query] Origem do relatório.",
+            "enum": [
+              "manual",
+              "schedule"
+            ],
+            "default": "manual,schedule"
+          },
+          "range": {
+            "type": "string",
+            "description": "[query] Campo do filtro por janela. Só aceita date_created; exige range_begin_date e range_end_date.",
+            "enum": [
+              "date_created"
+            ]
+          },
+          "range_begin_date": {
+            "type": "string",
+            "description": "[query] Início da janela de criação. Obrigatório quando range é enviado.",
+            "format": "date-time"
+          },
+          "range_end_date": {
+            "type": "string",
+            "description": "[query] Fim da janela de criação. Obrigatório quando range é enviado.",
+            "format": "date-time"
+          },
+          "account_id": {
+            "type": "integer",
+            "description": "[query] Conta associada ao relatório."
+          },
+          "currency_id": {
+            "type": "string",
+            "description": "[query] Moeda do relatório, em ISO 4217, só maiúsculas, até 10 caracteres."
+          },
+          "format": {
+            "type": "string",
+            "description": "[query] Formato do arquivo.",
+            "enum": [
+              "CSV",
+              "XLSX"
+            ]
+          },
+          "offset": {
+            "type": "integer",
+            "description": "[query] Início da paginação. Máximo 10000.",
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "description": "[query] Registros por página. De 1 a 500. Padrão 30.",
+            "default": 30
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "mercado-pago__relatorio__baixar_arquivo__liberacao",
+      "title": "Baixar relatório de liberações",
+      "description": "Mercado Pago (https://api.mercadopago.com) — Baixar relatório de liberações: GET /v1/account/release_report/{file_name}. Baixa o arquivo do relatório de liberação de dinheiro, em CSV ou XLSX, pelo nome do arquivo. É a extração financeira mais completa do Mercado Pago: uma linha por movimento, com valor bruto, taxas, frete, impostos, valor líquido, parcelas, meio de pagamento, referência externa, loja, ponto de venda e id de reembolso. QUANDO USAR: É o melhor endpoint para montar a planilha de conciliação: ele já vem com as taxas discriminadas, o que a busca de pagamentos não entrega de forma somável. Use junto com a listagem, que dá o file_name. Somente leitura, seguro de executar com a credencial do cliente. PRÉ-REQUISITOS: Access Token da aplicação; file_name obtido na listagem de relatórios; Relatório com status processed. ATENÇÃO: A resposta é um ARQUIVO (CSV ou XLSX), não JSON: no Power Query use Csv.Document, não Json.Document. Autenticação: header Authorization: Bearer <Access Token>; o prefixo do token (TEST- x APP_USR-) define o ambiente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "file_name": {
+            "type": "string",
+            "description": "[path] Nome do arquivo do relatório, exatamente como veio na listagem (ex.: release-report-USER_ID-2026-09-17-104118.csv)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "file_name"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

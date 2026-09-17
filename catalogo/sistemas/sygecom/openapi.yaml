@@ -1,0 +1,1727 @@
+openapi: 3.1.0
+info:
+  title: API SAGI (SyGeCom) — recorte de leitura do catálogo
+  version: 1.0.0
+  summary: Reconstrução do recorte de leitura da API SAGI, do ERP SyGeCom para gestão de resíduos e reciclagem.
+  description: Reconstruído a partir da spec oficial em https://api.sagierp.com.br/api/v1/spec (OpenAPI 3.0.1, info.version
+    1.0.0, 'API para integracao com sistema SAGI - 18/03/2026'), consultada em 2026-09-17. Este arquivo cobre a autenticação
+    e as leituras detalhadas no catálogo; as demais 63 operações estão catalogadas em endpoints.json > endpoints_secundarios.
+    As descrições são autorais; nomes de path, parâmetro e campo são fatos técnicos e estão exatos.
+  contact:
+    name: Sygecom Informatica
+    url: https://sygecom.com.br/contato-suporte/
+  x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+  x-data-consulta: '2026-09-17'
+externalDocs:
+  description: Passo a passo oficial para liberar o acesso à API
+  url: https://sagierp.com.br/doc_api/
+servers:
+- url: https://api.sagierp.com.br/api/v1
+  description: Produção. Em 2026-09-17 https://api.sygecom.com.br/api/v1 servia a mesma aplicação e a mesma spec, byte a byte.
+x-sandbox: 'Não há URL base de homologação publicada. A spec oficial instrui a enviar "homol": true no corpo do POST /login
+  para gerar um token de homologação e avisa que o token só funciona no ambiente em que foi gerado, sem dizer qual é esse
+  ambiente. Registrado em system.json > lacunas.'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT obtido em POST /login.
+paths:
+  /login:
+    post:
+      operationId: sygecom__autenticacao__autenticar
+      summary: createSessionLogin (Autorização)
+      description: 'Troca e-mail e senha de um usuário cadastrado dentro do SAGI/SGR por um token JWT, devolvendo junto os
+        dados do usuário, as empresas/filiais a que ele tem acesso e a versão do sistema instalado. É o primeiro passo obrigatório
+        de qualquer integração.
+
+
+        Quando usar: Sempre, antes da primeira chamada, e de novo sempre que uma rota responder 401. Não existe refresh token:
+        renovar é repetir este login. Prefira a rota /login à rota /auth porque ela devolve a lista de empresas e a versão
+        do ERP, informações úteis para saber o que a integração vai conseguir ler.'
+      tags:
+      - Autenticacao
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.autenticacao.autenticar
+      x-entidade-canonica: Autenticacao
+      x-acao-canonica: autenticar
+      x-seguro-para-executar: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - email
+              - password
+              properties:
+                email:
+                  type: string
+                  description: E-mail cadastrado no usuário do ERP (aba E-mail do Cadastro de Usuários).
+                password:
+                  type: string
+                  description: Senha desse usuário no ERP.
+                origem:
+                  type: string
+                  enum:
+                  - SAGI
+                  - SGR
+                  - APP_SYGECOM
+                  - SRM
+                  - LOGVERDE
+                  - API_MTR
+                  - DEVOLVA
+                  - VIRA_VERDE
+                  - REVER
+                  - API
+                  default: API
+                  description: Sistema de origem da chamada. Para integração própria use API.
+                app:
+                  type: string
+                  enum:
+                  - SAGI
+                  - SGR
+                  - APP_SYGECOM
+                  - SRM
+                  - LOGVERDE
+                  - API_MTR
+                  - DEVOLVA
+                  - VIRA_VERDE
+                  - REVER
+                  - API
+                  default: APP_SYGECOM
+                  description: Aplicação que está autenticando; mesmo conjunto de valores de origem.
+                homol:
+                  type: boolean
+                  default: false
+                  description: Quando true, gera token do ambiente de homologação. A documentação avisa que o token só funciona
+                    no ambiente em que foi gerado, mas não publica a URL base de homologação.
+            example:
+              email: integracao@example.com
+              password: <<SENHA>>
+              origem: API
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                user:
+                - idempresa: '1'
+                  iduser: '1'
+                  usuario: INTEGRACAO
+                  email: integracao@example.com
+                  empresa: TODAS
+                  bloqueia: N
+                  bloq_portal_cli: false
+                  empresas:
+                  - cnpj: 00000000000191
+                    sistema: AD
+                    nome_empresa: EMPRESA EXEMPLO LTDA
+                    nome_filial: MATRIZ
+                    versao: 9.4.0.000
+                token: <<SEU_TOKEN_JWT>>
+        '400':
+          description: should have required property 'email' — Corpo sem email ou sem password.
+        '401':
+          description: Usuário não encontrado / User not found — E-mail não cadastrado, senha errada, ou usuário do ERP com
+            a opção 'Bloquear Acesso ao SAGI Mobile' marcada.
+        '403':
+          description: Acesso bloqueado por pendência financeira — A data_limite do contrato do cliente com a Sygecom está
+            vencida; o bloqueio é aplicado no login.
+      x-schema-resumido:
+        user:
+        - idempresa: string
+          iduser: string
+          usuario: string
+          email: string
+          empresa: string
+          bloqueia: string
+          bloq_portal_cli: boolean
+          empresas:
+          - cnpj: string
+            sistema: string
+            nome_empresa: string
+            nome_filial: string
+            versao: string
+        token: string (JWT)
+      security: []
+  /auth:
+    post:
+      operationId: sygecom__autenticacao__autenticar__app
+      summary: createSession (Autorização)
+      description: 'Rota alternativa de autenticação, usada pelo aplicativo móvel. Aceita e-mail e senha e devolve o usuário
+        com uma chave e o token JWT, sem a lista de empresas que a rota /login traz.
+
+
+        Quando usar: Quando você precisa reproduzir o comportamento do App Sygecom ou quando /login não estiver disponível.
+        Para integração de dados, prefira /login, que devolve mais contexto (empresas e versão do ERP).'
+      tags:
+      - Autenticacao
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.autenticacao.autenticar.app
+      x-entidade-canonica: Autenticacao
+      x-acao-canonica: autenticar
+      x-seguro-para-executar: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - email
+              - password
+              properties:
+                email:
+                  type: string
+                  description: E-mail do usuário do ERP.
+                password:
+                  type: string
+                  description: Senha do usuário do ERP.
+                app:
+                  type: string
+                  default: APP_SYGECOM
+                  description: Aplicação de origem.
+                homol:
+                  type: boolean
+                  default: false
+                  description: Quando true, gera token de homologação.
+            example:
+              email: integracao@example.com
+              password: <<SENHA>>
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                user:
+                - idempresa: 1
+                  iduser: 1
+                  usuario: INTEGRACAO
+                  email: integracao@example.com
+                  chave: <<CHAVE_DO_USUARIO>>
+                  empresa: TODAS
+                  bloqueia: N
+                  bloq_portal_cli: false
+                  token: <<SEU_TOKEN_JWT>>
+        '400':
+          description: should have required property 'email' — Corpo incompleto.
+        '401':
+          description: User not found — Usuário inexistente ou senha incorreta.
+      x-schema-resumido:
+        user:
+        - idempresa: integer
+          iduser: integer
+          usuario: string
+          email: string
+          chave: string
+          empresa: string
+          bloqueia: string
+          bloq_portal_cli: boolean
+          token: string (JWT)
+      security: []
+  /filiais:
+    get:
+      operationId: sygecom__empresa__listar
+      summary: listarFiliais (Filiais)
+      description: 'Lista as filiais que o usuário autenticado tem permissão de acessar, com id, CNPJ, nome, código da filial
+        e status, em resposta paginada com total de registros e de páginas.
+
+
+        Quando usar: Logo depois do login, para descobrir o universo real que aquele token enxerga antes de disparar qualquer
+        extração. É também a melhor rota para validar que a credencial funciona, porque é barata, paginada e tem contrato
+        de resposta bem definido.'
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.empresa.listar
+      x-entidade-canonica: Empresa
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: page
+        in: query
+        required: false
+        description: Página, base 1.
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: pageSize
+        in: query
+        required: false
+        description: Registros por página.
+        schema:
+          type: integer
+          default: 50
+          minimum: 1
+          maximum: 500
+      - name: filial
+        in: query
+        required: false
+        description: 'Código da filial (ex.: MATRIZ, FILIAL1).'
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: 'Status da filial (ex.: ATIVO, INATIVO).'
+        schema:
+          type: string
+      - name: cnpj
+        in: query
+        required: false
+        description: CNPJ com 14 dígitos, sem máscara.
+        schema:
+          type: string
+          pattern: ^[0-9]{14}$
+      - name: nome
+        in: query
+        required: false
+        description: Nome da filial; busca parcial, sem diferenciar maiúsculas.
+        schema:
+          type: string
+      - name: id
+        in: query
+        required: false
+        description: ID da filial.
+        schema:
+          type: integer
+          minimum: 1
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                data:
+                - id: 1
+                  cnpj: 00000000000191
+                  nome: EMPRESA EXEMPLO LTDA
+                  filial: MATRIZ
+                  status: ATIVO
+                paginaAtual: 1
+                totalPaginas: 1
+                totalRegistros: 1
+        '400':
+          description: PageSize não pode exceder 500 / CNPJ deve ter 14 dígitos — pageSize acima de 500, page menor que 1
+            ou CNPJ com máscara.
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '408':
+          description: Timeout ao buscar filiais. A consulta demorou mais de 10 segundos. — Base grande combinada com filtro
+            pouco seletivo.
+        '500':
+          description: Erro interno ao processar a requisição — Falha do lado do servidor.
+      x-schema-resumido:
+        data:
+        - id: integer
+          cnpj: string
+          nome: string
+          filial: string
+          status: string
+        paginaAtual: integer
+        totalPaginas: integer
+        totalRegistros: integer
+      security:
+      - BearerAuth: []
+  /movimentos:
+    get:
+      operationId: sygecom__estoque__listar__movimentos
+      summary: buscarMovimentos (Movimentações)
+      description: 'Lista as movimentações de material por período e tipo (entrada, saída ou serviço): é o boleto de balança
+        do ERP, com peso bruto, tara, peso líquido, impureza, desconto, preço unitário, valor total, produto, categoria, fornecedor
+        ou cliente, placa, motorista, classificador, filial, nota fiscal e impostos.
+
+
+        Quando usar: É o endpoint central para análise deste ERP. Use para margem por material, volume comprado e vendido
+        por período, produtividade por comprador, conferência de pesagem e conciliação com o financeiro. Para o recorte por
+        fornecedor específico, /cargas/fornecedores é mais direto, mas traz muito menos campos.'
+      tags:
+      - Estoque
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.estoque.listar.movimentos
+      x-entidade-canonica: Estoque
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: datainicial
+        in: query
+        required: true
+        description: Início do período.
+        schema:
+          type: string
+          format: date
+          default: '1800-01-01'
+      - name: datafinal
+        in: query
+        required: true
+        description: Fim do período.
+        schema:
+          type: string
+          format: date
+          default: '2500-12-31'
+      - name: tipo
+        in: query
+        required: true
+        description: Tipo de movimento.
+        schema:
+          type: string
+          enum:
+          - ENTRADA
+          - SAIDA
+          - SERVICO
+          default: ENTRADA
+      - name: numbol
+        in: query
+        required: false
+        description: Número do boleto de balança; 0 traz todos.
+        schema:
+          type: integer
+          default: 0
+      - name: codforcli
+        in: query
+        required: false
+        description: Código do fornecedor (entrada) ou do cliente (saída); 0 traz todos.
+        schema:
+          type: integer
+          default: 0
+      - name: ordem
+        in: query
+        required: false
+        description: Número da ordem de coleta/embarque; 0 traz todas.
+        schema:
+          type: integer
+          default: 0
+      - name: limit
+        in: query
+        required: true
+        description: Quantidade de registros por página.
+        schema:
+          type: integer
+          default: 100
+      - name: offset
+        in: query
+        required: true
+        description: 'Registro inicial. Atenção: base 1 — offset=1 com limit=10 devolve os 10 primeiros.'
+        schema:
+          type: integer
+          default: 1
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example:
+              - data: '2026-08-14'
+                boleto: 366
+                nota_fiscal: 106233-1
+                codigo: 430
+                nome: FORNECEDOR EXEMPLO LTDA
+                cnpj_cpf: 00000000000191
+                des_cat_for: SUCATEIRO
+                comp_vend: NOME DO COMPRADOR
+                placa: AAA1A11
+                codpro: '02'
+                subcod: S
+                produto: APARA BRANCA
+                unidade: TN
+                des_cat_pro: PAPEL
+                peso_bruto: 4810
+                peso_tara: 3630
+                peso_liquido: 1180
+                desconto: 0
+                preco: 430
+                valor_total: 507.4
+                filial: FILIAL1
+                movimento: ENTRADA
+                origem: BOLETO
+                hora_peso: '10:32:06'
+                estado: SP
+        '400':
+          description: 'should match format ''date'' — Data enviada fora do formato AAAA-MM-DD (ex.: 17/09/2026 ou 2026/09/17).'
+        '204':
+          description: 'No Content — O filtro não retornou registros. Não é erro: esta API usa 204 no lugar de lista vazia.'
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '503':
+          description: Falha no servidor do cliente — O banco/serviço da instalação do cliente não respondeu.
+      x-schema-resumido:
+        '[]':
+          data: date
+          boleto: integer
+          nota_fiscal: string
+          codigo: integer
+          nome: string
+          cnpj_cpf: string
+          des_cat_for: string
+          comp_vend: string
+          placa: string
+          codpro: string
+          subcod: string
+          produto: string
+          unidade: string
+          des_cat_pro: string
+          peso_bruto: number
+          peso_tara: number
+          peso_liquido: number
+          desconto: number
+          preco: number
+          valor_total: number
+          impureza: string
+          frete_por_conta: string
+          classificador: string
+          transportadora: string
+          filial: string
+          movimento: string
+          origem: string
+          valor_icms: number
+          motorista: string
+          hora_peso: string
+          estado: string
+          usuario: string
+          val_frete: number
+          val_despesa: number
+          volumes: integer
+          pedido: integer
+          tipo_boleto: string
+          prest_servico: boolean
+      security:
+      - BearerAuth: []
+  /produtos:
+    get:
+      operationId: sygecom__produto__listar
+      summary: buscarProdutos (Produtos)
+      description: 'Lista os produtos com o saldo de estoque na data e hora informadas, trazendo código, subcódigo, descrição,
+        unidade, categoria, status, quantidade em estoque, quantidade reservada, previsão de chegada, custo médio, valor total
+        e a tabela de preços de compra/venda e serviço.
+
+
+        Quando usar: Para foto de estoque por filial, custo médio por material e conferência de inventário, e como tabela
+        de apoio para dar nome e categoria aos códigos que aparecem em /movimentos.'
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.produto.listar
+      x-entidade-canonica: Produto
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: codpro
+        in: query
+        required: false
+        description: Código do produto; vazio traz todos.
+        schema:
+          type: string
+      - name: subcod
+        in: query
+        required: false
+        description: Subcódigo do produto (variação/qualidade do material).
+        schema:
+          type: string
+      - name: data
+        in: query
+        required: false
+        description: Data de referência do saldo.
+        schema:
+          type: string
+          format: date
+      - name: hora
+        in: query
+        required: false
+        description: Hora de referência do saldo (HH:MM:SS).
+        schema:
+          type: string
+      - name: filial
+        in: query
+        required: false
+        description: Filial ou TODAS.
+        schema:
+          type: string
+          default: TODAS
+      - name: ecommerce
+        in: query
+        required: false
+        description: Restringe a produtos marcados para e-commerce.
+        schema:
+          type: boolean
+          enum:
+          - true
+          - false
+          default: true
+      - name: unidade_negocio
+        in: query
+        required: false
+        description: Unidade de negócio; 0 traz todas.
+        schema:
+          type: integer
+          default: 0
+          maximum: 9999
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example:
+              - codpro: '50'
+                subcod: F
+                produto: RAFIA
+                un: TN
+                categoria: PLASTICO
+                status: ATIVO
+                estoque: 228405
+                reservado: 0
+                medioc: 0.000537602
+                totalc: 0.12
+                tabela:
+                - - tabela: T
+                    preco_buscar: 0
+                    preco_trazer: 0
+                    preco_serv1: 0
+                    preco_serv2: 0
+        '204':
+          description: 'No Content — O filtro não retornou registros. Não é erro: esta API usa 204 no lugar de lista vazia.'
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '503':
+          description: Falha no servidor do cliente — O banco/serviço da instalação do cliente não respondeu.
+      x-schema-resumido:
+        '[]':
+          codpro: string
+          subcod: string
+          produto: string
+          un: string
+          categoria: string
+          status: string
+          estoque: number
+          reservado: number
+          qtd_achegar: number
+          previsao_chegada: number
+          medioc: number
+          mediov: number
+          totalc: number
+          totalv: number
+          peso_produto: number
+          nota_fiscal: string
+          data: string
+          hora: string
+          tabela: array
+      security:
+      - BearerAuth: []
+  /fornecedores:
+    get:
+      operationId: sygecom__fornecedor__listar
+      summary: buscarFornecedores (Fornecedores)
+      description: 'Lista os fornecedores cadastrados, com código interno, razão social, nome fantasia, CNPJ ou CPF, inscrição
+        estadual, endereço completo, município IBGE, contatos, categoria, região, condição de pagamento, status, limite de
+        crédito, CNAE, coordenadas e cadastro FEPAM com vencimento.
+
+
+        Quando usar: Para montar a dimensão de fornecedores do painel, cruzar com /movimentos e /pagamentos/fornecedores,
+        checar vencimento de licença ambiental (FEPAM) e enriquecer análise por região ou categoria de sucateiro.'
+      tags:
+      - Fornecedor
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.fornecedor.listar
+      x-entidade-canonica: Fornecedor
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: cnpj
+        in: query
+        required: false
+        description: CNPJ para filtrar.
+        schema:
+          type: string
+      - name: cpf
+        in: query
+        required: false
+        description: CPF para filtrar.
+        schema:
+          type: string
+      - name: nome
+        in: query
+        required: false
+        description: Nome ou parte do nome.
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Situação do cadastro.
+        schema:
+          type: string
+          enum:
+          - ATIVO
+          - INATIVO
+          default: ATIVO
+      - name: limit
+        in: query
+        required: false
+        description: Tamanho da página.
+        schema:
+          type: integer
+      - name: page
+        in: query
+        required: false
+        description: Número da página.
+        schema:
+          type: integer
+          default: 1
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example:
+              - codfor: 1
+                fornecedor: FORNECEDOR EXEMPLO LTDA
+                fanta: EXEMPLO
+                cgc: 00000000000191
+                cpf: ''
+                iest: '0000000000'
+                tip: J
+                ende: RUA EXEMPLO
+                numende: '1420'
+                bairro: CENTRO
+                cidade: BELO HORIZONTE
+                uf: MG
+                cep: '31130380'
+                numcid: 3106200
+                email: contato@example.com
+                categoria: GRAFICA
+                regiao: 1
+                condicao: A-AVISTA
+                status: ATIVO
+                limite: 0
+                cnae: '1811302'
+                fepam: ''
+                vctofepam: null
+        '204':
+          description: 'No Content — O filtro não retornou registros. Não é erro: esta API usa 204 no lugar de lista vazia.'
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '503':
+          description: Falha no servidor do cliente — O banco/serviço da instalação do cliente não respondeu.
+      x-schema-resumido:
+        '[]':
+          codfor: integer
+          fornecedor: string
+          fanta: string
+          cgc: string
+          cpf: string
+          iest: string
+          tip: string
+          ende: string
+          numende: string
+          bairro: string
+          cidade: string
+          uf: string
+          cep: string
+          numcid: integer
+          email: string
+          fone: string
+          celular: string
+          categoria: string
+          regiao: integer
+          condicao: string
+          status: string
+          limite: number
+          cnae: string
+          fepam: string
+          vctofepam: date
+          latitude: string
+          longitude: string
+          data: date
+          forma_pg: integer
+      security:
+      - BearerAuth: []
+  /clientes:
+    get:
+      operationId: sygecom__cliente__listar
+      summary: buscarClientes (Clientes)
+      description: 'Lista os clientes cadastrados, com código, razão social, documento, inscrição estadual, endereço, contatos,
+        vendedor responsável, regime tributário e status.
+
+
+        Quando usar: Para montar a dimensão de clientes e cruzar com as saídas de /movimentos (tipo=SAIDA), com /pedido-venda
+        e com /contrato. Existe também uma rota /clientes/lista, com outra finalidade (conferência de laudo de boleto) e outro
+        conjunto de campos — não confunda.'
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.cliente.listar
+      x-entidade-canonica: Cliente
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: cnpj
+        in: query
+        required: false
+        description: CNPJ do cliente.
+        schema:
+          type: string
+      - name: cpf
+        in: query
+        required: false
+        description: CPF do cliente.
+        schema:
+          type: string
+      - name: nome
+        in: query
+        required: false
+        description: Nome ou parte do nome.
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Situação do cadastro.
+        schema:
+          type: string
+          enum:
+          - ATIVO
+          - INATIVO
+          default: ATIVO
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example:
+              - codcli: 1
+                cliente: CLIENTE EXEMPLO S.A.
+                cpf_cnpj: 00000000000191
+                rg_iest: ISENTO
+                ende: AV EXEMPLO
+                numende: '100'
+                bairro: CENTRO
+                cidade: PORTO ALEGRE
+                uf: RS
+                cep: '90000000'
+                email: financeiro@example.com
+                mod_trib: '3'
+                cod_ven: 1
+                status: ATIVO
+        '204':
+          description: 'No Content — O filtro não retornou registros. Não é erro: esta API usa 204 no lugar de lista vazia.'
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '503':
+          description: Falha no servidor do cliente — O banco/serviço da instalação do cliente não respondeu.
+      x-schema-resumido:
+        '[]':
+          codcli: integer
+          cliente: string
+          cpf_cnpj: string
+          rg_iest: string
+          ende: string
+          numende: string
+          bairro: string
+          cidade: string
+          uf: string
+          cep: string
+          email: string
+          fone: string
+          cel: string
+          site: string
+          mod_trib: string
+          tipo: string
+          cod_ven: integer
+          status: string
+      security:
+      - BearerAuth: []
+  /pedido-venda:
+    get:
+      operationId: sygecom__pedido__listar__venda
+      summary: Listar pedidos de venda (Pedidos Venda)
+      description: 'Lista os pedidos de venda com os itens de cada pedido, trazendo número, data de emissão, data de validade,
+        cliente, vendedor, observação e valor do frete.
+
+
+        Quando usar: Para carteira de pedidos, previsão de faturamento e acompanhamento de pedidos abertos versus fechados.
+        Combine com /contrato quando a venda for de exportação.'
+      tags:
+      - Pedido
+      x-confianca: inferido
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.pedido.listar.venda
+      x-entidade-canonica: Pedido
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: limite_por_pagina
+        in: query
+        required: true
+        description: Registros por página.
+        schema:
+          type: integer
+      - name: pagina
+        in: query
+        required: true
+        description: Número da página.
+        schema:
+          type: integer
+      - name: data_inicial_pedido
+        in: query
+        required: false
+        description: Início do período de emissão.
+        schema:
+          type: string
+          format: date
+      - name: data_final_pedido
+        in: query
+        required: false
+        description: Fim do período de emissão.
+        schema:
+          type: string
+          format: date
+      - name: status_pedido
+        in: query
+        required: false
+        description: 'Situação do pedido: A para aberto, F para fechado.'
+        schema:
+          type: string
+          enum:
+          - A
+          - F
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                response:
+                - numero_pedido: 1001
+                  data_pedido: '2026-08-12'
+                  data_validade: '2026-09-12'
+                  codigo_cliente: 1
+                  nome_cliente: CLIENTE EXEMPLO S.A.
+                  codigo_vendedor: 1
+                  nome_vendedor: VENDEDOR EXEMPLO
+                  observacao_pedido: ''
+                  valor_frete: 0
+                  itens: []
+        '400':
+          description: Requisição inválida — limite_por_pagina ou pagina ausentes — os dois são obrigatórios.
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '500':
+          description: Erro no servidor — Falha interna.
+      x-schema-resumido:
+        response:
+        - numero_pedido: integer
+          data_pedido: string
+          data_validade: string
+          codigo_cliente: integer
+          nome_cliente: string
+          codigo_vendedor: integer
+          nome_vendedor: string
+          observacao_pedido: string
+          valor_frete: number
+          itens: array
+      security:
+      - BearerAuth: []
+  /pedido-compra:
+    get:
+      operationId: sygecom__pedido__listar__compra
+      summary: Listar pedidos de compra (Pedidos Compra)
+      description: 'Lista os pedidos de compra com os itens de cada pedido, trazendo número, data de emissão, data de validade,
+        fornecedor, comprador, observação e valor do frete.
+
+
+        Quando usar: Para acompanhar compras programadas de material, comparar preço negociado com o preço efetivamente praticado
+        na pesagem (/movimentos com tipo=ENTRADA) e medir a produtividade por comprador.'
+      tags:
+      - Pedido
+      x-confianca: inferido
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.pedido.listar.compra
+      x-entidade-canonica: Pedido
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: limite_por_pagina
+        in: query
+        required: true
+        description: Registros por página.
+        schema:
+          type: integer
+      - name: pagina
+        in: query
+        required: true
+        description: Número da página.
+        schema:
+          type: integer
+      - name: data_inicial_pedido
+        in: query
+        required: false
+        description: Início do período de emissão.
+        schema:
+          type: string
+          format: date
+      - name: data_final_pedido
+        in: query
+        required: false
+        description: Fim do período de emissão.
+        schema:
+          type: string
+          format: date
+      - name: status_pedido
+        in: query
+        required: false
+        description: 'Situação do pedido: A para aberto, F para fechado.'
+        schema:
+          type: string
+          enum:
+          - A
+          - F
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                results:
+                - numero_pedido: 2001
+                  data_pedido: '2026-08-05'
+                  data_validade: '2026-09-05'
+                  codigo_fornecedor: 1
+                  nome_fornecedor: FORNECEDOR EXEMPLO LTDA
+                  codigo_comprador: 1
+                  nome_comprador: COMPRADOR EXEMPLO
+                  observacao_pedido: ''
+                  valor_frete: 0
+                  itens: []
+        '400':
+          description: Requisição inválida — limite_por_pagina ou pagina ausentes.
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '500':
+          description: Erro no servidor — Falha interna.
+      x-schema-resumido:
+        results:
+        - numero_pedido: integer
+          data_pedido: string
+          data_validade: string
+          codigo_fornecedor: integer
+          nome_fornecedor: string
+          codigo_comprador: integer
+          nome_comprador: string
+          observacao_pedido: string
+          valor_frete: number
+          itens: array
+      security:
+      - BearerAuth: []
+  /pagamentos/fornecedores:
+    get:
+      operationId: sygecom__conta_pagar__listar__pagamentos_fornecedor
+      summary: buscarPagamentosFornecedores (Fornecedores)
+      description: 'Lista os pagamentos realizados a fornecedores num período, com boleto de origem, parcela, código do fornecedor,
+        data de vencimento, valor da parcela, valor de vale, desconto, acréscimo, valor efetivamente pago, data de pagamento
+        e condição de pagamento.
+
+
+        Quando usar: Para o extrato financeiro por fornecedor, conciliação entre o que foi pesado e o que foi pago, e apuração
+        de vales adiantados. Para o saldo consolidado num único número, use /saldo/fornecedores/{id}.'
+      tags:
+      - ContaPagar
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.conta_pagar.listar.pagamentos_fornecedor
+      x-entidade-canonica: ContaPagar
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: datainicial
+        in: query
+        required: true
+        description: Início do período.
+        schema:
+          type: string
+          format: date
+      - name: datafinal
+        in: query
+        required: true
+        description: Fim do período.
+        schema:
+          type: string
+          format: date
+      - name: codfor
+        in: query
+        required: true
+        description: Código do fornecedor; 0 traz todos.
+        schema:
+          type: integer
+          default: 0
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example:
+              - boleto: 366
+                parcela: 1
+                codigo_fornecedor: 1
+                data_vencimento: '2026-08-20'
+                valor: 1500.75
+                valor_vale: 0
+                valor_desconto: 0
+                valor_acrescimo: 0
+                valor_pago: 1500.75
+                data_pagamento: '2026-08-20'
+                condicao: A-AVISTA
+        '400':
+          description: 'should match format ''date'' — Data enviada fora do formato AAAA-MM-DD (ex.: 17/09/2026 ou 2026/09/17).'
+        '204':
+          description: 'No Content — O filtro não retornou registros. Não é erro: esta API usa 204 no lugar de lista vazia.'
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '503':
+          description: Falha no servidor do cliente — O banco/serviço da instalação do cliente não respondeu.
+      x-schema-resumido:
+        '[]':
+          boleto: number
+          parcela: number
+          codigo_fornecedor: number
+          data_vencimento: date
+          valor: number
+          valor_vale: number
+          valor_desconto: number
+          valor_acrescimo: number
+          valor_pago: number
+          data_pagamento: date
+          condicao: string
+      security:
+      - BearerAuth: []
+  /saldo/fornecedores/{id}:
+    get:
+      operationId: sygecom__fornecedor__obter__saldo
+      summary: buscarSaldoFornecedores (Fornecedores)
+      description: 'Retorna o saldo final de um fornecedor, em um objeto com o código do fornecedor e o valor do saldo.
+
+
+        Quando usar: Quando o cliente pergunta ''quanto eu devo para esse fornecedor''. É a consulta mais barata para checar
+        posição individual; para entender a composição, use /pagamentos/fornecedores e /cargas/fornecedores.'
+      tags:
+      - Fornecedor
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.fornecedor.obter.saldo
+      x-entidade-canonica: Fornecedor
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Código do fornecedor (codfor).
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                codfor: 1
+                saldo: 2800
+        '204':
+          description: No Content — Fornecedor sem saldo apurado ou inexistente.
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '503':
+          description: Falha no servidor do cliente — O banco/serviço da instalação do cliente não respondeu.
+      x-schema-resumido:
+        codfor: number
+        saldo: number
+      security:
+      - BearerAuth: []
+  /cargas/fornecedores:
+    get:
+      operationId: sygecom__estoque__listar__cargas_fornecedor
+      summary: buscarCargasFornecedores (Fornecedores)
+      description: 'Lista as cargas entregues por fornecedores num período, com boleto, data, código do fornecedor, produto
+        e subcódigo, descrição, peso bruto, tara, peso líquido, desconto, preço e valor total.
+
+
+        Quando usar: Quando você quer o extrato de entregas de um fornecedor sem o peso de campos de /movimentos. É o recorte
+        natural para o portal do fornecedor e para conferência de quanto cada sucateiro entregou no mês.'
+      tags:
+      - Estoque
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.estoque.listar.cargas_fornecedor
+      x-entidade-canonica: Estoque
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: datainicial
+        in: query
+        required: true
+        description: Início do período.
+        schema:
+          type: string
+          format: date
+      - name: datafinal
+        in: query
+        required: true
+        description: Fim do período.
+        schema:
+          type: string
+          format: date
+      - name: codfor
+        in: query
+        required: true
+        description: Código do fornecedor; 0 traz todos.
+        schema:
+          type: integer
+          default: 0
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example:
+              - boleto: 1
+                data_boleto: '2026-08-14'
+                codigo_fornecedor: 1
+                codigo_produto: '800057'
+                subcod_produto: S
+                descricao_produto: APARA MISTA
+                peso_bruto: 5000
+                peso_tara: 0
+                peso_liquido: 5000
+                desconto: 0
+                preco: 0.56
+                valor_total: 2800
+        '400':
+          description: 'should match format ''date'' — Data enviada fora do formato AAAA-MM-DD (ex.: 17/09/2026 ou 2026/09/17).'
+        '204':
+          description: 'No Content — O filtro não retornou registros. Não é erro: esta API usa 204 no lugar de lista vazia.'
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '503':
+          description: Falha no servidor do cliente — O banco/serviço da instalação do cliente não respondeu.
+      x-schema-resumido:
+        '[]':
+          boleto: number
+          data_boleto: date
+          codigo_fornecedor: number
+          codigo_produto: string
+          subcod_produto: string
+          descricao_produto: string
+          peso_bruto: number
+          peso_tara: number
+          peso_liquido: number
+          desconto: number
+          preco: number
+          valor_total: number
+      security:
+      - BearerAuth: []
+  /ordems:
+    get:
+      operationId: sygecom__envio__listar__ordens_coleta
+      summary: buscarOrdemsPorData (Ordems)
+      description: 'Lista as ordens de coleta e de embarque por período, com número da ordem, datas e horas de cadastro e
+        de alteração, status, tipo (coleta ou embarque), comprador ou vendedor responsável e telefone, endereço da coleta,
+        placa, tipo de caminhão, produto, motorista e CNH.
+
+
+        Quando usar: Para programação e acompanhamento de coleta, medição de atraso, ocupação de frota e produtividade por
+        motorista. Para saber o que efetivamente entrou na balança depois da coleta, cruze com /movimentos pelo parâmetro
+        ordem.'
+      tags:
+      - Envio
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.envio.listar.ordens_coleta
+      x-entidade-canonica: Envio
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: datainicial
+        in: query
+        required: false
+        description: Início do período.
+        schema:
+          type: string
+          format: date
+      - name: datafinal
+        in: query
+        required: false
+        description: Fim do período.
+        schema:
+          type: string
+          format: date
+      - name: codforcli
+        in: query
+        required: true
+        description: Código do fornecedor ou do cliente; 0 traz todos.
+        schema:
+          type: integer
+          default: 0
+      - name: forcli
+        in: query
+        required: true
+        description: Se o código anterior é de fornecedor, de cliente ou de ambos.
+        schema:
+          type: string
+          enum:
+          - TODOS
+          - FOR
+          - CLI
+          default: TODOS
+      - name: codmot
+        in: query
+        required: true
+        description: Código do motorista; 0 traz todos.
+        schema:
+          type: integer
+          default: 0
+      - name: sr_recno
+        in: query
+        required: true
+        description: Registro interno da ordem; 0 traz todas.
+        schema:
+          type: integer
+          default: 0
+      - name: ordem
+        in: query
+        required: true
+        description: Número da ordem; 0 traz todas.
+        schema:
+          type: integer
+          default: 0
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example:
+              - numero_ordem: 1
+                data_cad_ordem: '2026-08-01'
+                hora_cad_ordem: 07:00:00
+                status_ordem: FINALIZADO
+                tipo_ordem: COLETA
+                nome_comprador_vendedor: COMPRADOR EXEMPLO
+                endereco: RUA EXEMPLO 271 BELA VISTA ALVORADA RS
+                codigo: 1
+                placa: AAA1A11
+                tipo_caminhao: TRUCK
+                data_ordem: '2026-08-02'
+                hora_ordem: 07:00:00
+                produto: SUCATA DE FERRO
+                sequencia: 1
+                motorista: MOTORISTA EXEMPLO
+                codigo_motorista: 1
+                sr_recno: 1
+        '400':
+          description: 'should match format ''date'' — Data enviada fora do formato AAAA-MM-DD (ex.: 17/09/2026 ou 2026/09/17).'
+        '204':
+          description: 'No Content — O filtro não retornou registros. Não é erro: esta API usa 204 no lugar de lista vazia.'
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '503':
+          description: Falha no servidor do cliente — O banco/serviço da instalação do cliente não respondeu.
+      x-schema-resumido:
+        '[]':
+          numero_ordem: number
+          data_cad_ordem: date
+          hora_cad_ordem: string
+          data_alt_ordem: date
+          hora_alt_ordem: string
+          status_ordem: string
+          tipo_ordem: string
+          nome_comprador_vendedor: string
+          fone_comprador_vendedor: string
+          endereco: string
+          codigo: integer
+          placa: string
+          tipo_caminhao: string
+          data_ordem: date
+          hora_ordem: string
+          produto: string
+          obs: string
+          sequencia: integer
+          motorista: string
+          cnh_motorista: string
+          codigo_motorista: integer
+          sr_recno: integer
+      security:
+      - BearerAuth: []
+  /mtr:
+    get:
+      operationId: sygecom__documento__listar__mtr
+      summary: Lista os MTRs (MTR)
+      description: 'Lista os Manifestos de Transporte de Resíduos (MTR) emitidos, com número e série, ordem de coleta vinculada,
+        data, filial de geração, responsável pela elaboração, CNPJ da geradora e da receptora, marcações de tipo de resíduo
+        (papel, plástico, metal, madeira, vidro, orgânico, não reciclável, comum), origem, acondicionamento, estado físico
+        e quantidade em quilo, tonelada, metro cúbico e litro.
+
+
+        Quando usar: Para prestação de contas ambiental, resposta a auditoria, relatório para o cliente gerador e conferência
+        do que foi manifestado contra o que foi pesado. É o endpoint que dá lastro regulatório à operação.'
+      tags:
+      - Documento
+      x-confianca: inferido
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.documento.listar.mtr
+      x-entidade-canonica: Documento
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: limite_por_pagina
+        in: query
+        required: true
+        description: Registros por página.
+        schema:
+          type: integer
+      - name: pagina
+        in: query
+        required: true
+        description: Número da página.
+        schema:
+          type: integer
+      - name: data_inicial_mtr
+        in: query
+        required: false
+        description: Início do período do MTR.
+        schema:
+          type: string
+          format: date
+      - name: data_final_mtr
+        in: query
+        required: false
+        description: Fim do período do MTR.
+        schema:
+          type: string
+          format: date
+      - name: cnpj_gerador
+        in: query
+        required: false
+        description: CNPJ da empresa geradora do resíduo.
+        schema:
+          type: string
+      - name: cnpj_receptor
+        in: query
+        required: false
+        description: CNPJ da empresa receptora do resíduo.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                results:
+                - id_unico: 1
+                  numero_da_mtr: 1001
+                  serie_da_mtr: '1'
+                  ordem_de_coleta: 1
+                  data_da_mtr: '2026-08-14'
+                  filial_geracao_mtr: MATRIZ
+                  responsavel_pela_elaboracao: RESPONSAVEL EXEMPLO
+                  cnpj_geradora: 00000000000191
+                  cnpj_receptora: '00000000000272'
+                  tipo_residuo_papel: true
+                  tipo_residuo_plastico: false
+                  origem_industrial: true
+                  acondicionamento_cacamba: true
+                  estado_fisico_solido: true
+                  quantidade_kg: 5000
+                  quantidade_ton: 5
+                  quantidade_m3: 0
+                  quantidade_litro: 0
+        '400':
+          description: Parâmetros inválidos. — limite_por_pagina ou pagina ausentes, ou data fora do formato.
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '500':
+          description: Erro interno do servidor. — Falha interna.
+      x-schema-resumido:
+        results:
+        - id_unico: integer
+          numero_da_mtr: integer
+          serie_da_mtr: string
+          ordem_de_coleta: integer
+          data_da_mtr: string
+          filial_geracao_mtr: string
+          responsavel_pela_elaboracao: string
+          cnpj_geradora: string
+          cnpj_receptora: string
+          tipo_residuo_papel: boolean
+          tipo_residuo_plastico: boolean
+          tipo_residuo_metal: boolean
+          tipo_residuo_madeira: boolean
+          tipo_residuo_vidro: boolean
+          tipo_residuo_organico: boolean
+          tipo_residuo_nao_reciclavel: boolean
+          tipo_residuo_comum: boolean
+          outro_tipo_residuo: string
+          origem_industrial: boolean
+          acondicionamento_cacamba: boolean
+          estado_fisico_solido: boolean
+          quantidade_kg: integer
+          quantidade_ton: integer
+          quantidade_m3: integer
+          quantidade_litro: integer
+      security:
+      - BearerAuth: []
+  /contrato:
+    get:
+      operationId: sygecom__contrato__listar
+      summary: Lista os contratos (Contratos)
+      description: 'Lista os contratos comerciais e os produtos de cada um, com empresa, identificador e número do contrato,
+        data, código do cliente, porto de destino, moeda do contrato e a lista de produtos com o peso contratado.
+
+
+        Quando usar: Para acompanhar contratos de exportação: quanto foi contratado por produto, para qual porto, em qual
+        moeda, e quanto já foi embarcado. Combine com /invoice e /container para fechar o ciclo de exportação.'
+      tags:
+      - Contrato
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.contrato.listar
+      x-entidade-canonica: Contrato
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: limite_por_pagina
+        in: query
+        required: true
+        description: Registros por página.
+        schema:
+          type: integer
+      - name: pagina
+        in: query
+        required: true
+        description: Número da página.
+        schema:
+          type: integer
+      - name: cnpj
+        in: query
+        required: false
+        description: CNPJ do cliente, para recortar os contratos de um comprador.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              example:
+              - empresa: MATRIZ
+                id_contrato: 1
+                numero_contrato: CT-2026-001
+                data_contrato: '2026-08-01'
+                codcli: 1
+                porto_destino: 1
+                moeda_contrato: 1
+                produtos:
+                - produto: APARA BRANCA
+                  peso: 25000
+        '400':
+          description: Requisição inválida — limite_por_pagina ou pagina ausentes.
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '500':
+          description: Erro interno do servidor — Falha interna.
+      x-schema-resumido:
+        '[]':
+          empresa: string
+          id_contrato: integer
+          numero_contrato: string
+          data_contrato: string
+          codcli: integer
+          porto_destino: integer
+          moeda_contrato: integer
+          produtos:
+          - produto: string
+            peso: number
+      security:
+      - BearerAuth: []
+  /sql-query:
+    post:
+      operationId: sygecom__tabela_auxiliar__listar__sql
+      summary: Execução segura de consultas SQL (Consultas SQL)
+      description: 'Executa uma consulta SQL do tipo SELECT no banco de dados do tenant do usuário autenticado, com paginação
+        por page e pageSize, teto de 1000 registros retornados e timeout de 5 segundos. A documentação declara bloqueio automático
+        de comandos de escrita (DELETE, UPDATE, INSERT, CREATE, DROP, ALTER e afins) e sanitização contra SQL injection.
+
+
+        Quando usar: Quando a informação pedida não tem endpoint dedicado, ou quando um agregado (soma por material, ranking
+        de fornecedor, saldo consolidado) resolveria em uma chamada o que os endpoints REST resolveriam em centenas. É o endpoint
+        mais poderoso da API e também o que exige mais cuidado: use sempre SELECT com filtro de período, coluna explícita
+        e LIMIT.'
+      tags:
+      - TabelaAuxiliar
+      x-confianca: verificado
+      x-fonte-url: https://api.sagierp.com.br/api/v1/spec
+      x-data-consulta: '2026-09-17'
+      x-id-canonico: sygecom.tabela_auxiliar.listar.sql
+      x-entidade-canonica: TabelaAuxiliar
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - query
+              properties:
+                query:
+                  type: string
+                  description: Comando SELECT a executar. Somente SELECT é aceito; qualquer outro comando é recusado com 400.
+                page:
+                  type: integer
+                  default: 1
+                  description: Página do resultado, base 1.
+                pageSize:
+                  type: integer
+                  default: 50
+                  description: Registros por página.
+            example:
+              query: SELECT filial, produto, SUM(peso_liquido) AS peso FROM <<TABELA_DE_MOVIMENTO>> WHERE data BETWEEN '2026-08-01'
+                AND '2026-08-31' GROUP BY filial, produto ORDER BY peso DESC
+              page: 1
+              pageSize: 100
+      responses:
+        '200':
+          description: Sucesso. Estrutura resumida em x-schema-resumido.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                data:
+                - filial: MATRIZ
+                  produto: APARA BRANCA
+                  peso: 128.4
+                page: 1
+                pageSize: 100
+                recordsReturned: 1
+        '400':
+          description: Operação não permitida. Apenas SELECT é permitido. — A consulta contém comando de escrita ou DDL.
+        '401':
+          description: Token not provided / Usuário não autenticado — Header Authorization ausente, sem o prefixo 'Bearer
+            ' ou com token expirado.
+        '408':
+          description: Timeout de execução. Query demorou mais de 5 segundos. — Consulta sem filtro seletivo, sem índice ou
+            com junção pesada.
+        '500':
+          description: 'Erro ao executar query: relation "..." does not exist — Nome de tabela ou coluna incorreto para o
+            esquema daquele tenant.'
+      x-schema-resumido:
+        data:
+        - <coluna>: <valor>
+        page: integer
+        pageSize: integer
+        recordsReturned: integer
+      security:
+      - BearerAuth: []

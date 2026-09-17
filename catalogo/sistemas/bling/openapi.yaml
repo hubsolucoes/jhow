@@ -1,0 +1,5592 @@
+openapi: 3.1.0
+info:
+  title: Bling API v3 (reconstrução do catálogo)
+  version: '3.0'
+  description: 'Reconstrução parcial e autoral da API v3 do Bling para o catálogo (endpoints canônicos). Base: spec oficial
+    https://developer.bling.com.br/build/assets/openapi-DKXp8d1e.json e guias em developer.bling.com.br, consultados em 2026-09-17.
+    Não há sandbox separado; o segundo servidor é o ambiente de teste usado pelo console da documentação oficial (uso não
+    documentado).'
+  x-data-consulta: '2026-09-17'
+servers:
+- url: https://api.bling.com.br/Api/v3
+  description: Produção
+- url: https://developer.bling.com.br/api/bling
+  description: 'Sandbox: não existe; ambiente de teste do console da documentação (declarado na spec oficial, uso não documentado)'
+security:
+- oauth2Bling: []
+paths:
+  /oauth/authorize:
+    get:
+      operationId: bling__autenticacao__autenticar__authorize
+      summary: OAuth 2.0 - endpoint authorize (redirecionamento do usuário)
+      description: 'Início do fluxo authorization code: o navegador do usuário é enviado ao Bling, que pede login e consentimento
+        e devolve um code de uso único na URL de redirecionamento cadastrada no aplicativo.
+
+
+        Quando usar: Primeira conexão de uma conta Bling ao seu app, ou reautorização depois de revogação, troca de escopos
+        ou refresh_token expirado (30 dias). Não é chamada server-to-server: é um link aberto no navegador.'
+      tags:
+      - Autenticacao
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/aplicativos#authorization-code
+      x-entidade-canonica: Autenticacao
+      x-acao-canonica: autenticar
+      servers:
+      - url: https://www.bling.com.br/Api/v3
+      parameters:
+      - name: response_type
+        in: query
+        required: true
+        description: Sempre o literal code.
+        schema:
+          type: string
+          enum:
+          - code
+      - name: client_id
+        in: query
+        required: true
+        description: Client ID exibido na aba de informações do aplicativo.
+        schema:
+          type: string
+      - name: state
+        in: query
+        required: true
+        description: Valor aleatório por sessão, devolvido intacto no callback; compare para evitar CSRF. A doc do Postman
+          indica que não pode ser vazio.
+        schema:
+          type: string
+      responses:
+        '302':
+          description: Redireciona para o link cadastrado com code e state (ou error).
+      security: []
+  /oauth/token:
+    post:
+      operationId: bling__autenticacao__autenticar__token
+      summary: OAuth 2.0 - endpoint token (authorization_code e refresh_token)
+      description: 'Troca o code pelo par access_token/refresh_token ou renova o access_token com o refresh_token. Autenticação
+        do app via HTTP Basic (client_id:client_secret em base64), corpo x-www-form-urlencoded.
+
+
+        Quando usar: Logo após o callback do authorize (grant_type=authorization_code, até 1 minuto) e sempre que o access_token
+        expirar ou a API devolver 401 invalid_token (grant_type=refresh_token). Sempre server-side.'
+      tags:
+      - Autenticacao
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/aplicativos#tokens-de-acesso
+      x-entidade-canonica: Autenticacao
+      x-acao-canonica: autenticar
+      parameters:
+      - name: enable-jwt
+        in: header
+        required: false
+        description: Envie 1 para receber JWT; o token opaco está descontinuado (data de bloqueio ainda em definição). Mantenha
+          também na renovação e nas chamadas da API.
+        schema:
+          type: string
+          enum:
+          - '1'
+      - name: Accept
+        in: header
+        required: false
+        description: Os exemplos oficiais enviam o valor 1.0 nesta chamada.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                grant_type:
+                  type: string
+                  enum:
+                  - authorization_code
+                  - refresh_token
+                  description: authorization_code na troca inicial; refresh_token na renovação.
+                code:
+                  type: string
+                  description: Obrigatório com grant_type=authorization_code. Validade de 1 minuto, uso único.
+                refresh_token:
+                  type: string
+                  description: Obrigatório com grant_type=refresh_token. Validade de 30 dias.
+              required:
+              - grant_type
+            example:
+              grant_type: authorization_code
+              code: <<CODE_DO_CALLBACK>>
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                access_token: <<SEU_ACCESS_TOKEN>>
+                expires_in: 21600
+                token_type: Bearer
+                scope: <<IDS_DE_ESCOPO>>
+                refresh_token: <<SEU_REFRESH_TOKEN>>
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '429':
+          $ref: '#/components/responses/Erro429'
+      security:
+      - basicCliente: []
+  /oauth/revoke:
+    post:
+      operationId: bling__autenticacao__autenticar__revogar
+      summary: OAuth 2.0 - revogação de token (/oauth/revoke)
+      description: 'Invalida um access_token ou refresh_token. Com revoke_action/revoke_target, remove todos os tokens do
+        usuário ou da empresa (logout ou desinstalação).
+
+
+        Quando usar: Quando o cliente desconecta o Bling no seu produto, ao desinstalar o app de uma empresa ou em incidente
+        de segurança. Não use para renovar token.'
+      tags:
+      - Autenticacao
+      x-confianca: inferido
+      x-fonte-url: https://developer.bling.com.br/aplicativos#revogando-o-access-token
+      x-entidade-canonica: Autenticacao
+      x-acao-canonica: autenticar
+      servers:
+      - url: https://api.bling.com.br
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: O access_token ou refresh_token a invalidar.
+                token_type_hint:
+                  type: string
+                  enum:
+                  - access_token
+                  - refresh_token
+                  description: Indica o tipo do token enviado.
+                revoke_action:
+                  type: string
+                  enum:
+                  - logout
+                  - uninstall
+                  description: Amplia a revogação. Sem ele, só o token enviado é revogado.
+                revoke_target:
+                  type: string
+                  enum:
+                  - user
+                  - company
+                  description: Alvo da revogação ampliada; padrão user.
+              required:
+              - token
+            example:
+              token: <<SEU_REFRESH_TOKEN>>
+              token_type_hint: refresh_token
+              revoke_action: uninstall
+              revoke_target: company
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example: {}
+        '400':
+          $ref: '#/components/responses/Erro400'
+      security:
+      - basicCliente: []
+  /empresas/me/dados-basicos:
+    get:
+      operationId: bling__empresa__obter
+      summary: Obtém dados básicos da empresa
+      description: 'Devolve os dados básicos da conta Bling que autorizou o app: id da empresa, nome, CNPJ, e-mail e data
+        de início do contrato.
+
+
+        Quando usar: Logo após autorizar, para descobrir a qual empresa pertence o token e guardar o id (é o companyId que
+        chega nos webhooks). Útil para multiempresa/multitenant.'
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Empresas
+      x-entidade-canonica: Empresa
+      x-acao-canonica: obter
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: <<ID_EMPRESA_HEX>>
+                  nome: Empresa Exemplo LTDA
+                  cnpj: 00.000.000/0001-91
+                  email: financeiro@example.com
+                  dataContrato: '2026-01-01'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /contatos:
+    get:
+      operationId: bling__pessoa__listar
+      summary: Obtém contatos
+      description: 'Lista contatos da conta (clientes, fornecedores, transportadoras etc. no mesmo cadastro), paginado por
+        pagina/limite, com filtros por texto, documento, datas e tipo de contato.
+
+
+        Quando usar: Sincronizar a carteira de clientes/fornecedores, localizar um contato pelo CPF/CNPJ antes de criar pedido
+        ou nota e alimentar dashboards de clientes. Para um contato conhecido pelo ID, prefira bling.pessoa.obter.'
+      tags:
+      - Pessoa
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contatos
+      x-entidade-canonica: Pessoa
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: pesquisa
+        in: query
+        required: false
+        description: Busca livre por nome, fantasia, CPF/CNPJ, e-mail ou código.
+        schema:
+          type: string
+      - name: criterio
+        in: query
+        required: false
+        description: 'Recorte da listagem: 1 todos, 2 excluídos, 3 últimos incluídos (padrão), 4 sem movimento.'
+        schema:
+          type: integer
+          enum:
+          - 1
+          - 2
+          - 3
+          - 4
+      - name: numeroDocumento
+        in: query
+        required: false
+        description: CPF/CNPJ só com dígitos para localizar o contato.
+        schema:
+          type: string
+      - name: tipoPessoa
+        in: query
+        required: false
+        description: 1 física, 2 jurídica, 3 estrangeiro.
+        schema:
+          type: integer
+          enum:
+          - 1
+          - 2
+          - 3
+      - name: idTipoContato
+        in: query
+        required: false
+        description: Filtra pelo tipo de contato (cliente, fornecedor...) - IDs vêm de GET /contatos/tipos.
+        schema:
+          type: integer
+      - name: dataAlteracaoInicial
+        in: query
+        required: false
+        description: Traz só registros alterados a partir deste momento (base para carga incremental).
+        schema:
+          type: string
+      - name: dataAlteracaoFinal
+        in: query
+        required: false
+        description: Limite superior da data de alteração.
+        schema:
+          type: string
+      - name: dataInclusaoInicial
+        in: query
+        required: false
+        description: Início do período de cadastro.
+        schema:
+          type: string
+      - name: dataInclusaoFinal
+        in: query
+        required: false
+        description: Fim do período de cadastro.
+        schema:
+          type: string
+      - name: uf
+        in: query
+        required: false
+        description: Sigla da UF do endereço.
+        schema:
+          type: string
+      - name: idVendedor
+        in: query
+        required: false
+        description: ID do vendedor cadastrado.
+        schema:
+          type: integer
+      - name: idsContatos[]
+        in: query
+        required: false
+        description: Lista de IDs para buscar vários contatos numa chamada.
+        schema:
+          type: array
+          items:
+            type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 12345678
+                  nome: Cliente Exemplo LTDA
+                  codigo: C001
+                  situacao: A
+                  numeroDocumento: 00.000.000/0001-91
+                  telefone: (11) 0000-0000
+                  celular: ''
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    post:
+      operationId: bling__pessoa__criar
+      summary: Cria um contato
+      description: 'Cadastra um contato (cliente, fornecedor ou ambos, conforme tiposContato) com documento, IE, endereços
+        e dados financeiros.
+
+
+        Quando usar: Antes de lançar pedido, proposta ou nota para alguém que ainda não existe no Bling. Procure antes por
+        numeroDocumento em bling.pessoa.listar para não duplicar.'
+      tags:
+      - Pessoa
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contatos
+      x-entidade-canonica: Pessoa
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nome:
+                  type: string
+                  description: Nome/razão social.
+                tipo:
+                  type: string
+                  enum: &id001
+                  - J
+                  - F
+                  - E
+                  description: J jurídica, F física, E estrangeira.
+                situacao:
+                  type: string
+                  enum: &id002
+                  - A
+                  - E
+                  - I
+                  - S
+                  description: A ativo, E excluído, I inativo, S sem movimentação.
+                numeroDocumento:
+                  type: string
+                  description: CPF ou CNPJ.
+                codigo:
+                  type: string
+                  description: Código interno do contato (útil como id_externo).
+                fantasia:
+                  type: string
+                  description: Nome fantasia.
+                indicadorIe:
+                  type: integer
+                  enum: &id003
+                  - 1
+                  - 2
+                  - 9
+                  description: 1 contribuinte ICMS, 2 isento, 9 não contribuinte.
+                ie:
+                  type: string
+                  description: Inscrição estadual.
+                inscricaoMunicipal:
+                  type: string
+                  description: Inscrição municipal (PJ).
+                email:
+                  type: string
+                  description: E-mail principal.
+                emailNotaFiscal:
+                  type: string
+                  description: E-mail que recebe a NF-e.
+                telefone:
+                  type: string
+                  description: Telefone fixo.
+                celular:
+                  type: string
+                  description: Celular.
+                endereco:
+                  type: object
+                  properties:
+                    geral:
+                      type: object
+                      properties:
+                        endereco:
+                          type: string
+                          description: Logradouro.
+                        numero:
+                          type: string
+                          description: Número.
+                        complemento:
+                          type: string
+                          description: Complemento.
+                        bairro:
+                          type: string
+                          description: Bairro.
+                        cep:
+                          type: string
+                          description: CEP.
+                        municipio:
+                          type: string
+                          description: Nome do município.
+                        uf:
+                          type: string
+                          description: UF.
+                tiposContato:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        description: IDs dos tipos de contato (cliente, fornecedor...), obtidos em GET /contatos/tipos.
+                vendedor:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Vendedor responsável.
+                financeiro:
+                  type: object
+                  properties:
+                    limiteCredito:
+                      type: number
+                      description: Limite de crédito do cliente.
+              required:
+              - nome
+              - tipo
+              - situacao
+            example: &id004
+              nome: Cliente Exemplo LTDA
+              codigo: C001
+              situacao: A
+              tipo: J
+              numeroDocumento: 00000000000191
+              indicadorIe: 9
+              email: compras@example.com
+              telefone: (11) 0000-0000
+              endereco:
+                geral:
+                  endereco: Rua Exemplo
+                  numero: '100'
+                  bairro: Centro
+                  cep: '01000000'
+                  municipio: São Paulo
+                  uf: SP
+              tiposContato:
+              - id: 12345678
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /contatos/{idContato}:
+    get:
+      operationId: bling__pessoa__obter
+      summary: Obtém um contato
+      description: 'Retorna o cadastro completo de um contato: documento, IE, endereços geral e de cobrança, dados financeiros,
+        vendedor e tipos de contato.
+
+
+        Quando usar: Quando já tem o ID (vindo de pedido, nota ou listagem) e precisa do endereço/IE para faturar ou do papel
+        (cliente/fornecedor).'
+      tags:
+      - Pessoa
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contatos
+      x-entidade-canonica: Pessoa
+      x-acao-canonica: obter
+      parameters:
+      - name: idContato
+        in: path
+        required: true
+        description: ID do contato no Bling.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  nome: Cliente Exemplo LTDA
+                  tipo: J
+                  numeroDocumento: 00000000000191
+                  indicadorIe: 9
+                  email: compras@example.com
+                  endereco:
+                    geral:
+                      endereco: Rua Exemplo
+                      numero: '100'
+                      bairro: Centro
+                      cep: 01000-000
+                      municipio: São Paulo
+                      uf: SP
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    put:
+      operationId: bling__pessoa__substituir
+      summary: Altera um contato
+      description: 'Regrava o cadastro do contato com o objeto enviado (PUT = atualização de todos os dados, segundo o guia
+        REST do Bling).
+
+
+        Quando usar: Sincronização de cadastro vinda de outro sistema-mestre. Para mudar só a situação use bling.pessoa.atualizar.situacao.'
+      tags:
+      - Pessoa
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contatos
+      x-entidade-canonica: Pessoa
+      x-acao-canonica: substituir
+      parameters:
+      - name: idContato
+        in: path
+        required: true
+        description: ID do contato.
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nome:
+                  type: string
+                  description: Nome/razão social.
+                tipo:
+                  type: string
+                  enum: *id001
+                  description: J jurídica, F física, E estrangeira.
+                situacao:
+                  type: string
+                  enum: *id002
+                  description: A ativo, E excluído, I inativo, S sem movimentação.
+                numeroDocumento:
+                  type: string
+                  description: CPF ou CNPJ.
+                codigo:
+                  type: string
+                  description: Código interno do contato (útil como id_externo).
+                fantasia:
+                  type: string
+                  description: Nome fantasia.
+                indicadorIe:
+                  type: integer
+                  enum: *id003
+                  description: 1 contribuinte ICMS, 2 isento, 9 não contribuinte.
+                ie:
+                  type: string
+                  description: Inscrição estadual.
+                inscricaoMunicipal:
+                  type: string
+                  description: Inscrição municipal (PJ).
+                email:
+                  type: string
+                  description: E-mail principal.
+              required:
+              - nome
+              - tipo
+              - situacao
+            example: *id004
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    delete:
+      operationId: bling__pessoa__excluir
+      summary: Remove um contato
+      description: 'Remove um contato pelo ID.
+
+
+        Quando usar: Limpeza de cadastros criados por engano. Para apenas desativar, prefira mudar a situação para I (inativo).'
+      tags:
+      - Pessoa
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contatos
+      x-entidade-canonica: Pessoa
+      x-acao-canonica: excluir
+      parameters:
+      - name: idContato
+        in: path
+        required: true
+        description: ID do contato.
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /contatos/{idContato}/situacoes:
+    patch:
+      operationId: bling__pessoa__atualizar__situacao
+      summary: Altera a situação de um contato
+      description: 'Altera apenas a situação do contato (ativo, inativo, excluído, sem movimentação).
+
+
+        Quando usar: Inativar/reativar clientes ou fornecedores sem mexer no restante do cadastro.'
+      tags:
+      - Pessoa
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contatos
+      x-entidade-canonica: Pessoa
+      x-acao-canonica: atualizar
+      parameters:
+      - name: idContato
+        in: path
+        required: true
+        description: ID do contato.
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                situacao:
+                  type: string
+                  enum:
+                  - A
+                  - I
+                  - E
+                  - S
+                  description: 'Nova situação: A, I, E ou S.'
+            example:
+              situacao: I
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /produtos:
+    get:
+      operationId: bling__produto__listar
+      summary: Obtém produtos
+      description: 'Lista produtos e serviços com preço, código (SKU), situação, formato e saldo resumido, com filtros por
+        tipo, categoria, loja, SKU, GTIN, datas e saldo.
+
+
+        Quando usar: Carga do catálogo para e-commerce/BI, busca por SKU ou GTIN e acompanhamento de alterações (dataAlteracaoInicial).'
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Produtos
+      x-entidade-canonica: Produto
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: criterio
+        in: query
+        required: false
+        description: 'Recorte: 1 últimos incluídos (padrão), 2 ativos, 3 inativos, 4 excluídos, 5 todos.'
+        schema:
+          type: integer
+          enum:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+      - name: tipo
+        in: query
+        required: false
+        description: T todos, P produtos, S serviços, E composições, PS produtos simples, C com variações, V variações.
+        schema:
+          type: string
+          enum:
+          - T
+          - P
+          - S
+          - E
+          - PS
+          - C
+          - V
+      - name: codigos[]
+        in: query
+        required: false
+        description: Um ou mais SKUs.
+        schema:
+          type: array
+          items:
+            type: string
+      - name: gtins[]
+        in: query
+        required: false
+        description: Um ou mais GTIN/EAN.
+        schema:
+          type: array
+          items:
+            type: string
+      - name: idsProdutos[]
+        in: query
+        required: false
+        description: Um ou mais IDs.
+        schema:
+          type: array
+          items:
+            type: integer
+      - name: nome
+        in: query
+        required: false
+        description: Parte do nome.
+        schema:
+          type: string
+      - name: idCategoria
+        in: query
+        required: false
+        description: Categoria de produto.
+        schema:
+          type: integer
+      - name: idLoja
+        in: query
+        required: false
+        description: ID da loja/canal de venda vinculado.
+        schema:
+          type: integer
+      - name: dataAlteracaoInicial
+        in: query
+        required: false
+        description: Traz só registros alterados a partir deste momento (base para carga incremental).
+        schema:
+          type: string
+      - name: dataAlteracaoFinal
+        in: query
+        required: false
+        description: Limite superior da data de alteração.
+        schema:
+          type: string
+      - name: dataInclusaoInicial
+        in: query
+        required: false
+        description: Início do período de cadastro.
+        schema:
+          type: string
+      - name: dataInclusaoFinal
+        in: query
+        required: false
+        description: Fim do período de cadastro.
+        schema:
+          type: string
+      - name: filtroSaldoEstoque
+        in: query
+        required: false
+        description: 0 zerado, 1 positivo, 2 negativo.
+        schema:
+          type: integer
+          enum: &id009
+          - 0
+          - 1
+          - 2
+      - name: filtroSaldoEstoqueDeposito
+        in: query
+        required: false
+        description: Depósito considerado no filtro de saldo.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 12345678
+                  nome: Caneca 300 ml
+                  codigo: CAN-300
+                  preco: 39.9
+                  precoCusto: 12.5
+                  estoque:
+                    saldoVirtualTotal: 42
+                  tipo: P
+                  situacao: A
+                  formato: S
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    post:
+      operationId: bling__produto__criar
+      summary: Cria um produto
+      description: 'Cadastra produto ou serviço com dados comerciais, logísticos e fiscais; aceita variações e composição
+        conforme o formato.
+
+
+        Quando usar: Inclusão de itens vindos de PIM, planilha ou marketplace. Verifique antes por SKU (bling.produto.listar
+        com codigos[]).'
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Produtos
+      x-entidade-canonica: Produto
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nome:
+                  type: string
+                  description: Descrição do produto.
+                codigo:
+                  type: string
+                  description: SKU.
+                preco:
+                  type: number
+                  description: Preço de venda.
+                tipo:
+                  type: string
+                  enum: &id005
+                  - S
+                  - P
+                  - N
+                  description: P produto, S serviço, N serviço 06 21 22.
+                situacao:
+                  type: string
+                  enum: &id006
+                  - A
+                  - I
+                  description: A ativo, I inativo.
+                formato:
+                  type: string
+                  enum: &id007
+                  - S
+                  - V
+                  - E
+                  description: S simples, V com variações, E com composição.
+                unidade:
+                  type: string
+                  description: Unidade comercial (UN, KG...).
+                gtin:
+                  type: string
+                  description: GTIN/EAN do item.
+                pesoLiquido:
+                  type: number
+                  description: Peso líquido em kg.
+                pesoBruto:
+                  type: number
+                  description: Peso bruto em kg.
+                dimensoes:
+                  type: object
+                  properties:
+                    largura:
+                      type: number
+                      description: Largura.
+                    altura:
+                      type: number
+                      description: Altura.
+                    profundidade:
+                      type: number
+                      description: Profundidade.
+                    unidadeMedida:
+                      type: integer
+                      enum:
+                      - '0'
+                      - '1'
+                      - '2'
+                      description: 0 metros, 1 centímetros, 2 milímetros.
+                tributacao:
+                  type: object
+                  properties:
+                    ncm:
+                      type: string
+                      description: NCM do item.
+                    cest:
+                      type: string
+                      description: CEST.
+                    origem:
+                      type: integer
+                      description: Origem da mercadoria (tabela de origem da NF-e).
+                categoria:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Categoria de produto.
+                estoque:
+                  type: object
+                  properties:
+                    minimo:
+                      type: number
+                      description: Estoque mínimo.
+                    maximo:
+                      type: number
+                      description: Estoque máximo.
+                marca:
+                  type: string
+                  description: Marca.
+                descricaoCurta:
+                  type: string
+                  description: Descrição curta (aceita HTML na loja).
+              required:
+              - nome
+              - tipo
+              - situacao
+              - formato
+            example: &id008
+              nome: Caneca 300 ml
+              codigo: CAN-300
+              preco: 39.9
+              tipo: P
+              situacao: A
+              formato: S
+              unidade: UN
+              gtin: SEM GTIN
+              pesoLiquido: 0.35
+              pesoBruto: 0.4
+              dimensoes:
+                largura: 9
+                altura: 10
+                profundidade: 9
+                unidadeMedida: 1
+              tributacao:
+                origem: 0
+                ncm: '69120000'
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  warnings: []
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /produtos/{idProduto}:
+    get:
+      operationId: bling__produto__obter
+      summary: Obtém um produto
+      description: 'Retorna o cadastro completo do produto: preço, unidade, pesos, GTIN, dimensões, estoque mínimo/máximo,
+        fornecedor padrão e bloco de tributação (NCM, CEST, origem).
+
+
+        Quando usar: Quando precisa de dados fiscais/logísticos de um item (emitir nota, cotar frete, publicar em marketplace).'
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Produtos
+      x-entidade-canonica: Produto
+      x-acao-canonica: obter
+      parameters:
+      - name: idProduto
+        in: path
+        required: true
+        description: ID do produto.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  nome: Caneca 300 ml
+                  codigo: CAN-300
+                  preco: 39.9
+                  unidade: UN
+                  gtin: SEM GTIN
+                  pesoBruto: 0.4
+                  tributacao:
+                    origem: 0
+                    ncm: '69120000'
+                    cest: ''
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    put:
+      operationId: bling__produto__substituir
+      summary: Altera um produto
+      description: 'Regrava o cadastro do produto com o objeto completo enviado.
+
+
+        Quando usar: Sincronização integral a partir de um cadastro-mestre. Para mudar poucos campos (ex.: preço), use bling.produto.atualizar
+        (PATCH).'
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Produtos
+      x-entidade-canonica: Produto
+      x-acao-canonica: substituir
+      parameters:
+      - name: idProduto
+        in: path
+        required: true
+        description: ID do produto.
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nome:
+                  type: string
+                  description: Descrição do produto.
+                codigo:
+                  type: string
+                  description: SKU.
+                preco:
+                  type: number
+                  description: Preço de venda.
+                tipo:
+                  type: string
+                  enum: *id005
+                  description: P produto, S serviço, N serviço 06 21 22.
+                situacao:
+                  type: string
+                  enum: *id006
+                  description: A ativo, I inativo.
+                formato:
+                  type: string
+                  enum: *id007
+                  description: S simples, V com variações, E com composição.
+                unidade:
+                  type: string
+                  description: Unidade comercial (UN, KG...).
+                gtin:
+                  type: string
+                  description: GTIN/EAN do item.
+                pesoLiquido:
+                  type: number
+                  description: Peso líquido em kg.
+                pesoBruto:
+                  type: number
+                  description: Peso bruto em kg.
+              required:
+              - nome
+              - tipo
+              - situacao
+              - formato
+            example: *id008
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  warnings: []
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    patch:
+      operationId: bling__produto__atualizar
+      summary: Altera parcialmente um produto
+      description: 'Altera somente os campos enviados do produto (preço, descrição, dimensões, tributação...).
+
+
+        Quando usar: Atualização de preço, peso ou NCM em massa sem risco de apagar o resto do cadastro.'
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Produtos
+      x-entidade-canonica: Produto
+      x-acao-canonica: atualizar
+      parameters:
+      - name: idProduto
+        in: path
+        required: true
+        description: ID do produto.
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nome:
+                  type: string
+                  description: Descrição do produto.
+                codigo:
+                  type: string
+                  description: SKU.
+                preco:
+                  type: number
+                  description: Preço de venda.
+                tipo:
+                  type: string
+                  enum:
+                  - S
+                  - P
+                  - N
+                  description: P produto, S serviço, N serviço 06 21 22.
+                situacao:
+                  type: string
+                  enum:
+                  - A
+                  - I
+                  description: A ativo, I inativo.
+                formato:
+                  type: string
+                  enum:
+                  - S
+                  - V
+                  - E
+                  description: S simples, V com variações, E com composição.
+                unidade:
+                  type: string
+                  description: Unidade comercial (UN, KG...).
+                gtin:
+                  type: string
+                  description: GTIN/EAN do item.
+            example:
+              preco: 44.9
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  warnings: []
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    delete:
+      operationId: bling__produto__excluir
+      summary: Remove um produto
+      description: 'Remove um produto pelo ID.
+
+
+        Quando usar: Exclusão definitiva de itens cadastrados por engano. Para tirar de linha, prefira situacao=I via PATCH.'
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Produtos
+      x-entidade-canonica: Produto
+      x-acao-canonica: excluir
+      parameters:
+      - name: idProduto
+        in: path
+        required: true
+        description: ID do produto.
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Sucesso
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /estoques/saldos:
+    get:
+      operationId: bling__estoque__listar__saldos
+      summary: Obtém o saldo em estoque de produtos
+      description: 'Consulta saldo físico e virtual (descontando reservas) de uma lista de produtos, somado e por depósito.
+
+
+        Quando usar: Painel de estoque, sincronização de disponibilidade com loja/marketplace e alertas de ruptura. Exige
+        IDs de produtos: combine com bling.produto.listar.'
+      tags:
+      - Estoque
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Estoques
+      x-entidade-canonica: Estoque
+      x-acao-canonica: listar
+      parameters:
+      - name: idsProdutos[]
+        in: query
+        required: true
+        description: IDs dos produtos consultados (obrigatório).
+        schema:
+          type: array
+          items:
+            type: integer
+      - name: codigos[]
+        in: query
+        required: false
+        description: SKUs, alternativa/complemento aos IDs.
+        schema:
+          type: array
+          items:
+            type: string
+      - name: filtroSaldoEstoque
+        in: query
+        required: false
+        description: 0 zerado, 1 positivo, 2 negativo.
+        schema:
+          type: integer
+          enum: *id009
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - produto:
+                    id: 12345678
+                    codigo: CAN-300
+                  saldoFisicoTotal: 50
+                  saldoVirtualTotal: 42
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /estoques/saldos/{idDeposito}:
+    get:
+      operationId: bling__estoque__listar__saldo_deposito
+      summary: Obtém o saldo em estoque de produtos por depósito
+      description: 'Mesmo que a consulta de saldos, restrita a um depósito.
+
+
+        Quando usar: Operação multi-CD/filial em que cada depósito atende um canal.'
+      tags:
+      - Estoque
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Estoques
+      x-entidade-canonica: Estoque
+      x-acao-canonica: listar
+      parameters:
+      - name: idDeposito
+        in: path
+        required: true
+        description: ID do depósito (bling.deposito.listar).
+        schema:
+          type: integer
+      - name: idsProdutos[]
+        in: query
+        required: true
+        description: IDs dos produtos (obrigatório).
+        schema:
+          type: array
+          items:
+            type: integer
+      - name: codigos[]
+        in: query
+        required: false
+        description: SKUs.
+        schema:
+          type: array
+          items:
+            type: string
+      - name: filtroSaldoEstoque
+        in: query
+        required: false
+        description: 0 zerado, 1 positivo, 2 negativo.
+        schema:
+          type: integer
+          enum: *id009
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - produto:
+                    id: 12345678
+                  saldoFisicoTotal: 20
+                  saldoVirtualTotal: 18
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /depositos:
+    get:
+      operationId: bling__deposito__listar
+      summary: Obtém depósitos
+      description: 'Lista os depósitos (locais de estoque) da conta, com situação, indicação de padrão e se o saldo é desconsiderado.
+
+
+        Quando usar: Descobrir o idDeposito antes de lançar ou consultar estoque por local.'
+      tags:
+      - Estoque
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Dep%C3%B3sitos
+      x-entidade-canonica: Deposito
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: descricao
+        in: query
+        required: false
+        description: Filtra pelo nome do depósito.
+        schema:
+          type: string
+      - name: situacao
+        in: query
+        required: false
+        description: 0 inativo, 1 ativo (padrão).
+        schema:
+          type: integer
+          enum:
+          - 0
+          - 1
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 12345678
+                  descricao: Depósito Geral
+                  situacao: 1
+                  padrao: true
+                  desconsiderarSaldo: false
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /estoques:
+    post:
+      operationId: bling__estoque__criar
+      summary: Cria um registro de estoque
+      description: 'Registra um lançamento de estoque para um produto num depósito: balanço (define o saldo), entrada ou saída.
+
+
+        Quando usar: Ajuste de inventário, entrada de mercadoria sem nota no Bling ou integração com WMS. Para baixar estoque
+        de uma venda já existente, prefira o lançamento a partir do pedido (secundário).'
+      tags:
+      - Estoque
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Estoques
+      x-entidade-canonica: Estoque
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                produto:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: ID do produto.
+                deposito:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: ID do depósito.
+                operacao:
+                  type: string
+                  enum:
+                  - B
+                  - E
+                  - S
+                  description: B balanço, E entrada, S saída.
+                quantidade:
+                  type: number
+                  description: Quantidade do lançamento.
+                preco:
+                  type: number
+                  description: Preço unitário (opcional).
+                custo:
+                  type: number
+                  description: Custo unitário (opcional).
+                observacoes:
+                  type: string
+                  description: 'Texto livre (ex.: número do inventário).'
+              required:
+              - operacao
+              - quantidade
+            example:
+              produto:
+                id: 12345678
+              deposito:
+                id: 87654321
+              operacao: B
+              quantidade: 50
+              observacoes: Inventário 2026-09
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /estoques/{idEstoque}:
+    put:
+      operationId: bling__estoque__atualizar
+      summary: Altera um registro de estoque
+      description: 'Corrige preço, custo ou observação de um lançamento de estoque já registrado (não altera quantidade).
+
+
+        Quando usar: Ajustar custo unitário de uma entrada lançada com valor errado.'
+      tags:
+      - Estoque
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Estoques
+      x-entidade-canonica: Estoque
+      x-acao-canonica: atualizar
+      parameters:
+      - name: idEstoque
+        in: path
+        required: true
+        description: ID do lançamento (retornado por bling.estoque.criar).
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                preco:
+                  type: number
+                  description: Preço unitário.
+                precoCusto:
+                  type: number
+                  description: Custo unitário.
+                observacoes:
+                  type: string
+                  description: Observação.
+            example:
+              precoCusto: 12.5
+              observacoes: Custo corrigido
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /pedidos/vendas:
+    get:
+      operationId: bling__pedido__listar__venda
+      summary: Obtém pedidos de vendas
+      description: 'Lista pedidos de venda com cabeçalho (número, número na loja, datas, totais, contato, situação e loja),
+        filtrando por período, alteração, situação, contato, loja e vendedor.
+
+
+        Quando usar: Base de BI de vendas (faturamento, ticket médio), integração com expedição/WMS e sincronização incremental
+        por dataAlteracaoInicial. Itens e parcelas exigem bling.pedido.obter.venda.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Pedidos%20-%20Vendas
+      x-entidade-canonica: Pedido
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: dataInicial
+        in: query
+        required: false
+        description: Início do período (intervalo máximo de 1 ano entre inicial e final).
+        schema:
+          type: string
+          format: date
+      - name: dataFinal
+        in: query
+        required: false
+        description: Fim do período (intervalo máximo de 1 ano).
+        schema:
+          type: string
+          format: date
+      - name: dataAlteracaoInicial
+        in: query
+        required: false
+        description: Traz só registros alterados a partir deste momento (base para carga incremental).
+        schema:
+          type: string
+      - name: dataAlteracaoFinal
+        in: query
+        required: false
+        description: Limite superior da data de alteração.
+        schema:
+          type: string
+      - name: dataPrevistaInicial
+        in: query
+        required: false
+        description: Início da data prevista de entrega.
+        schema:
+          type: string
+          format: date
+      - name: dataPrevistaFinal
+        in: query
+        required: false
+        description: Fim da data prevista.
+        schema:
+          type: string
+          format: date
+      - name: idsSituacoes[]
+        in: query
+        required: false
+        description: 'IDs de situação (são configuráveis por conta: descubra em /situacoes/modulos).'
+        schema:
+          type: array
+          items:
+            type: integer
+      - name: idContato
+        in: query
+        required: false
+        description: ID interno do contato (cliente/fornecedor) no Bling.
+        schema:
+          type: integer
+      - name: numero
+        in: query
+        required: false
+        description: Número do documento na numeração do Bling.
+        schema:
+          type: integer
+      - name: idLoja
+        in: query
+        required: false
+        description: ID da loja/canal de venda vinculado.
+        schema:
+          type: integer
+      - name: numerosLojas[]
+        in: query
+        required: false
+        description: Números do pedido na loja/marketplace.
+        schema:
+          type: array
+          items:
+            type: string
+      - name: idVendedor
+        in: query
+        required: false
+        description: ID do vendedor cadastrado.
+        schema:
+          type: integer
+      - name: idUnidadeNegocio
+        in: query
+        required: false
+        description: Filial/unidade de negócio.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 12345678
+                  numero: 1532
+                  numeroLoja: MKT-998877
+                  data: '2026-08-10'
+                  total: 129.8
+                  contato:
+                    id: 87654321
+                    nome: Cliente Exemplo
+                  situacao:
+                    id: 6
+                    valor: 1
+                  loja:
+                    id: 0
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    post:
+      operationId: bling__pedido__criar__venda
+      summary: Cria um pedido de venda
+      description: 'Cria um pedido de venda com cliente, itens, parcelas, transporte e descontos.
+
+
+        Quando usar: Importar pedidos de loja própria, marketplace, CRM ou força de vendas para o Bling faturar e expedir.
+        Pedidos via API contam no limite de pedidos importados do plano.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Pedidos%20-%20Vendas
+      x-entidade-canonica: Pedido
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contato:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Cliente (ID do contato).
+                data:
+                  type: string
+                  format: date
+                  description: Data do pedido.
+                dataSaida:
+                  type: string
+                  format: date
+                  description: Data de saída.
+                dataPrevista:
+                  type: string
+                  format: date
+                  description: Data prevista de entrega.
+                numero:
+                  type: integer
+                  description: Número do pedido (se omitido, o Bling numera; confirme na conta).
+                numeroLoja:
+                  type: string
+                  description: Número do pedido na loja de origem (use como id_externo).
+                loja:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Loja/canal de venda.
+                itens:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      produto:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            description: Produto do item.
+                      codigo:
+                        type: string
+                        description: SKU do item.
+                      descricao:
+                        type: string
+                        description: Descrição do item.
+                      quantidade:
+                        type: number
+                        description: Quantidade.
+                      valor:
+                        type: number
+                        description: Valor unitário.
+                      desconto:
+                        type: number
+                        description: Desconto do item em percentual.
+                parcelas:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      dataVencimento:
+                        type: string
+                        format: date
+                        description: Vencimento da parcela.
+                      valor:
+                        type: number
+                        description: Valor da parcela.
+                      formaPagamento:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            description: Forma de pagamento (bling.tabela_auxiliar.listar.formas_pagamento).
+                transporte:
+                  type: object
+                  properties:
+                    fretePorConta:
+                      type: integer
+                      enum:
+                      - 0
+                      - 1
+                      - 2
+                      - 3
+                      - 4
+                      - 9
+                      description: Modalidade do frete (0 CIF remetente, 1 FOB destinatário, ... 9 sem frete).
+                    frete:
+                      type: number
+                      description: Valor do frete.
+                desconto:
+                  type: object
+                  properties:
+                    valor:
+                      type: number
+                      description: Desconto do pedido.
+                    unidade:
+                      type: string
+                      enum:
+                      - REAL
+                      - PERCENTUAL
+                      description: REAL ou PERCENTUAL.
+                observacoes:
+                  type: string
+                  description: Observações impressas.
+                observacoesInternas:
+                  type: string
+                  description: Observações internas.
+                intermediador:
+                  type: object
+                  properties:
+                    cnpj:
+                      type: string
+                      description: CNPJ do intermediador (marketplace).
+                vendedor:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Vendedor.
+              required:
+              - data
+              - dataSaida
+              - dataPrevista
+            example: &id010
+              numeroLoja: PED-000123
+              data: '2026-09-17'
+              dataSaida: '2026-09-17'
+              dataPrevista: '2026-09-20'
+              contato:
+                id: 87654321
+              loja:
+                id: 0
+              itens:
+              - produto:
+                  id: 12345678
+                codigo: CAN-300
+                descricao: Caneca 300 ml
+                quantidade: 2
+                valor: 39.9
+              parcelas:
+              - dataVencimento: '2026-10-17'
+                valor: 79.8
+                formaPagamento:
+                  id: 1122
+              transporte:
+                fretePorConta: 0
+                frete: 0
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  alertas: []
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /pedidos/vendas/{idPedidoVenda}:
+    get:
+      operationId: bling__pedido__obter__venda
+      summary: Obtém um pedido de venda
+      description: 'Retorna o pedido de venda completo: contato, itens, parcelas, transporte (volumes, rastreio, etiqueta),
+        intermediador, taxas de marketplace, nota vinculada e observações.
+
+
+        Quando usar: Montar separação/expedição, calcular margem por item ou conciliar parcelas.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Pedidos%20-%20Vendas
+      x-entidade-canonica: Pedido
+      x-acao-canonica: obter
+      parameters:
+      - name: idPedidoVenda
+        in: path
+        required: true
+        description: ID do pedido de venda.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  numero: 1532
+                  itens:
+                  - codigo: CAN-300
+                    descricao: Caneca 300 ml
+                    quantidade: 2
+                    valor: 39.9
+                    produto:
+                      id: 87654321
+                  parcelas:
+                  - dataVencimento: '2026-09-10'
+                    valor: 79.8
+                    formaPagamento:
+                      id: 1122
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    put:
+      operationId: bling__pedido__substituir__venda
+      summary: Altera um pedido de venda
+      description: 'Regrava o pedido de venda com o objeto completo (cabeçalho, itens, parcelas, transporte).
+
+
+        Quando usar: Corrigir pedido ainda não faturado a partir do sistema de origem. Para mudar só o status, use bling.pedido.atualizar.venda_situacao.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Pedidos%20-%20Vendas
+      x-entidade-canonica: Pedido
+      x-acao-canonica: substituir
+      parameters:
+      - name: idPedidoVenda
+        in: path
+        required: true
+        description: ID do pedido.
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contato:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Cliente (ID do contato).
+                data:
+                  type: string
+                  format: date
+                  description: Data do pedido.
+                dataSaida:
+                  type: string
+                  format: date
+                  description: Data de saída.
+                dataPrevista:
+                  type: string
+                  format: date
+                  description: Data prevista de entrega.
+                numero:
+                  type: integer
+                  description: Número do pedido (se omitido, o Bling numera; confirme na conta).
+                numeroLoja:
+                  type: string
+                  description: Número do pedido na loja de origem (use como id_externo).
+                loja:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Loja/canal de venda.
+                itens:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      produto:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            description: Produto do item.
+                      codigo:
+                        type: string
+                        description: SKU do item.
+                      descricao:
+                        type: string
+                        description: Descrição do item.
+                      quantidade:
+                        type: number
+                        description: Quantidade.
+                      valor:
+                        type: number
+                        description: Valor unitário.
+              required:
+              - data
+              - dataSaida
+              - dataPrevista
+            example: *id010
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  alertas: []
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    delete:
+      operationId: bling__pedido__excluir__venda
+      summary: Remove um pedido de venda
+      description: 'Remove um pedido de venda.
+
+
+        Quando usar: Descartar pedido criado por engano. Para cancelamento de negócio, prefira mudar a situação para a de
+        cancelado da conta.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Pedidos%20-%20Vendas
+      x-entidade-canonica: Pedido
+      x-acao-canonica: excluir
+      parameters:
+      - name: idPedidoVenda
+        in: path
+        required: true
+        description: ID do pedido.
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /pedidos/vendas/{idPedidoVenda}/situacoes/{idSituacao}:
+    patch:
+      operationId: bling__pedido__atualizar__venda_situacao
+      summary: Altera a situação de um pedido de venda
+      description: 'Move o pedido de venda para outra situação (em aberto, em andamento, atendido, cancelado ou situações
+        personalizadas da conta).
+
+
+        Quando usar: Refletir no Bling o avanço do pedido em outro sistema (pago, separado, enviado, cancelado).'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Pedidos%20-%20Vendas
+      x-entidade-canonica: Pedido
+      x-acao-canonica: atualizar
+      parameters:
+      - name: idPedidoVenda
+        in: path
+        required: true
+        description: ID do pedido.
+        schema:
+          type: integer
+      - name: idSituacao
+        in: path
+        required: true
+        description: ID da situação de destino (configurável por conta).
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /pedidos/vendas/{idPedidoVenda}/gerar-nfe:
+    post:
+      operationId: bling__nota_fiscal__criar__nfe_de_pedido
+      summary: Gera nota fiscal eletrônica a partir do pedido de venda
+      description: 'Gera uma NF-e em rascunho no Bling a partir de um pedido de venda e devolve o idNotaFiscal. Não transmite
+        à SEFAZ.
+
+
+        Quando usar: Fluxo pedido -> nota sem remontar itens e impostos. Em seguida chame bling.nota_fiscal.emitir.nfe para
+        autorizar.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Pedidos%20-%20Vendas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: criar
+      parameters:
+      - name: idPedidoVenda
+        in: path
+        required: true
+        description: ID do pedido de venda.
+        schema:
+          type: integer
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                idNotaFiscal: 12345678
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /pedidos/compras:
+    get:
+      operationId: bling__pedido__listar__compra
+      summary: Obtém pedidos de compras
+      description: 'Lista pedidos de compra com número, datas, totais, fornecedor e situação.
+
+
+        Quando usar: Acompanhar compras em aberto, prazos de fornecedor e custo de reposição em BI.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Pedidos%20-%20Compras
+      x-entidade-canonica: Pedido
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: idFornecedor
+        in: query
+        required: false
+        description: ID do contato fornecedor.
+        schema:
+          type: integer
+      - name: idSituacao
+        in: query
+        required: false
+        description: ID da situação.
+        schema:
+          type: integer
+      - name: valorSituacao
+        in: query
+        required: false
+        description: Valor da situação (0 em aberto, 1 atendido, 2 cancelado, 3 em andamento).
+        schema:
+          type: integer
+      - name: dataInicial
+        in: query
+        required: false
+        description: Início do período (intervalo máximo de 1 ano entre inicial e final).
+        schema:
+          type: string
+          format: date
+      - name: dataFinal
+        in: query
+        required: false
+        description: Fim do período (intervalo máximo de 1 ano).
+        schema:
+          type: string
+          format: date
+      - name: idsNotasFiscais[]
+        in: query
+        required: false
+        description: Notas de entrada vinculadas.
+        schema:
+          type: array
+          items:
+            type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 12345678
+                  numero: 12
+                  data: '2026-09-01'
+                  dataPrevista: '2026-09-15'
+                  total: 2090.66
+                  fornecedor:
+                    id: 87654321
+                  situacao:
+                    valor: 0
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    post:
+      operationId: bling__pedido__criar__compra
+      summary: Cria um pedido de compra
+      description: 'Cria um pedido de compra para um fornecedor, com itens, parcelas e frete.
+
+
+        Quando usar: Reposição automática (a partir de ponto de pedido/BI) ou compras vindas de portal de suprimentos.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Pedidos%20-%20Compras
+      x-entidade-canonica: Pedido
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fornecedor:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Fornecedor (ID do contato).
+                data:
+                  type: string
+                  format: date
+                  description: Data do pedido.
+                dataPrevista:
+                  type: string
+                  format: date
+                  description: Previsão de entrega.
+                ordemCompra:
+                  type: string
+                  description: Número da ordem de compra (id_externo).
+                itens:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      descricao:
+                        type: string
+                        description: Descrição do item.
+                      valor:
+                        type: number
+                        description: Valor unitário.
+                      quantidade:
+                        type: number
+                        description: Quantidade.
+                      codigoFornecedor:
+                        type: string
+                        description: Código do item no fornecedor.
+                parcelas:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      valor:
+                        type: number
+                        description: Valor da parcela.
+                      dataVencimento:
+                        type: string
+                        format: date
+                        description: Vencimento.
+                transporte:
+                  type: object
+                  properties:
+                    frete:
+                      type: number
+                      description: Frete.
+                    fretePorConta:
+                      type: integer
+                      enum:
+                      - 0
+                      - 1
+                      - 2
+                      - 3
+                      - 4
+                      - 9
+                      description: Modalidade de frete.
+                observacoes:
+                  type: string
+                  description: Observações.
+                categoria:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Categoria financeira.
+            example: &id011
+              fornecedor:
+                id: 87654321
+              data: '2026-09-17'
+              dataPrevista: '2026-09-30'
+              ordemCompra: OC-2026-001
+              itens:
+              - descricao: Caneca 300 ml
+                codigoFornecedor: FORN-CAN
+                valor: 12.5
+                quantidade: 100
+              parcelas:
+              - valor: 1250.0
+                dataVencimento: '2026-10-30'
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  numero: 13
+                  alertas: []
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /pedidos/compras/{idPedidoCompra}:
+    get:
+      operationId: bling__pedido__obter__compra
+      summary: Obtém um pedido de compra
+      description: 'Retorna o pedido de compra completo com itens, parcelas, transporte e observações.
+
+
+        Quando usar: Conferência de recebimento e integração com contas a pagar.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Pedidos%20-%20Compras
+      x-entidade-canonica: Pedido
+      x-acao-canonica: obter
+      parameters:
+      - name: idPedidoCompra
+        in: path
+        required: true
+        description: ID do pedido de compra.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  numero: 12
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    put:
+      operationId: bling__pedido__substituir__compra
+      summary: Altera um pedido de compra
+      description: 'Regrava um pedido de compra com o objeto completo.
+
+
+        Quando usar: Ajuste de quantidades/preços negociados antes do recebimento.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Pedidos%20-%20Compras
+      x-entidade-canonica: Pedido
+      x-acao-canonica: substituir
+      parameters:
+      - name: idPedidoCompra
+        in: path
+        required: true
+        description: ID do pedido de compra.
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fornecedor:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Fornecedor (ID do contato).
+                data:
+                  type: string
+                  format: date
+                  description: Data do pedido.
+                dataPrevista:
+                  type: string
+                  format: date
+                  description: Previsão de entrega.
+                ordemCompra:
+                  type: string
+                  description: Número da ordem de compra (id_externo).
+                itens:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      descricao:
+                        type: string
+                        description: Descrição do item.
+                      valor:
+                        type: number
+                        description: Valor unitário.
+                      quantidade:
+                        type: number
+                        description: Quantidade.
+                      codigoFornecedor:
+                        type: string
+                        description: Código do item no fornecedor.
+            example: *id011
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  numero: 13
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    delete:
+      operationId: bling__pedido__excluir__compra
+      summary: Remove um pedido de compra
+      description: 'Remove um pedido de compra.
+
+
+        Quando usar: Descartar pedido de compra criado por engano.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Pedidos%20-%20Compras
+      x-entidade-canonica: Pedido
+      x-acao-canonica: excluir
+      parameters:
+      - name: idPedidoCompra
+        in: path
+        required: true
+        description: ID do pedido de compra.
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Sucesso
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /propostas-comerciais:
+    get:
+      operationId: bling__orcamento__listar
+      summary: Obtém propostas comerciais
+      description: 'Lista propostas comerciais (orçamentos) com data, situação textual, totais, número, contato e loja.
+
+
+        Quando usar: Funil de orçamentos, taxa de conversão e follow-up comercial.'
+      tags:
+      - Orcamento
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Propostas%20Comerciais
+      x-entidade-canonica: Orcamento
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: situacao
+        in: query
+        required: false
+        description: Situação textual (Pendente, Aguardando, Não aprovado, Aprovado, Concluído...).
+        schema:
+          type: string
+      - name: idContato
+        in: query
+        required: false
+        description: ID interno do contato (cliente/fornecedor) no Bling.
+        schema:
+          type: integer
+      - name: dataInicial
+        in: query
+        required: false
+        description: Início do período (intervalo máximo de 1 ano entre inicial e final).
+        schema:
+          type: string
+          format: date
+      - name: dataFinal
+        in: query
+        required: false
+        description: Fim do período (intervalo máximo de 1 ano).
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 12345678
+                  data: '2026-09-01'
+                  situacao: Aprovado
+                  total: 251.0
+                  numero: 13
+                  contato:
+                    id: 87654321
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    post:
+      operationId: bling__orcamento__criar
+      summary: Cria uma proposta comercial
+      description: 'Cria uma proposta comercial com itens, condições e textos de apresentação.
+
+
+        Quando usar: Orçamentos gerados em CRM/configurador que precisam existir no Bling.'
+      tags:
+      - Orcamento
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Propostas%20Comerciais
+      x-entidade-canonica: Orcamento
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contato:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Cliente.
+                loja:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Loja (obrigatório no schema quando loja é enviada).
+                data:
+                  type: string
+                  format: date
+                  description: Data da proposta.
+                situacao:
+                  type: string
+                  description: Situação textual.
+                itens:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      produto:
+                        type: object
+                        description: Produto do item (objeto com id).
+                      codigo:
+                        type: string
+                        description: SKU.
+                      quantidade:
+                        type: number
+                        description: Quantidade.
+                      valor:
+                        type: number
+                        description: Valor unitário.
+                      desconto:
+                        type: number
+                        description: Desconto do item.
+                parcelas:
+                  type: array
+                  description: Parcelas (lista obrigatória no schema).
+                garantia:
+                  type: integer
+                  description: Garantia (meses).
+                prazoEntrega:
+                  type: string
+                  description: Prazo de entrega em texto.
+                dataProximoContato:
+                  type: string
+                  description: Data de follow-up.
+                aosCuidadosDe:
+                  type: string
+                  description: Pessoa de contato.
+              required:
+              - parcelas
+            example: &id012
+              data: '2026-09-17'
+              situacao: Pendente
+              contato:
+                id: 87654321
+              itens:
+              - produto:
+                  id: 12345678
+                codigo: CAN-300
+                quantidade: 10
+                valor: 35.0
+              parcelas: []
+              garantia: 3
+              prazoEntrega: 10 dias úteis
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /propostas-comerciais/{idPropostaComercial}:
+    get:
+      operationId: bling__orcamento__obter
+      summary: Obtém uma proposta comercial
+      description: 'Retorna a proposta comercial completa: itens, parcelas, garantia, prazo de entrega, introdução e observações.
+
+
+        Quando usar: Gerar PDF próprio da proposta ou converter em pedido no sistema de origem.'
+      tags:
+      - Orcamento
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Propostas%20Comerciais
+      x-entidade-canonica: Orcamento
+      x-acao-canonica: obter
+      parameters:
+      - name: idPropostaComercial
+        in: path
+        required: true
+        description: ID da proposta.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                id: 12345678
+                situacao: Pendente
+                numero: 13
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    put:
+      operationId: bling__orcamento__substituir
+      summary: Altera uma proposta comercial
+      description: 'Regrava uma proposta comercial com o objeto completo.
+
+
+        Quando usar: Revisão de proposta antes da aprovação.'
+      tags:
+      - Orcamento
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Propostas%20Comerciais
+      x-entidade-canonica: Orcamento
+      x-acao-canonica: substituir
+      parameters:
+      - name: idPropostaComercial
+        in: path
+        required: true
+        description: ID da proposta.
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contato:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Cliente.
+                loja:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Loja (obrigatório no schema quando loja é enviada).
+                data:
+                  type: string
+                  format: date
+                  description: Data da proposta.
+                situacao:
+                  type: string
+                  description: Situação textual.
+                itens:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      produto:
+                        type: object
+                        description: Produto do item (objeto com id).
+                      codigo:
+                        type: string
+                        description: SKU.
+                      quantidade:
+                        type: number
+                        description: Quantidade.
+                      valor:
+                        type: number
+                        description: Valor unitário.
+            example: *id012
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    delete:
+      operationId: bling__orcamento__excluir
+      summary: Remove uma proposta comercial
+      description: 'Remove uma proposta comercial.
+
+
+        Quando usar: Limpeza de propostas vencidas ou duplicadas.'
+      tags:
+      - Orcamento
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Propostas%20Comerciais
+      x-entidade-canonica: Orcamento
+      x-acao-canonica: excluir
+      parameters:
+      - name: idPropostaComercial
+        in: path
+        required: true
+        description: ID da proposta.
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /nfe:
+    get:
+      operationId: bling__nota_fiscal__listar__nfe
+      summary: Obtém notas fiscais
+      description: 'Lista NF-e (modelo 55) de entrada e saída com número, situação, datas, chave de acesso, contato e natureza
+        de operação.
+
+
+        Quando usar: Livro de saídas/entradas em BI, conferência de notas rejeitadas e conciliação pedido x nota.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: situacao
+        in: query
+        required: false
+        description: 'Situação da nota: 1 pendente, 2 cancelada, 3 aguardando recibo, 4 rejeitada, 5 autorizada, 6 emitida
+          DANFE, 7 registrada, 8 aguardando protocolo, 9 denegada, 10 consulta situação, 11 bloqueada. Sem este filtro, canceladas
+          ficam de fora.'
+        schema:
+          type: integer
+          enum:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+          - 10
+          - 11
+      - name: tipo
+        in: query
+        required: false
+        description: 0 entrada, 1 saída (padrão).
+        schema:
+          type: string
+          enum:
+          - '0'
+          - '1'
+      - name: dataEmissaoInicial
+        in: query
+        required: false
+        description: Início do período de emissão.
+        schema:
+          type: string
+          format: date
+      - name: dataEmissaoFinal
+        in: query
+        required: false
+        description: Fim do período de emissão.
+        schema:
+          type: string
+          format: date
+      - name: numero
+        in: query
+        required: false
+        description: Número da NF-e.
+        schema:
+          type: integer
+      - name: serie
+        in: query
+        required: false
+        description: Série.
+        schema:
+          type: integer
+      - name: chaveAcesso
+        in: query
+        required: false
+        description: Chave de 44 dígitos.
+        schema:
+          type: integer
+      - name: numeroLoja
+        in: query
+        required: false
+        description: Número do pedido na loja.
+        schema:
+          type: string
+      - name: idTransportador
+        in: query
+        required: false
+        description: Contato transportador.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 12345678
+                  tipo: 1
+                  situacao: 5
+                  numero: '6541'
+                  dataEmissao: '2026-08-12 09:52:12'
+                  chaveAcesso: <<CHAVE_44_DIGITOS>>
+                  contato:
+                    nome: Cliente Exemplo
+                    numeroDocumento: 00000000000191
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    post:
+      operationId: bling__nota_fiscal__criar__nfe
+      summary: Cria uma nota fiscal
+      description: 'Cria uma NF-e (entrada ou saída) no Bling em situação pendente, com destinatário, natureza de operação,
+        itens, parcelas e transporte. A autorização é um passo separado.
+
+
+        Quando usar: Emitir nota para venda que não nasceu como pedido no Bling, nota de entrada/devolução ou complementar.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tipo:
+                  type: integer
+                  enum: &id013
+                  - 0
+                  - 1
+                  description: 0 entrada, 1 saída.
+                numero:
+                  type: string
+                  description: Número da nota.
+                dataOperacao:
+                  type: string
+                  description: Data/hora de saída ou entrada. AAAA-MM-DD HH:MM:SS
+                contato:
+                  type: object
+                  properties:
+                    nome:
+                      type: string
+                      description: Nome do destinatário.
+                    tipoPessoa:
+                      type: string
+                      enum: &id014
+                      - F
+                      - J
+                      - E
+                      description: F, J ou E.
+                    numeroDocumento:
+                      type: string
+                      description: CPF/CNPJ do destinatário.
+                    contribuinte:
+                      type: integer
+                      enum: &id015
+                      - 1
+                      - 2
+                      - 9
+                      description: 1 contribuinte ICMS, 2 isento, 9 não contribuinte.
+                    ie:
+                      type: string
+                      description: IE do destinatário.
+                    email:
+                      type: string
+                      description: E-mail que recebe XML/DANFE.
+                naturezaOperacao:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Natureza de operação cadastrada (GET /naturezas-operacoes).
+                finalidade:
+                  type: integer
+                  enum:
+                  - 1
+                  - 2
+                  - 3
+                  - 4
+                  - 5
+                  - 6
+                  description: 1 normal, 2 complementar, 3 ajuste, 4 devolução, 5 crédito, 6 débito.
+                loja:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Loja de origem.
+                itens:
+                  type: array
+                  description: Itens da nota (código, descrição, unidade, quantidade, valor, dados fiscais). Schema completo
+                    na referência.
+              required:
+              - tipo
+              - numero
+              - dataOperacao
+            example:
+              tipo: 1
+              numero: '6542'
+              dataOperacao: '2026-09-17 10:00:00'
+              contato:
+                nome: Cliente Exemplo LTDA
+                tipoPessoa: J
+                numeroDocumento: 00000000000191
+                contribuinte: 9
+                email: nfe@example.com
+              naturezaOperacao:
+                id: 87654321
+              finalidade: 1
+              itens:
+              - codigo: CAN-300
+                descricao: Caneca 300 ml
+                unidade: UN
+                quantidade: 2
+                valor: 39.9
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  numero: '6542'
+                  serie: '1'
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /nfe/{idNotaFiscal}:
+    get:
+      operationId: bling__nota_fiscal__obter__nfe
+      summary: Obtém uma nota fiscal
+      description: 'Retorna a NF-e completa: destinatário, natureza, itens, parcelas, transporte, intermediador, links do
+        XML/DANFE/PDF e documentos referenciados.
+
+
+        Quando usar: Consultar situação SEFAZ de uma nota enviada, obter chave e links, ou montar relatório fiscal detalhado.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: obter
+      parameters:
+      - name: idNotaFiscal
+        in: path
+        required: true
+        description: ID da nota no Bling.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  situacao: 5
+                  numero: '6541'
+                  chaveAcesso: <<CHAVE_44_DIGITOS>>
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /nfe/{idNotaFiscal}/enviar:
+    post:
+      operationId: bling__nota_fiscal__emitir__nfe
+      summary: Envia uma nota fiscal
+      description: 'Transmite a NF-e pendente para autorização na SEFAZ usando o certificado configurado no Bling; opcionalmente
+        envia e-mail ao destinatário.
+
+
+        Quando usar: Depois de criar a nota (direto ou a partir do pedido) e revisar os dados. Após a chamada, acompanhe a
+        situação em bling.nota_fiscal.obter.nfe ou pelo webhook invoice.updated.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: emitir
+      parameters:
+      - name: idNotaFiscal
+        in: path
+        required: true
+        description: ID da nota pendente.
+        schema:
+          type: integer
+      - name: enviarEmail
+        in: query
+        required: false
+        description: true para mandar XML/DANFE por e-mail após emitir.
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  xml: <<XML_OU_LINK>>
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /nfe/documento/{chaveAcesso}:
+    get:
+      operationId: bling__nota_fiscal__baixar_arquivo__nfe
+      summary: Obtém o documento de uma nota fiscal
+      description: 'Baixa o DANFE (pdf) ou o XML da NF-e pela chave de acesso. O conteúdo vem compactado em GZIP e codificado
+        em base64 dentro do JSON.
+
+
+        Quando usar: Arquivar XML para o contador, anexar DANFE em e-mail/portal ou alimentar data lake fiscal.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: baixar_arquivo
+      parameters:
+      - name: chaveAcesso
+        in: path
+        required: true
+        description: Chave de acesso de 44 dígitos.
+        schema:
+          type: string
+      - name: formato
+        in: query
+        required: true
+        description: pdf para DANFE, xml para o XML.
+        schema:
+          type: string
+          enum:
+          - pdf
+          - xml
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - nome: <<CHAVE>>.xml
+                  conteudo: <<BASE64_GZIP>>
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /nfce:
+    get:
+      operationId: bling__nota_fiscal__listar__nfce
+      summary: Obtém notas fiscais de consumidor
+      description: 'Lista NFC-e (modelo 65, varejo/PDV) com número, situação, datas, chave, contato e natureza.
+
+
+        Quando usar: BI de vendas de balcão e conferência de notas de consumidor rejeitadas.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20de%20Consumidor%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: situacao
+        in: query
+        required: false
+        description: 'Situação: 1 pendente, 2 cancelada, 3 aguardando recibo, 4 rejeitada, 5 autorizada, 6 emitida DANFE,
+          7 registrada, 8 aguardando protocolo, 9 denegada, 10 consulta situação, 11 bloqueada.'
+        schema:
+          type: integer
+          enum:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+          - 10
+          - 11
+          - 12
+      - name: dataEmissaoInicial
+        in: query
+        required: false
+        description: Início do período de emissão.
+        schema:
+          type: string
+      - name: dataEmissaoFinal
+        in: query
+        required: false
+        description: Fim do período de emissão.
+        schema:
+          type: string
+      - name: numero
+        in: query
+        required: false
+        description: Número.
+        schema:
+          type: integer
+      - name: serie
+        in: query
+        required: false
+        description: Série.
+        schema:
+          type: integer
+      - name: chaveAcesso
+        in: query
+        required: false
+        description: Chave de acesso.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 12345678
+                  situacao: 5
+                  numero: '101'
+                  dataEmissao: '2026-08-12 09:52:12'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    post:
+      operationId: bling__nota_fiscal__criar__nfce
+      summary: Cria uma nota fiscal de consumidor
+      description: 'Cria uma NFC-e pendente com consumidor, natureza, itens e pagamentos.
+
+
+        Quando usar: PDV/totem próprio que usa o Bling como emissor. Depois chame bling.nota_fiscal.emitir.nfce.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20de%20Consumidor%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tipo:
+                  type: integer
+                  enum: *id013
+                  description: 1 saída.
+                numero:
+                  type: string
+                  description: Número.
+                dataOperacao:
+                  type: string
+                  description: Data/hora da operação. AAAA-MM-DD HH:MM:SS
+                contato:
+                  type: object
+                  properties:
+                    nome:
+                      type: string
+                      description: Consumidor.
+                    tipoPessoa:
+                      type: string
+                      enum: *id014
+                      description: F, J ou E.
+                    numeroDocumento:
+                      type: string
+                      description: CPF/CNPJ do consumidor.
+                    contribuinte:
+                      type: integer
+                      enum: *id015
+                      description: Indicador de contribuinte.
+                naturezaOperacao:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Natureza de operação.
+              required:
+              - tipo
+              - numero
+              - dataOperacao
+            example:
+              tipo: 1
+              numero: '102'
+              dataOperacao: '2026-09-17 10:00:00'
+              contato:
+                nome: Consumidor
+                tipoPessoa: F
+                numeroDocumento: '00000000000'
+                contribuinte: 9
+              naturezaOperacao:
+                id: 87654321
+              itens:
+              - codigo: CAN-300
+                descricao: Caneca 300 ml
+                unidade: UN
+                quantidade: 1
+                valor: 39.9
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  numero: '102'
+                  serie: '1'
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /nfce/{idNotaFiscalConsumidor}:
+    get:
+      operationId: bling__nota_fiscal__obter__nfce
+      summary: Obtém uma nota fiscal de consumidor
+      description: 'Retorna a NFC-e completa, no mesmo formato de dados da NF-e.
+
+
+        Quando usar: Acompanhar autorização de uma NFC-e enviada ou obter itens/pagamentos de uma venda de balcão.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20de%20Consumidor%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: obter
+      parameters:
+      - name: idNotaFiscalConsumidor
+        in: path
+        required: true
+        description: ID da NFC-e.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  situacao: 5
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /nfce/{idNotaFiscalConsumidor}/enviar:
+    post:
+      operationId: bling__nota_fiscal__emitir__nfce
+      summary: Envia uma nota de consumidor
+      description: 'Transmite a NFC-e pendente para autorização na SEFAZ.
+
+
+        Quando usar: Logo após criar a NFC-e no fluxo de PDV.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20de%20Consumidor%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: emitir
+      parameters:
+      - name: idNotaFiscalConsumidor
+        in: path
+        required: true
+        description: ID da NFC-e pendente.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  xml: <<XML_OU_LINK>>
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /nfse:
+    get:
+      operationId: bling__nota_fiscal__listar__nfse
+      summary: Obtém notas de serviços
+      description: 'Lista notas de serviço (NFS-e) com número, RPS, série, situação, data, valor e tomador.
+
+
+        Quando usar: Faturamento de serviços em BI e conferência de notas pendentes/canceladas.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20de%20Servi%C3%A7o%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: situacao
+        in: query
+        required: false
+        description: Filtro de situação (a spec descreve 0 pendente, 1 emitida, 2 disponível para consulta, 3 cancelada, mas
+          o enum do filtro é 1-4).
+        schema:
+          type: integer
+          enum:
+          - 1
+          - 2
+          - 3
+          - 4
+      - name: dataEmissaoInicial
+        in: query
+        required: false
+        description: Início do período de emissão.
+        schema:
+          type: string
+          format: date
+      - name: dataEmissaoFinal
+        in: query
+        required: false
+        description: Fim do período de emissão.
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 12345678
+                  numero: '123'
+                  numeroRPS: '32'
+                  serie: '1'
+                  situacao: 1
+                  dataEmissao: '2026-08-12'
+                  valor: 100.0
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    post:
+      operationId: bling__nota_fiscal__criar__nfse
+      summary: Cria uma nota de serviço
+      description: 'Cria uma NFS-e (RPS) pendente com tomador, serviços, retenção de ISS, desconto e parcelas.
+
+
+        Quando usar: Faturamento de serviços recorrentes ou avulsos gerado por outro sistema (contratos, agenda, CRM).'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20de%20Servi%C3%A7o%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                numeroRPS:
+                  type: string
+                  description: Número do RPS.
+                serie:
+                  type: string
+                  description: Série do RPS.
+                data:
+                  type: string
+                  format: date
+                  description: Data usada na criação.
+                contato:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Tomador (ID).
+                    nome:
+                      type: string
+                      description: Nome do tomador.
+                    numeroDocumento:
+                      type: string
+                      description: CPF/CNPJ do tomador.
+                    email:
+                      type: string
+                      description: E-mail do tomador.
+                    im:
+                      type: string
+                      description: Inscrição municipal do tomador.
+                servicos:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      codigo:
+                        type: string
+                        description: Código do serviço (lista municipal/LC 116).
+                      descricao:
+                        type: string
+                        description: Descrição do serviço.
+                      valor:
+                        type: number
+                        description: Valor do serviço.
+                reterISS:
+                  type: boolean
+                  description: Retém ISS; se omitido vale a configuração da conta.
+                baseCalculo:
+                  type: number
+                  description: Base de cálculo.
+                desconto:
+                  type: number
+                  description: Desconto.
+                parcelas:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      data:
+                        type: string
+                        format: date
+                        description: Vencimento da parcela.
+              required:
+              - numeroRPS
+              - serie
+            example:
+              numeroRPS: '33'
+              serie: '1'
+              data: '2026-09-17'
+              contato:
+                id: 87654321
+                nome: Tomador Exemplo LTDA
+                numeroDocumento: 00000000000191
+                email: fiscal@example.com
+              servicos:
+              - codigo: '10301'
+                descricao: Consultoria
+                valor: 1500.0
+              reterISS: false
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  numeroRPS: '33'
+                  serie: '1'
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /nfse/{idNotaServico}:
+    get:
+      operationId: bling__nota_fiscal__obter__nfse
+      summary: Obtém uma nota de serviço
+      description: 'Retorna a NFS-e com tomador, serviços, valores, código de verificação e link de impressão.
+
+
+        Quando usar: Acompanhar a emissão (situação) e obter o link público da nota para enviar ao cliente.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20de%20Servi%C3%A7o%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: obter
+      parameters:
+      - name: idNotaServico
+        in: path
+        required: true
+        description: ID da nota de serviço.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  numero: '123'
+                  situacao: 1
+                  link: https://nfse.example.com/nota
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    delete:
+      operationId: bling__nota_fiscal__excluir__nfse
+      summary: Exclui uma nota de serviço
+      description: 'Exclui uma NFS-e do Bling (tipicamente rascunho não emitido).
+
+
+        Quando usar: Descartar RPS criado por engano antes de enviar. Para nota emitida use o cancelamento.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20de%20Servi%C3%A7o%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: excluir
+      parameters:
+      - name: idNotaServico
+        in: path
+        required: true
+        description: ID da NFS-e.
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /nfse/{idNotaServico}/enviar:
+    post:
+      operationId: bling__nota_fiscal__emitir__nfse
+      summary: Envia uma nota de serviço
+      description: 'Envia a NFS-e pendente ao provedor da prefeitura e devolve a nota com situação atualizada.
+
+
+        Quando usar: Depois de criar a NFS-e.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20de%20Servi%C3%A7o%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: emitir
+      parameters:
+      - name: idNotaServico
+        in: path
+        required: true
+        description: ID da NFS-e.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  situacao: 1
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /nfse/{idNotaServico}/cancelar:
+    post:
+      operationId: bling__nota_fiscal__cancelar__nfse
+      summary: Cancela uma nota de serviço
+      description: 'Solicita o cancelamento de uma NFS-e emitida, com motivo e justificativa.
+
+
+        Quando usar: Serviço não prestado ou erro de emissão, dentro do prazo aceito pela prefeitura.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Notas%20Fiscais%20de%20Servi%C3%A7o%20Eletr%C3%B4nicas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: cancelar
+      parameters:
+      - name: idNotaServico
+        in: path
+        required: true
+        description: ID da NFS-e.
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                codigoMotivo:
+                  type: integer
+                  enum:
+                  - 1
+                  - 2
+                  - 9
+                  description: 1 erro na emissão, 2 serviço não prestado, 9 outros.
+                justificativa:
+                  type: string
+                  description: Texto da justificativa.
+            example:
+              codigoMotivo: 1
+              justificativa: Valor do serviço informado incorretamente
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /contas/receber:
+    get:
+      operationId: bling__conta_receber__listar
+      summary: Obtém contas a receber
+      description: 'Lista títulos a receber com situação, vencimento, valor, links de boleto/QR Pix, contato e forma de pagamento;
+        o período pode se referir à emissão, ao vencimento ou ao recebimento.
+
+
+        Quando usar: Fluxo de caixa, inadimplência, aging e conciliação em Excel/Power BI.'
+      tags:
+      - ContaReceber
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Receber
+      x-entidade-canonica: ContaReceber
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: situacoes[]
+        in: query
+        required: false
+        description: 'Situações: 1 em aberto, 2 recebido, 3 parcialmente recebido, 4 devolvido, 5 cancelado.'
+        schema:
+          type: array
+          enum:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          items:
+            type: string
+      - name: tipoFiltroData
+        in: query
+        required: false
+        description: 'Qual data o período filtra: E emissão (padrão), V vencimento, R recebimento.'
+        schema:
+          type: string
+          enum:
+          - E
+          - V
+          - R
+      - name: dataInicial
+        in: query
+        required: false
+        description: 'Início do período (padrão: um ano atrás).'
+        schema:
+          type: string
+          format: date
+      - name: dataFinal
+        in: query
+        required: false
+        description: 'Fim do período (padrão: hoje).'
+        schema:
+          type: string
+          format: date
+      - name: idContato
+        in: query
+        required: false
+        description: ID interno do contato (cliente/fornecedor) no Bling.
+        schema:
+          type: integer
+      - name: idsCategorias[]
+        in: query
+        required: false
+        description: Categorias financeiras.
+        schema:
+          type: array
+          items:
+            type: integer
+      - name: idPortador
+        in: query
+        required: false
+        description: Conta financeira (portador).
+        schema:
+          type: integer
+      - name: idVendedor
+        in: query
+        required: false
+        description: ID do vendedor cadastrado.
+        schema:
+          type: integer
+      - name: idFormaPagamento
+        in: query
+        required: false
+        description: Forma de pagamento.
+        schema:
+          type: integer
+      - name: boletoGerado
+        in: query
+        required: false
+        description: 0 sem boleto emitido por integração, 1 com boleto.
+        schema:
+          type: integer
+          enum:
+          - 0
+          - 1
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 12345678
+                  situacao: 1
+                  vencimento: '2026-09-20'
+                  valor: 1500.75
+                  dataEmissao: '2026-08-20'
+                  contato:
+                    id: 87654321
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    post:
+      operationId: bling__conta_receber__criar
+      summary: Cria uma conta a receber
+      description: 'Lança um título a receber para um contato, com vencimento, valor, forma de pagamento, categoria e portador.
+
+
+        Quando usar: Receitas que não nascem de pedido/nota no Bling (contratos, mensalidades, receitas financeiras).'
+      tags:
+      - ContaReceber
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Receber
+      x-entidade-canonica: ContaReceber
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vencimento:
+                  type: string
+                  format: date
+                  description: Vencimento.
+                valor:
+                  type: number
+                  description: Valor do título.
+                contato:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Contato (cliente/fornecedor).
+                formaPagamento:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Forma de pagamento.
+                dataEmissao:
+                  type: string
+                  format: date
+                  description: Data de emissão.
+                competencia:
+                  type: string
+                  format: date
+                  description: Competência (regime de competência/DRE).
+                numeroDocumento:
+                  type: string
+                  description: Número de controle interno (use como id_externo).
+                historico:
+                  type: string
+                  description: Descrição do lançamento.
+                portador:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Conta financeira (portador).
+                categoria:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Categoria de receita/despesa (PlanoContas).
+                ocorrencia:
+                  type: object
+                  description: Configuração de ocorrência (única, parcelada, recorrente); estrutura na referência.
+              required:
+              - vencimento
+              - valor
+            example: &id016
+              vencimento: '2026-10-10'
+              valor: 1500.75
+              contato:
+                id: 87654321
+              formaPagamento:
+                id: 1122
+              dataEmissao: '2026-09-17'
+              numeroDocumento: FAT-2026-0915
+              historico: Mensalidade setembro
+              categoria:
+                id: 3344
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /contas/receber/{idContaReceber}:
+    get:
+      operationId: bling__conta_receber__obter
+      summary: Obtém uma conta a receber
+      description: 'Retorna o título a receber completo: saldo, vencimento original, competência, histórico, portador, categoria,
+        vendedor, borderôs e ocorrência (recorrência/parcelamento).
+
+
+        Quando usar: Consultar saldo de um título específico ou os borderôs de recebimento para conciliação.'
+      tags:
+      - ContaReceber
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Receber
+      x-entidade-canonica: ContaReceber
+      x-acao-canonica: obter
+      parameters:
+      - name: idContaReceber
+        in: path
+        required: true
+        description: ID do título.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  situacao: 3
+                  valor: 1500.75
+                  saldo: 500.75
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    put:
+      operationId: bling__conta_receber__substituir
+      summary: Altera uma conta a receber
+      description: 'Regrava um título a receber com o objeto completo.
+
+
+        Quando usar: Renegociação de vencimento/valor de título em aberto.'
+      tags:
+      - ContaReceber
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Receber
+      x-entidade-canonica: ContaReceber
+      x-acao-canonica: substituir
+      parameters:
+      - name: idContaReceber
+        in: path
+        required: true
+        description: ID do título.
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vencimento:
+                  type: string
+                  format: date
+                  description: Vencimento.
+                valor:
+                  type: number
+                  description: Valor do título.
+                contato:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Contato (cliente/fornecedor).
+                formaPagamento:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Forma de pagamento.
+                dataEmissao:
+                  type: string
+                  format: date
+                  description: Data de emissão.
+                competencia:
+                  type: string
+                  format: date
+                  description: Competência (regime de competência/DRE).
+              required:
+              - vencimento
+              - valor
+            example: *id016
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    delete:
+      operationId: bling__conta_receber__excluir
+      summary: Remove uma conta a receber
+      description: 'Remove um título a receber.
+
+
+        Quando usar: Estornar lançamento criado por engano.'
+      tags:
+      - ContaReceber
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Receber
+      x-entidade-canonica: ContaReceber
+      x-acao-canonica: excluir
+      parameters:
+      - name: idContaReceber
+        in: path
+        required: true
+        description: ID do título.
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /contas/receber/{idContaReceber}/baixar:
+    post:
+      operationId: bling__conta_receber__liquidar
+      summary: Cria o recebimento de uma conta a receber
+      description: 'Registra o recebimento (baixa total ou parcial) de um título a receber e devolve o borderô gerado.
+
+
+        Quando usar: Conciliação: ao confirmar um Pix/boleto/cartão em banco ou PSP, baixe o título correspondente no Bling.'
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Receber
+      x-entidade-canonica: ContaReceber
+      x-acao-canonica: liquidar
+      parameters:
+      - name: idContaReceber
+        in: path
+        required: true
+        description: ID do título.
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: string
+                  format: date
+                  description: Data da baixa.
+                usarDataVencimento:
+                  type: boolean
+                  description: true usa a data de vencimento como data da baixa.
+                portador:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Conta financeira que recebeu/pagou.
+                categoria:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Categoria financeira.
+                historico:
+                  type: string
+                  description: Histórico do lançamento.
+                valorRecebido:
+                  type: number
+                  description: Valor bruto baixado (inclui taxa de marketplace se houver).
+                juros:
+                  type: number
+                  description: Juros em reais.
+                desconto:
+                  type: number
+                  description: Desconto em reais.
+                acrescimo:
+                  type: number
+                  description: Acréscimo em reais.
+                tarifa:
+                  type: number
+                  description: Tarifa, quando a forma de pagamento cobra taxa.
+              required:
+              - data
+              - usarDataVencimento
+              - historico
+            example:
+              data: '2026-09-17'
+              usarDataVencimento: false
+              portador: &id018
+                id: 5566
+              categoria: &id019
+                id: 3344
+              historico: Recebimento via Pix
+              valorRecebido: 1500.75
+              juros: 0
+              desconto: 0
+              acrescimo: 0
+              tarifa: 0
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                bordero:
+                  id: 12345678
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /contas/receber/boletos:
+    get:
+      operationId: bling__cobranca__listar__boletos
+      summary: Obtém boletos de contas a receber
+      description: 'Lista os boletos (contas a receber com boleto emitido por integração) de uma venda ou nota fiscal de origem.
+
+
+        Quando usar: Enviar a 2ª via/links de boleto ao cliente ou verificar se a venda já tem boleto.'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Receber
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: listar
+      parameters:
+      - name: idOrigem
+        in: query
+        required: true
+        description: ID da venda ou da nota fiscal de origem (obrigatório).
+        schema:
+          type: integer
+      - name: situacoes[]
+        in: query
+        required: false
+        description: Situações dos títulos (1 em aberto ... ).
+        schema:
+          type: array
+          enum:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          items:
+            type: string
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                venda:
+                  numero: '1532'
+                valorTotal: 111.2
+                contas:
+                - id: 12345678
+                  numeroExterno: BWbXB
+                  vencimento: '2026-09-30'
+                  valor: 111.2
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /contas/pagar:
+    get:
+      operationId: bling__conta_pagar__listar
+      summary: Obtém contas a pagar
+      description: 'Lista títulos a pagar com situação, vencimento, valor, contato e forma de pagamento, com filtros por emissão,
+        vencimento e pagamento.
+
+
+        Quando usar: Programação de pagamentos, fluxo de caixa e DRE em BI.'
+      tags:
+      - ContaPagar
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Pagar
+      x-entidade-canonica: ContaPagar
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: situacao
+        in: query
+        required: false
+        description: 1 em aberto, 2 pago, 3 parcialmente pago, 4 devolvido, 5 cancelado.
+        schema:
+          type: integer
+          enum:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+      - name: dataEmissaoInicial
+        in: query
+        required: false
+        description: Início do período de emissão.
+        schema:
+          type: string
+          format: date
+      - name: dataEmissaoFinal
+        in: query
+        required: false
+        description: Fim do período de emissão.
+        schema:
+          type: string
+          format: date
+      - name: dataVencimentoInicial
+        in: query
+        required: false
+        description: Início do período de vencimento.
+        schema:
+          type: string
+          format: date
+      - name: dataVencimentoFinal
+        in: query
+        required: false
+        description: Fim do período de vencimento.
+        schema:
+          type: string
+          format: date
+      - name: dataPagamentoInicial
+        in: query
+        required: false
+        description: Início do período de pagamento.
+        schema:
+          type: string
+          format: date
+      - name: dataPagamentoFinal
+        in: query
+        required: false
+        description: Fim do período de pagamento.
+        schema:
+          type: string
+          format: date
+      - name: idContato
+        in: query
+        required: false
+        description: ID interno do contato (cliente/fornecedor) no Bling.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 12345678
+                  situacao: 1
+                  vencimento: '2026-09-25'
+                  valor: 890.0
+                  contato:
+                    id: 87654321
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    post:
+      operationId: bling__conta_pagar__criar
+      summary: Cria uma conta a pagar
+      description: 'Lança um título a pagar para um fornecedor.
+
+
+        Quando usar: Despesas vindas de portal de compras, OCR de boletos ou folha/benefícios.'
+      tags:
+      - ContaPagar
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Pagar
+      x-entidade-canonica: ContaPagar
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vencimento:
+                  type: string
+                  format: date
+                  description: Vencimento.
+                valor:
+                  type: number
+                  description: Valor do título.
+                contato:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Contato (cliente/fornecedor).
+                formaPagamento:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Forma de pagamento.
+                dataEmissao:
+                  type: string
+                  format: date
+                  description: Data de emissão.
+                competencia:
+                  type: string
+                  format: date
+                  description: Competência (regime de competência/DRE).
+                numeroDocumento:
+                  type: string
+                  description: Número de controle interno (use como id_externo).
+                historico:
+                  type: string
+                  description: Descrição do lançamento.
+                portador:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Conta financeira (portador).
+                categoria:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Categoria de receita/despesa (PlanoContas).
+                ocorrencia:
+                  type: object
+                  description: Configuração de ocorrência (única, parcelada, recorrente); estrutura na referência.
+              required:
+              - vencimento
+              - valor
+            example: &id017
+              vencimento: '2026-10-05'
+              valor: 890.0
+              contato:
+                id: 87654321
+              formaPagamento:
+                id: 1122
+              dataEmissao: '2026-09-17'
+              numeroDocumento: NF-4455
+              historico: Compra de insumos
+              categoria:
+                id: 3345
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                id: 12345678
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /contas/pagar/{idContaPagar}:
+    get:
+      operationId: bling__conta_pagar__obter
+      summary: Obtém uma conta a pagar
+      description: 'Retorna o título a pagar completo (saldo, competência, histórico, portador, categoria, borderôs, ocorrência).
+
+
+        Quando usar: Conferir saldo antes de pagar ou conciliar.'
+      tags:
+      - ContaPagar
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Pagar
+      x-entidade-canonica: ContaPagar
+      x-acao-canonica: obter
+      parameters:
+      - name: idContaPagar
+        in: path
+        required: true
+        description: ID do título.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+                  situacao: 1
+                  valor: 890.0
+                  saldo: 890.0
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    put:
+      operationId: bling__conta_pagar__substituir
+      summary: Atualiza uma conta a pagar
+      description: 'Regrava um título a pagar com o objeto completo.
+
+
+        Quando usar: Ajustar vencimento/valor de título em aberto.'
+      tags:
+      - ContaPagar
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Pagar
+      x-entidade-canonica: ContaPagar
+      x-acao-canonica: substituir
+      parameters:
+      - name: idContaPagar
+        in: path
+        required: true
+        description: ID do título.
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vencimento:
+                  type: string
+                  format: date
+                  description: Vencimento.
+                valor:
+                  type: number
+                  description: Valor do título.
+                contato:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Contato (cliente/fornecedor).
+                formaPagamento:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Forma de pagamento.
+                dataEmissao:
+                  type: string
+                  format: date
+                  description: Data de emissão.
+                competencia:
+                  type: string
+                  format: date
+                  description: Competência (regime de competência/DRE).
+              required:
+              - vencimento
+              - valor
+            example: *id017
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                id: 12345678
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    delete:
+      operationId: bling__conta_pagar__excluir
+      summary: Remove uma conta a pagar
+      description: 'Remove um título a pagar.
+
+
+        Quando usar: Remover lançamento duplicado.'
+      tags:
+      - ContaPagar
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Pagar
+      x-entidade-canonica: ContaPagar
+      x-acao-canonica: excluir
+      parameters:
+      - name: idContaPagar
+        in: path
+        required: true
+        description: ID do título.
+        schema:
+          type: integer
+      responses:
+        '204':
+          description: Sucesso
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /contas/pagar/{idContaPagar}/baixar:
+    post:
+      operationId: bling__conta_pagar__liquidar
+      summary: Cria o recebimento de uma conta a pagar
+      description: 'Registra o pagamento (baixa) de um título a pagar e devolve o borderô.
+
+
+        Quando usar: Após confirmar o pagamento no banco (TED, Pix, boleto pago), baixar o título no Bling.'
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Contas%20a%20Pagar
+      x-entidade-canonica: ContaPagar
+      x-acao-canonica: liquidar
+      parameters:
+      - name: idContaPagar
+        in: path
+        required: true
+        description: ID do título.
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: string
+                  format: date
+                  description: Data da baixa.
+                usarDataVencimento:
+                  type: boolean
+                  description: true usa a data de vencimento como data da baixa.
+                portador:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Conta financeira que recebeu/pagou.
+                categoria:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Categoria financeira.
+                historico:
+                  type: string
+                  description: Histórico do lançamento.
+                valorRecebido:
+                  type: number
+                  description: Valor bruto baixado (inclui taxa de marketplace se houver).
+                juros:
+                  type: number
+                  description: Juros em reais.
+                desconto:
+                  type: number
+                  description: Desconto em reais.
+                acrescimo:
+                  type: number
+                  description: Acréscimo em reais.
+                tarifa:
+                  type: number
+                  description: Tarifa, quando a forma de pagamento cobra taxa.
+              required:
+              - data
+              - usarDataVencimento
+              - historico
+            example:
+              data: '2026-09-17'
+              usarDataVencimento: false
+              portador: *id018
+              categoria: *id019
+              historico: Pagamento via TED
+              valorRecebido: 890.0
+              juros: 0
+              desconto: 0
+              acrescimo: 0
+              tarifa: 0
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                bordero:
+                  id: 12345678
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /formas-pagamentos:
+    get:
+      operationId: bling__tabela_auxiliar__listar__formas_pagamento
+      summary: Obtém formas de pagamentos
+      description: 'Lista as formas de pagamento da conta com tipo (dinheiro, cartão, boleto, Pix...), situação, finalidade,
+        juros e multa.
+
+
+        Quando usar: Obter o formaPagamento.id exigido em pedidos, parcelas e contas.'
+      tags:
+      - TabelaAuxiliar
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Formas%20de%20Pagamentos
+      x-entidade-canonica: TabelaAuxiliar
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: descricao
+        in: query
+        required: false
+        description: Parte do nome.
+        schema:
+          type: string
+      - name: tiposPagamentos[]
+        in: query
+        required: false
+        description: Tipos (1 dinheiro, 3 cartão de crédito, 15 boleto, 17 Pix dinâmico, 20 Pix estático, 99 outros...).
+        schema:
+          type: array
+          items:
+            type: string
+      - name: situacao
+        in: query
+        required: false
+        description: 0 inativa, 1 ativa.
+        schema:
+          type: integer
+          enum:
+          - 0
+          - 1
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 1122
+                  descricao: Pix
+                  tipoPagamento: 17
+                  situacao: 1
+                  finalidade: 3
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /formas-pagamentos/{idFormaPagamento}:
+    get:
+      operationId: bling__tabela_auxiliar__obter__forma_pagamento
+      summary: Obtém uma forma de pagamento
+      description: 'Retorna uma forma de pagamento com suas configurações (taxas, condição, finalidade).
+
+
+        Quando usar: Checar juros/multa ou tipo antes de lançar parcelas.'
+      tags:
+      - TabelaAuxiliar
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Formas%20de%20Pagamentos
+      x-entidade-canonica: TabelaAuxiliar
+      x-acao-canonica: obter
+      parameters:
+      - name: idFormaPagamento
+        in: path
+        required: true
+        description: ID da forma de pagamento.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 1122
+                  descricao: Pix
+                  tipoPagamento: 17
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /categorias/receitas-despesas:
+    get:
+      operationId: bling__plano_contas__listar
+      summary: Obtém categorias de receitas e despesas
+      description: 'Lista as categorias de receitas e despesas (plano de contas gerencial) com hierarquia (idCategoriaPai)
+        e tipo.
+
+
+        Quando usar: Mapear categorias para DRE em BI e obter categoria.id para lançamentos financeiros.'
+      tags:
+      - PlanoContas
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Categorias%20-%20Receitas%20e%20Despesas
+      x-entidade-canonica: PlanoContas
+      x-acao-canonica: listar
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número da página (começa em 1). Avance até receber menos registros que o limite.
+        schema:
+          type: integer
+      - name: limite
+        in: query
+        required: false
+        description: Registros por página; padrão 100. Máximo aceito não informado na doc.
+        schema:
+          type: integer
+      - name: tipo
+        in: query
+        required: false
+        description: 0 todas, 1 despesa, 2 receita, 3 receita e despesa.
+        schema:
+          type: integer
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+      - name: situacao
+        in: query
+        required: false
+        description: 0 ativas e inativas, 1 ativas, 2 inativas.
+        schema:
+          type: integer
+          enum:
+          - 0
+          - 1
+          - 2
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 3344
+                  idCategoriaPai: 0
+                  descricao: Vendas de mercadorias
+                  tipo: 2
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+    post:
+      operationId: bling__plano_contas__criar
+      summary: Cria uma categoria de receita e despesa
+      description: 'Cria uma categoria de receita/despesa, opcionalmente filha de outra e vinculada a um grupo da DRE.
+
+
+        Quando usar: Replicar plano de contas gerencial de outro sistema.'
+      tags:
+      - PlanoContas
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Categorias%20-%20Receitas%20e%20Despesas
+      x-entidade-canonica: PlanoContas
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                descricao:
+                  type: string
+                  description: Nome da categoria.
+                tipo:
+                  type: integer
+                  enum:
+                  - 1
+                  - 2
+                  - 3
+                  description: 1 despesa, 2 receita, 3 ambos.
+                idCategoriaPai:
+                  type: integer
+                  description: Categoria pai (0 = raiz).
+                grupoDRE:
+                  type: integer
+                  enum:
+                  - 1
+                  - 2
+                  - 3
+                  - 7
+                  - 8
+                  - 9
+                  - 10
+                  - 11
+                  - 13
+                  description: Grupo da DRE (1 não exibir, 2 receita operacional bruta, 3 deduções... ver enum).
+              required:
+              - descricao
+              - tipo
+            example:
+              descricao: Serviços de consultoria
+              tipo: 2
+              idCategoriaPai: 0
+              grupoDRE: 2
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 3346
+                  descricao: Serviços de consultoria
+                  tipo: 2
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /categorias/receitas-despesas/{idCategoria}:
+    get:
+      operationId: bling__plano_contas__obter
+      summary: Obtém uma categoria de receita e despesa
+      description: 'Retorna uma categoria de receita/despesa com situação.
+
+
+        Quando usar: Validar categoria antes de lançar.'
+      tags:
+      - PlanoContas
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Categorias%20-%20Receitas%20e%20Despesas
+      x-entidade-canonica: PlanoContas
+      x-acao-canonica: obter
+      parameters:
+      - name: idCategoria
+        in: path
+        required: true
+        description: ID da categoria.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 3344
+                  descricao: Vendas de mercadorias
+                  tipo: 2
+                  situacao: 1
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /logisticas/objetos:
+    post:
+      operationId: bling__envio__criar
+      summary: Cria um objeto de logística
+      description: 'Cria um objeto de logística personalizada (volume com rastreio, dimensões, embalagem, prazo e frete previstos)
+        ligado a pedido/nota.
+
+
+        Quando usar: Transportadora ou hub de fretes próprio que precisa registrar rastreio no Bling para o pedido/marketplace.'
+      tags:
+      - Envio
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Log%C3%ADsticas%20-%20Objetos
+      x-entidade-canonica: Envio
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pedidoVenda:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Pedido de venda.
+                notaFiscal:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Nota fiscal.
+                servico:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Serviço da logística (GET /logisticas/servicos).
+                rastreamento:
+                  type: object
+                  properties:
+                    codigo:
+                      type: string
+                      description: Código de rastreio.
+                    situacao:
+                      type: integer
+                      enum:
+                      - 0
+                      - 1
+                      - 2
+                      - 3
+                      - 4
+                      - 5
+                      - 6
+                      - 7
+                      - 8
+                      - 9
+                      description: 0 postado ... (enum 0-9).
+                    url:
+                      type: string
+                      description: URL pública de rastreio.
+                dimensoes:
+                  type: object
+                  properties:
+                    peso:
+                      type: number
+                      description: Peso.
+                    altura:
+                      type: number
+                      description: Altura.
+                    largura:
+                      type: number
+                      description: Largura.
+                    comprimento:
+                      type: number
+                      description: Comprimento.
+                embalagem:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Produto usado como embalagem.
+                dataSaida:
+                  type: string
+                  format: date
+                  description: Data de saída.
+                prazoEntregaPrevisto:
+                  type: integer
+                  description: Prazo em dias.
+                fretePrevisto:
+                  type: number
+                  description: Frete previsto.
+                valorDeclarado:
+                  type: number
+                  description: Valor declarado.
+                avisoRecebimento:
+                  type: boolean
+                  description: Aviso de recebimento.
+                maoPropria:
+                  type: boolean
+                  description: Mão própria.
+              required:
+              - dataSaida
+              - prazoEntregaPrevisto
+              - fretePrevisto
+              - valorDeclarado
+              - avisoRecebimento
+              - maoPropria
+            example:
+              pedidoVenda:
+                id: 12345678
+              notaFiscal:
+                id: 87654321
+              servico:
+                id: 5566
+              rastreamento:
+                codigo: <<CODIGO_RASTREIO>>
+                descricao: Criado
+                situacao: 0
+                origem: São Paulo, SP
+                destino: Campinas, SP
+                ultimaAlteracao: '2026-09-17 10:00:00'
+                url: https://rastreio.example.com/<<CODIGO_RASTREIO>>
+              dimensoes:
+                peso: 0.5
+                altura: 10
+                largura: 15
+                comprimento: 20
+                diametro: 0
+              embalagem:
+                id: 7788
+              dataSaida: '2026-09-17'
+              prazoEntregaPrevisto: 3
+              fretePrevisto: 18.9
+              valorDeclarado: 79.8
+              avisoRecebimento: false
+              maoPropria: false
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /logisticas/objetos/{idObjeto}:
+    get:
+      operationId: bling__envio__obter
+      summary: Obtém um objeto de logística
+      description: 'Retorna um objeto logístico com pedido, nota, serviço, rastreio, dimensões, embalagem, prazo e frete.
+
+
+        Quando usar: Consultar rastreio e dados do volume.'
+      tags:
+      - Envio
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Log%C3%ADsticas%20-%20Objetos
+      x-entidade-canonica: Envio
+      x-acao-canonica: obter
+      parameters:
+      - name: idObjeto
+        in: path
+        required: true
+        description: ID do objeto logístico.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  pedidoVenda:
+                    id: 12345678
+                  rastreamento:
+                    codigo: <<CODIGO_RASTREIO>>
+                    situacao: 1
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /logisticas/etiquetas:
+    get:
+      operationId: bling__envio__baixar_arquivo__etiquetas
+      summary: Obtém etiquetas das vendas
+      description: 'Devolve links para a etiqueta de envio de pedidos de venda, em PDF ou ZPL.
+
+
+        Quando usar: Impressão de etiquetas na expedição (impressora térmica com ZPL ou PDF).'
+      tags:
+      - Envio
+      x-confianca: verificado
+      x-fonte-url: https://developer.bling.com.br/referencia#/Log%C3%ADsticas%20-%20Etiquetas
+      x-entidade-canonica: Envio
+      x-acao-canonica: baixar_arquivo
+      parameters:
+      - name: formato
+        in: query
+        required: true
+        description: PDF ou ZPL.
+        schema:
+          type: string
+          enum:
+          - PDF
+          - ZPL
+      - name: idsVendas[]
+        in: query
+        required: true
+        description: ID do pedido de venda (hoje limitado a um ID por chamada).
+        schema:
+          type: array
+          items:
+            type: integer
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                - id: 12345678
+                  link: https://storage.example.com/etiqueta.pdf
+                  observacao: ''
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '404':
+          $ref: '#/components/responses/Erro404'
+        '429':
+          $ref: '#/components/responses/Erro429'
+  /logisticas/remessas:
+    post:
+      operationId: bling__envio__criar__remessa
+      summary: Cria uma remessa de postagem de uma logística
+      description: 'Cria uma remessa (lista de postagem/PLP) agrupando objetos de uma logística.
+
+
+        Quando usar: Fechamento do lote diário de postagem.'
+      tags:
+      - Envio
+      x-confianca: inferido
+      x-fonte-url: https://developer.bling.com.br/referencia#/Log%C3%ADsticas%20-%20Remessas
+      x-entidade-canonica: Envio
+      x-acao-canonica: criar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                numeroPlp:
+                  type: string
+                  description: Número da PLP/remessa.
+                situacao:
+                  type: integer
+                  enum:
+                  - -3
+                  - -2
+                  - -1
+                  - 0
+                  - 1
+                  - 2
+                  - 3
+                  - 4
+                  description: -3 a corrigir, -2 em processamento, -1 cancelado, 0 em aberto, ... (enum).
+                descricao:
+                  type: string
+                  description: Descrição da remessa.
+                logistica:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Logística.
+                objetos:
+                  type: array
+                  description: Objetos logísticos incluídos (estrutura na referência).
+              required:
+              - numeroPlp
+              - situacao
+              - descricao
+            example:
+              numeroPlp: PLP-20260917
+              situacao: 0
+              descricao: Remessa_17092026
+              logistica:
+                id: 5566
+              objetos:
+              - id: 12345678
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              example:
+                data:
+                  id: 12345678
+        '400':
+          $ref: '#/components/responses/Erro400'
+        '401':
+          $ref: '#/components/responses/Erro401'
+        '403':
+          $ref: '#/components/responses/Erro403'
+        '429':
+          $ref: '#/components/responses/Erro429'
+components:
+  securitySchemes:
+    oauth2Bling:
+      type: oauth2
+      description: 'Authorization code; access_token Bearer + header enable-jwt: 1'
+      flows:
+        authorizationCode:
+          authorizationUrl: https://www.bling.com.br/Api/v3/oauth/authorize
+          tokenUrl: https://api.bling.com.br/Api/v3/oauth/token
+          refreshUrl: https://api.bling.com.br/Api/v3/oauth/token
+          scopes: {}
+    basicCliente:
+      type: http
+      scheme: basic
+      description: client_id:client_secret do aplicativo
+  schemas:
+    Erro:
+      type: object
+      properties:
+        error:
+          type: object
+          required:
+          - type
+          - message
+          - description
+          properties:
+            type:
+              type: string
+              description: 'Ex.: VALIDATION_ERROR, MISSING_REQUIRED_FIELD_ERROR, UNAUTHORIZED, FORBIDDEN, RESOURCE_NOT_FOUND,
+                TOO_MANY_REQUESTS, SERVER_ERROR, invalid_token, insufficient_scope'
+            message:
+              type: string
+            description:
+              type: string
+            limit:
+              type: integer
+              description: Presente em 429 (3 ou 120000)
+            period:
+              type: string
+              description: Presente em 429 (second ou day)
+            fields:
+              type: array
+              items:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                  msg:
+                    type: string
+                  element:
+                    type: string
+                  namespace:
+                    type: string
+                  collection:
+                    type: array
+                    items:
+                      type: object
+  responses:
+    Erro400:
+      description: Validação (VALIDATION_ERROR, MISSING_REQUIRED_FIELD_ERROR...)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+    Erro401:
+      description: Token inválido/expirado (invalid_token)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+    Erro403:
+      description: Escopo insuficiente (insufficient_scope)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+    Erro404:
+      description: Recurso não encontrado (RESOURCE_NOT_FOUND)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+    Erro429:
+      description: Limite de requisições (TOO_MANY_REQUESTS)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+    Erro500:
+      description: Erro interno (SERVER_ERROR)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'

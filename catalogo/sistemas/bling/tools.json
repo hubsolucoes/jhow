@@ -1,0 +1,4502 @@
+{
+  "sistema": "bling",
+  "data_consulta": "2026-09-17",
+  "tools": [
+    {
+      "name": "bling__autenticacao__autenticar__authorize",
+      "title": "OAuth 2.0 - endpoint authorize (redirecionamento do usuário)",
+      "description": "Bling (GET /oauth/authorize): Início do fluxo authorization code: o navegador do usuário é enviado ao Bling, que pede login e consentimento e devolve um code de uso único na URL de redirecionamento cadastrada no aplicativo. Quando usar: Primeira conexão de uma conta Bling ao seu app, ou reautorização depois de revogação, troca de escopos ou refresh_token expirado (30 dias). Não é chamada server-to-server: é um link aberto no navegador. Pré-requisitos: Aplicativo cadastrado na Central de Extensões > Área do Integrador com link de redirecionamento e escopos. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "response_type": {
+            "type": "string",
+            "enum": [
+              "code"
+            ],
+            "description": "Sempre o literal code."
+          },
+          "client_id": {
+            "type": "string",
+            "description": "Client ID exibido na aba de informações do aplicativo."
+          },
+          "state": {
+            "type": "string",
+            "description": "Valor aleatório por sessão, devolvido intacto no callback; compare para evitar CSRF. A doc do Postman indica que não pode ser vazio."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "response_type",
+          "client_id",
+          "state"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__autenticacao__autenticar__token",
+      "title": "OAuth 2.0 - endpoint token (authorization_code e refresh_token)",
+      "description": "Bling (POST /oauth/token): Troca o code pelo par access_token/refresh_token ou renova o access_token com o refresh_token. Autenticação do app via HTTP Basic (client_id:client_secret em base64), corpo x-www-form-urlencoded. Quando usar: Logo após o callback do authorize (grant_type=authorization_code, até 1 minuto) e sempre que o access_token expirar ou a API devolver 401 invalid_token (grant_type=refresh_token). Sempre server-side. Pré-requisitos: code recebido no callback (até 1 min) ou refresh_token válido (30 dias); client_id e client_secret do app. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "grant_type": {
+                "type": "string",
+                "enum": [
+                  "authorization_code",
+                  "refresh_token"
+                ],
+                "description": "authorization_code na troca inicial; refresh_token na renovação."
+              },
+              "code": {
+                "type": "string",
+                "description": "Obrigatório com grant_type=authorization_code. Validade de 1 minuto, uso único."
+              },
+              "refresh_token": {
+                "type": "string",
+                "description": "Obrigatório com grant_type=refresh_token. Validade de 30 dias."
+              }
+            },
+            "required": [
+              "grant_type"
+            ],
+            "description": "Campos do formulário x-www-form-urlencoded."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__autenticacao__autenticar__revogar",
+      "title": "OAuth 2.0 - revogação de token (/oauth/revoke)",
+      "description": "Bling (POST /oauth/revoke): Invalida um access_token ou refresh_token. Com revoke_action/revoke_target, remove todos os tokens do usuário ou da empresa (logout ou desinstalação). Quando usar: Quando o cliente desconecta o Bling no seu produto, ao desinstalar o app de uma empresa ou em incidente de segurança. Não use para renovar token. Pré-requisitos: client_id e client_secret; token a revogar. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string",
+                "description": "O access_token ou refresh_token a invalidar."
+              },
+              "token_type_hint": {
+                "type": "string",
+                "enum": [
+                  "access_token",
+                  "refresh_token"
+                ],
+                "description": "Indica o tipo do token enviado."
+              },
+              "revoke_action": {
+                "type": "string",
+                "enum": [
+                  "logout",
+                  "uninstall"
+                ],
+                "description": "Amplia a revogação. Sem ele, só o token enviado é revogado."
+              },
+              "revoke_target": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "company"
+                ],
+                "description": "Alvo da revogação ampliada; padrão user."
+              }
+            },
+            "required": [
+              "token"
+            ],
+            "description": "Campos do formulário x-www-form-urlencoded."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__empresa__obter",
+      "title": "Obtém dados básicos da empresa",
+      "description": "Bling (GET /empresas/me/dados-basicos): Devolve os dados básicos da conta Bling que autorizou o app: id da empresa, nome, CNPJ, e-mail e data de início do contrato. Quando usar: Logo após autorizar, para descobrir a qual empresa pertence o token e guardar o id (é o companyId que chega nos webhooks). Útil para multiempresa/multitenant. Pré-requisitos: access_token válido.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pessoa__listar",
+      "title": "Obtém contatos",
+      "description": "Bling (GET /contatos): Lista contatos da conta (clientes, fornecedores, transportadoras etc. no mesmo cadastro), paginado por pagina/limite, com filtros por texto, documento, datas e tipo de contato. Quando usar: Sincronizar a carteira de clientes/fornecedores, localizar um contato pelo CPF/CNPJ antes de criar pedido ou nota e alimentar dashboards de clientes. Para um contato conhecido pelo ID, prefira bling.pessoa.obter. Pré-requisitos: Escopo do módulo de contatos no app.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "pesquisa": {
+            "type": "string",
+            "description": "Busca livre por nome, fantasia, CPF/CNPJ, e-mail ou código."
+          },
+          "criterio": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "description": "Recorte da listagem: 1 todos, 2 excluídos, 3 últimos incluídos (padrão), 4 sem movimento."
+          },
+          "numeroDocumento": {
+            "type": "string",
+            "description": "CPF/CNPJ só com dígitos para localizar o contato."
+          },
+          "tipoPessoa": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "description": "1 física, 2 jurídica, 3 estrangeiro."
+          },
+          "idTipoContato": {
+            "type": "integer",
+            "description": "Filtra pelo tipo de contato (cliente, fornecedor...) - IDs vêm de GET /contatos/tipos."
+          },
+          "dataAlteracaoInicial": {
+            "type": "string",
+            "description": "Traz só registros alterados a partir deste momento (base para carga incremental). AAAA-MM-DD HH:MM:SS"
+          },
+          "dataAlteracaoFinal": {
+            "type": "string",
+            "description": "Limite superior da data de alteração. AAAA-MM-DD HH:MM:SS"
+          },
+          "dataInclusaoInicial": {
+            "type": "string",
+            "description": "Início do período de cadastro. AAAA-MM-DD HH:MM:SS"
+          },
+          "dataInclusaoFinal": {
+            "type": "string",
+            "description": "Fim do período de cadastro. AAAA-MM-DD HH:MM:SS"
+          },
+          "uf": {
+            "type": "string",
+            "description": "Sigla da UF do endereço."
+          },
+          "idVendedor": {
+            "type": "integer",
+            "description": "ID do vendedor cadastrado."
+          },
+          "idsContatos[]": {
+            "type": "array",
+            "description": "Lista de IDs para buscar vários contatos numa chamada.",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pessoa__obter",
+      "title": "Obtém um contato",
+      "description": "Bling (GET /contatos/{idContato}): Retorna o cadastro completo de um contato: documento, IE, endereços geral e de cobrança, dados financeiros, vendedor e tipos de contato. Quando usar: Quando já tem o ID (vindo de pedido, nota ou listagem) e precisa do endereço/IE para faturar ou do papel (cliente/fornecedor). Pré-requisitos: ID do contato.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContato": {
+            "type": "integer",
+            "description": "ID do contato no Bling."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idContato"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pessoa__criar",
+      "title": "Cria um contato",
+      "description": "Bling (POST /contatos): Cadastra um contato (cliente, fornecedor ou ambos, conforme tiposContato) com documento, IE, endereços e dados financeiros. Quando usar: Antes de lançar pedido, proposta ou nota para alguém que ainda não existe no Bling. Procure antes por numeroDocumento em bling.pessoa.listar para não duplicar. Pré-requisitos: Escopo de contatos; IDs de tipos de contato (GET /contatos/tipos) se for classificar. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "nome": {
+                "type": "string",
+                "description": "Nome/razão social."
+              },
+              "tipo": {
+                "type": "string",
+                "enum": [
+                  "J",
+                  "F",
+                  "E"
+                ],
+                "description": "J jurídica, F física, E estrangeira."
+              },
+              "situacao": {
+                "type": "string",
+                "enum": [
+                  "A",
+                  "E",
+                  "I",
+                  "S"
+                ],
+                "description": "A ativo, E excluído, I inativo, S sem movimentação."
+              },
+              "numeroDocumento": {
+                "type": "string",
+                "description": "CPF ou CNPJ."
+              },
+              "codigo": {
+                "type": "string",
+                "description": "Código interno do contato (útil como id_externo)."
+              },
+              "fantasia": {
+                "type": "string",
+                "description": "Nome fantasia."
+              },
+              "indicadorIe": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  9
+                ],
+                "description": "1 contribuinte ICMS, 2 isento, 9 não contribuinte."
+              },
+              "ie": {
+                "type": "string",
+                "description": "Inscrição estadual."
+              },
+              "inscricaoMunicipal": {
+                "type": "string",
+                "description": "Inscrição municipal (PJ)."
+              },
+              "email": {
+                "type": "string",
+                "description": "E-mail principal."
+              },
+              "emailNotaFiscal": {
+                "type": "string",
+                "description": "E-mail que recebe a NF-e."
+              },
+              "telefone": {
+                "type": "string",
+                "description": "Telefone fixo."
+              },
+              "celular": {
+                "type": "string",
+                "description": "Celular."
+              },
+              "endereco": {
+                "type": "object",
+                "properties": {
+                  "geral": {
+                    "type": "object",
+                    "properties": {
+                      "endereco": {
+                        "type": "string",
+                        "description": "Logradouro."
+                      },
+                      "numero": {
+                        "type": "string",
+                        "description": "Número."
+                      },
+                      "complemento": {
+                        "type": "string",
+                        "description": "Complemento."
+                      },
+                      "bairro": {
+                        "type": "string",
+                        "description": "Bairro."
+                      },
+                      "cep": {
+                        "type": "string",
+                        "description": "CEP."
+                      },
+                      "municipio": {
+                        "type": "string",
+                        "description": "Nome do município."
+                      },
+                      "uf": {
+                        "type": "string",
+                        "description": "UF."
+                      }
+                    }
+                  }
+                }
+              },
+              "tiposContato": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "IDs dos tipos de contato (cliente, fornecedor...), obtidos em GET /contatos/tipos."
+                    }
+                  }
+                }
+              },
+              "vendedor": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Vendedor responsável."
+                  }
+                }
+              },
+              "financeiro": {
+                "type": "object",
+                "properties": {
+                  "limiteCredito": {
+                    "type": "number",
+                    "description": "Limite de crédito do cliente."
+                  }
+                }
+              }
+            },
+            "required": [
+              "nome",
+              "tipo",
+              "situacao"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pessoa__substituir",
+      "title": "Altera um contato",
+      "description": "Bling (PUT /contatos/{idContato}): Regrava o cadastro do contato com o objeto enviado (PUT = atualização de todos os dados, segundo o guia REST do Bling). Quando usar: Sincronização de cadastro vinda de outro sistema-mestre. Para mudar só a situação use bling.pessoa.atualizar.situacao. Pré-requisitos: Ler o contato atual (bling.pessoa.obter) e reenviar o objeto completo. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContato": {
+            "type": "integer",
+            "description": "ID do contato."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "nome": {
+                "type": "string",
+                "description": "Nome/razão social."
+              },
+              "tipo": {
+                "type": "string",
+                "enum": [
+                  "J",
+                  "F",
+                  "E"
+                ],
+                "description": "J jurídica, F física, E estrangeira."
+              },
+              "situacao": {
+                "type": "string",
+                "enum": [
+                  "A",
+                  "E",
+                  "I",
+                  "S"
+                ],
+                "description": "A ativo, E excluído, I inativo, S sem movimentação."
+              },
+              "numeroDocumento": {
+                "type": "string",
+                "description": "CPF ou CNPJ."
+              },
+              "codigo": {
+                "type": "string",
+                "description": "Código interno do contato (útil como id_externo)."
+              },
+              "fantasia": {
+                "type": "string",
+                "description": "Nome fantasia."
+              },
+              "indicadorIe": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  9
+                ],
+                "description": "1 contribuinte ICMS, 2 isento, 9 não contribuinte."
+              },
+              "ie": {
+                "type": "string",
+                "description": "Inscrição estadual."
+              },
+              "inscricaoMunicipal": {
+                "type": "string",
+                "description": "Inscrição municipal (PJ)."
+              },
+              "email": {
+                "type": "string",
+                "description": "E-mail principal."
+              }
+            },
+            "required": [
+              "nome",
+              "tipo",
+              "situacao"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idContato",
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pessoa__excluir",
+      "title": "Remove um contato",
+      "description": "Bling (DELETE /contatos/{idContato}): Remove um contato pelo ID. Quando usar: Limpeza de cadastros criados por engano. Para apenas desativar, prefira mudar a situação para I (inativo). Pré-requisitos: ID do contato. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContato": {
+            "type": "integer",
+            "description": "ID do contato."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idContato"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pessoa__atualizar__situacao",
+      "title": "Altera a situação de um contato",
+      "description": "Bling (PATCH /contatos/{idContato}/situacoes): Altera apenas a situação do contato (ativo, inativo, excluído, sem movimentação). Quando usar: Inativar/reativar clientes ou fornecedores sem mexer no restante do cadastro. Pré-requisitos: ID do contato. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContato": {
+            "type": "integer",
+            "description": "ID do contato."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "situacao": {
+                "type": "string",
+                "enum": [
+                  "A",
+                  "I",
+                  "E",
+                  "S"
+                ],
+                "description": "Nova situação: A, I, E ou S."
+              }
+            },
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idContato"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__produto__listar",
+      "title": "Obtém produtos",
+      "description": "Bling (GET /produtos): Lista produtos e serviços com preço, código (SKU), situação, formato e saldo resumido, com filtros por tipo, categoria, loja, SKU, GTIN, datas e saldo. Quando usar: Carga do catálogo para e-commerce/BI, busca por SKU ou GTIN e acompanhamento de alterações (dataAlteracaoInicial). Pré-requisitos: Escopo de produtos.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "criterio": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "description": "Recorte: 1 últimos incluídos (padrão), 2 ativos, 3 inativos, 4 excluídos, 5 todos."
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "T",
+              "P",
+              "S",
+              "E",
+              "PS",
+              "C",
+              "V"
+            ],
+            "description": "T todos, P produtos, S serviços, E composições, PS produtos simples, C com variações, V variações."
+          },
+          "codigos[]": {
+            "type": "array",
+            "description": "Um ou mais SKUs.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "gtins[]": {
+            "type": "array",
+            "description": "Um ou mais GTIN/EAN.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "idsProdutos[]": {
+            "type": "array",
+            "description": "Um ou mais IDs.",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "nome": {
+            "type": "string",
+            "description": "Parte do nome."
+          },
+          "idCategoria": {
+            "type": "integer",
+            "description": "Categoria de produto."
+          },
+          "idLoja": {
+            "type": "integer",
+            "description": "ID da loja/canal de venda vinculado."
+          },
+          "dataAlteracaoInicial": {
+            "type": "string",
+            "description": "Traz só registros alterados a partir deste momento (base para carga incremental). AAAA-MM-DD HH:MM:SS"
+          },
+          "dataAlteracaoFinal": {
+            "type": "string",
+            "description": "Limite superior da data de alteração. AAAA-MM-DD HH:MM:SS"
+          },
+          "dataInclusaoInicial": {
+            "type": "string",
+            "description": "Início do período de cadastro. AAAA-MM-DD HH:MM:SS"
+          },
+          "dataInclusaoFinal": {
+            "type": "string",
+            "description": "Fim do período de cadastro. AAAA-MM-DD HH:MM:SS"
+          },
+          "filtroSaldoEstoque": {
+            "type": "integer",
+            "enum": [
+              0,
+              1,
+              2
+            ],
+            "description": "0 zerado, 1 positivo, 2 negativo."
+          },
+          "filtroSaldoEstoqueDeposito": {
+            "type": "integer",
+            "description": "Depósito considerado no filtro de saldo."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__produto__obter",
+      "title": "Obtém um produto",
+      "description": "Bling (GET /produtos/{idProduto}): Retorna o cadastro completo do produto: preço, unidade, pesos, GTIN, dimensões, estoque mínimo/máximo, fornecedor padrão e bloco de tributação (NCM, CEST, origem). Quando usar: Quando precisa de dados fiscais/logísticos de um item (emitir nota, cotar frete, publicar em marketplace). Pré-requisitos: ID do produto.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idProduto": {
+            "type": "integer",
+            "description": "ID do produto."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idProduto"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__produto__criar",
+      "title": "Cria um produto",
+      "description": "Bling (POST /produtos): Cadastra produto ou serviço com dados comerciais, logísticos e fiscais; aceita variações e composição conforme o formato. Quando usar: Inclusão de itens vindos de PIM, planilha ou marketplace. Verifique antes por SKU (bling.produto.listar com codigos[]). Pré-requisitos: Escopo de produtos. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "nome": {
+                "type": "string",
+                "description": "Descrição do produto."
+              },
+              "codigo": {
+                "type": "string",
+                "description": "SKU."
+              },
+              "preco": {
+                "type": "number",
+                "description": "Preço de venda."
+              },
+              "tipo": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "P",
+                  "N"
+                ],
+                "description": "P produto, S serviço, N serviço 06 21 22."
+              },
+              "situacao": {
+                "type": "string",
+                "enum": [
+                  "A",
+                  "I"
+                ],
+                "description": "A ativo, I inativo."
+              },
+              "formato": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "V",
+                  "E"
+                ],
+                "description": "S simples, V com variações, E com composição."
+              },
+              "unidade": {
+                "type": "string",
+                "description": "Unidade comercial (UN, KG...)."
+              },
+              "gtin": {
+                "type": "string",
+                "description": "GTIN/EAN do item."
+              },
+              "pesoLiquido": {
+                "type": "number",
+                "description": "Peso líquido em kg."
+              },
+              "pesoBruto": {
+                "type": "number",
+                "description": "Peso bruto em kg."
+              },
+              "dimensoes": {
+                "type": "object",
+                "properties": {
+                  "largura": {
+                    "type": "number",
+                    "description": "Largura."
+                  },
+                  "altura": {
+                    "type": "number",
+                    "description": "Altura."
+                  },
+                  "profundidade": {
+                    "type": "number",
+                    "description": "Profundidade."
+                  },
+                  "unidadeMedida": {
+                    "type": "integer",
+                    "enum": [
+                      "0",
+                      "1",
+                      "2"
+                    ],
+                    "description": "0 metros, 1 centímetros, 2 milímetros."
+                  }
+                }
+              },
+              "tributacao": {
+                "type": "object",
+                "properties": {
+                  "ncm": {
+                    "type": "string",
+                    "description": "NCM do item."
+                  },
+                  "cest": {
+                    "type": "string",
+                    "description": "CEST."
+                  },
+                  "origem": {
+                    "type": "integer",
+                    "description": "Origem da mercadoria (tabela de origem da NF-e)."
+                  }
+                }
+              },
+              "categoria": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Categoria de produto."
+                  }
+                }
+              },
+              "estoque": {
+                "type": "object",
+                "properties": {
+                  "minimo": {
+                    "type": "number",
+                    "description": "Estoque mínimo."
+                  },
+                  "maximo": {
+                    "type": "number",
+                    "description": "Estoque máximo."
+                  }
+                }
+              },
+              "marca": {
+                "type": "string",
+                "description": "Marca."
+              },
+              "descricaoCurta": {
+                "type": "string",
+                "description": "Descrição curta (aceita HTML na loja)."
+              }
+            },
+            "required": [
+              "nome",
+              "tipo",
+              "situacao",
+              "formato"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__produto__substituir",
+      "title": "Altera um produto",
+      "description": "Bling (PUT /produtos/{idProduto}): Regrava o cadastro do produto com o objeto completo enviado. Quando usar: Sincronização integral a partir de um cadastro-mestre. Para mudar poucos campos (ex.: preço), use bling.produto.atualizar (PATCH). Pré-requisitos: GET do produto para montar o objeto completo. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idProduto": {
+            "type": "integer",
+            "description": "ID do produto."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "nome": {
+                "type": "string",
+                "description": "Descrição do produto."
+              },
+              "codigo": {
+                "type": "string",
+                "description": "SKU."
+              },
+              "preco": {
+                "type": "number",
+                "description": "Preço de venda."
+              },
+              "tipo": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "P",
+                  "N"
+                ],
+                "description": "P produto, S serviço, N serviço 06 21 22."
+              },
+              "situacao": {
+                "type": "string",
+                "enum": [
+                  "A",
+                  "I"
+                ],
+                "description": "A ativo, I inativo."
+              },
+              "formato": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "V",
+                  "E"
+                ],
+                "description": "S simples, V com variações, E com composição."
+              },
+              "unidade": {
+                "type": "string",
+                "description": "Unidade comercial (UN, KG...)."
+              },
+              "gtin": {
+                "type": "string",
+                "description": "GTIN/EAN do item."
+              },
+              "pesoLiquido": {
+                "type": "number",
+                "description": "Peso líquido em kg."
+              },
+              "pesoBruto": {
+                "type": "number",
+                "description": "Peso bruto em kg."
+              }
+            },
+            "required": [
+              "nome",
+              "tipo",
+              "situacao",
+              "formato"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idProduto",
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__produto__atualizar",
+      "title": "Altera parcialmente um produto",
+      "description": "Bling (PATCH /produtos/{idProduto}): Altera somente os campos enviados do produto (preço, descrição, dimensões, tributação...). Quando usar: Atualização de preço, peso ou NCM em massa sem risco de apagar o resto do cadastro. Pré-requisitos: ID do produto. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idProduto": {
+            "type": "integer",
+            "description": "ID do produto."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "nome": {
+                "type": "string",
+                "description": "Descrição do produto."
+              },
+              "codigo": {
+                "type": "string",
+                "description": "SKU."
+              },
+              "preco": {
+                "type": "number",
+                "description": "Preço de venda."
+              },
+              "tipo": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "P",
+                  "N"
+                ],
+                "description": "P produto, S serviço, N serviço 06 21 22."
+              },
+              "situacao": {
+                "type": "string",
+                "enum": [
+                  "A",
+                  "I"
+                ],
+                "description": "A ativo, I inativo."
+              },
+              "formato": {
+                "type": "string",
+                "enum": [
+                  "S",
+                  "V",
+                  "E"
+                ],
+                "description": "S simples, V com variações, E com composição."
+              },
+              "unidade": {
+                "type": "string",
+                "description": "Unidade comercial (UN, KG...)."
+              },
+              "gtin": {
+                "type": "string",
+                "description": "GTIN/EAN do item."
+              }
+            },
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idProduto"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__produto__excluir",
+      "title": "Remove um produto",
+      "description": "Bling (DELETE /produtos/{idProduto}): Remove um produto pelo ID. Quando usar: Exclusão definitiva de itens cadastrados por engano. Para tirar de linha, prefira situacao=I via PATCH. Pré-requisitos: ID do produto. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idProduto": {
+            "type": "integer",
+            "description": "ID do produto."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idProduto"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__estoque__listar__saldos",
+      "title": "Obtém o saldo em estoque de produtos",
+      "description": "Bling (GET /estoques/saldos): Consulta saldo físico e virtual (descontando reservas) de uma lista de produtos, somado e por depósito. Quando usar: Painel de estoque, sincronização de disponibilidade com loja/marketplace e alertas de ruptura. Exige IDs de produtos: combine com bling.produto.listar. Pré-requisitos: IDs dos produtos.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idsProdutos[]": {
+            "type": "array",
+            "description": "IDs dos produtos consultados (obrigatório).",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "codigos[]": {
+            "type": "array",
+            "description": "SKUs, alternativa/complemento aos IDs.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filtroSaldoEstoque": {
+            "type": "integer",
+            "enum": [
+              0,
+              1,
+              2
+            ],
+            "description": "0 zerado, 1 positivo, 2 negativo."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idsProdutos[]"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__estoque__listar__saldo_deposito",
+      "title": "Obtém o saldo em estoque de produtos por depósito",
+      "description": "Bling (GET /estoques/saldos/{idDeposito}): Mesmo que a consulta de saldos, restrita a um depósito. Quando usar: Operação multi-CD/filial em que cada depósito atende um canal. Pré-requisitos: ID do depósito; IDs dos produtos.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idDeposito": {
+            "type": "integer",
+            "description": "ID do depósito (bling.deposito.listar)."
+          },
+          "idsProdutos[]": {
+            "type": "array",
+            "description": "IDs dos produtos (obrigatório).",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "codigos[]": {
+            "type": "array",
+            "description": "SKUs.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filtroSaldoEstoque": {
+            "type": "integer",
+            "enum": [
+              0,
+              1,
+              2
+            ],
+            "description": "0 zerado, 1 positivo, 2 negativo."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idDeposito",
+          "idsProdutos[]"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__deposito__listar",
+      "title": "Obtém depósitos",
+      "description": "Bling (GET /depositos): Lista os depósitos (locais de estoque) da conta, com situação, indicação de padrão e se o saldo é desconsiderado. Quando usar: Descobrir o idDeposito antes de lançar ou consultar estoque por local. Pré-requisitos: Escopo de depósitos/estoque.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "descricao": {
+            "type": "string",
+            "description": "Filtra pelo nome do depósito."
+          },
+          "situacao": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "description": "0 inativo, 1 ativo (padrão)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__estoque__criar",
+      "title": "Cria um registro de estoque",
+      "description": "Bling (POST /estoques): Registra um lançamento de estoque para um produto num depósito: balanço (define o saldo), entrada ou saída. Quando usar: Ajuste de inventário, entrada de mercadoria sem nota no Bling ou integração com WMS. Para baixar estoque de uma venda já existente, prefira o lançamento a partir do pedido (secundário). Pré-requisitos: ID do produto; ID do depósito. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "produto": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "ID do produto."
+                  }
+                }
+              },
+              "deposito": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "ID do depósito."
+                  }
+                }
+              },
+              "operacao": {
+                "type": "string",
+                "enum": [
+                  "B",
+                  "E",
+                  "S"
+                ],
+                "description": "B balanço, E entrada, S saída."
+              },
+              "quantidade": {
+                "type": "number",
+                "description": "Quantidade do lançamento."
+              },
+              "preco": {
+                "type": "number",
+                "description": "Preço unitário (opcional)."
+              },
+              "custo": {
+                "type": "number",
+                "description": "Custo unitário (opcional)."
+              },
+              "observacoes": {
+                "type": "string",
+                "description": "Texto livre (ex.: número do inventário)."
+              }
+            },
+            "required": [
+              "operacao",
+              "quantidade"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__estoque__atualizar",
+      "title": "Altera um registro de estoque",
+      "description": "Bling (PUT /estoques/{idEstoque}): Corrige preço, custo ou observação de um lançamento de estoque já registrado (não altera quantidade). Quando usar: Ajustar custo unitário de uma entrada lançada com valor errado. Pré-requisitos: ID do lançamento. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idEstoque": {
+            "type": "integer",
+            "description": "ID do lançamento (retornado por bling.estoque.criar)."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "preco": {
+                "type": "number",
+                "description": "Preço unitário."
+              },
+              "precoCusto": {
+                "type": "number",
+                "description": "Custo unitário."
+              },
+              "observacoes": {
+                "type": "string",
+                "description": "Observação."
+              }
+            },
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idEstoque"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pedido__listar__venda",
+      "title": "Obtém pedidos de vendas",
+      "description": "Bling (GET /pedidos/vendas): Lista pedidos de venda com cabeçalho (número, número na loja, datas, totais, contato, situação e loja), filtrando por período, alteração, situação, contato, loja e vendedor. Quando usar: Base de BI de vendas (faturamento, ticket médio), integração com expedição/WMS e sincronização incremental por dataAlteracaoInicial. Itens e parcelas exigem bling.pedido.obter.venda. Pré-requisitos: Escopo de pedidos de venda.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "dataInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "Início do período (intervalo máximo de 1 ano entre inicial e final)."
+          },
+          "dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "Fim do período (intervalo máximo de 1 ano)."
+          },
+          "dataAlteracaoInicial": {
+            "type": "string",
+            "description": "Traz só registros alterados a partir deste momento (base para carga incremental). AAAA-MM-DD HH:MM:SS"
+          },
+          "dataAlteracaoFinal": {
+            "type": "string",
+            "description": "Limite superior da data de alteração. AAAA-MM-DD HH:MM:SS"
+          },
+          "dataPrevistaInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "Início da data prevista de entrega."
+          },
+          "dataPrevistaFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "Fim da data prevista."
+          },
+          "idsSituacoes[]": {
+            "type": "array",
+            "description": "IDs de situação (são configuráveis por conta: descubra em /situacoes/modulos).",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "idContato": {
+            "type": "integer",
+            "description": "ID interno do contato (cliente/fornecedor) no Bling."
+          },
+          "numero": {
+            "type": "integer",
+            "description": "Número do documento na numeração do Bling."
+          },
+          "idLoja": {
+            "type": "integer",
+            "description": "ID da loja/canal de venda vinculado."
+          },
+          "numerosLojas[]": {
+            "type": "array",
+            "description": "Números do pedido na loja/marketplace.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "idVendedor": {
+            "type": "integer",
+            "description": "ID do vendedor cadastrado."
+          },
+          "idUnidadeNegocio": {
+            "type": "integer",
+            "description": "Filial/unidade de negócio."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pedido__obter__venda",
+      "title": "Obtém um pedido de venda",
+      "description": "Bling (GET /pedidos/vendas/{idPedidoVenda}): Retorna o pedido de venda completo: contato, itens, parcelas, transporte (volumes, rastreio, etiqueta), intermediador, taxas de marketplace, nota vinculada e observações. Quando usar: Montar separação/expedição, calcular margem por item ou conciliar parcelas. Pré-requisitos: ID do pedido.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idPedidoVenda": {
+            "type": "integer",
+            "description": "ID do pedido de venda."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idPedidoVenda"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pedido__criar__venda",
+      "title": "Cria um pedido de venda",
+      "description": "Bling (POST /pedidos/vendas): Cria um pedido de venda com cliente, itens, parcelas, transporte e descontos. Quando usar: Importar pedidos de loja própria, marketplace, CRM ou força de vendas para o Bling faturar e expedir. Pedidos via API contam no limite de pedidos importados do plano. Pré-requisitos: Contato existente (bling.pessoa.criar); Produtos existentes; ID da forma de pagamento. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "contato": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Cliente (ID do contato)."
+                  }
+                }
+              },
+              "data": {
+                "type": "string",
+                "format": "date",
+                "description": "Data do pedido."
+              },
+              "dataSaida": {
+                "type": "string",
+                "format": "date",
+                "description": "Data de saída."
+              },
+              "dataPrevista": {
+                "type": "string",
+                "format": "date",
+                "description": "Data prevista de entrega."
+              },
+              "numero": {
+                "type": "integer",
+                "description": "Número do pedido (se omitido, o Bling numera; confirme na conta)."
+              },
+              "numeroLoja": {
+                "type": "string",
+                "description": "Número do pedido na loja de origem (use como id_externo)."
+              },
+              "loja": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Loja/canal de venda."
+                  }
+                }
+              },
+              "itens": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "produto": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "description": "Produto do item."
+                        }
+                      }
+                    },
+                    "codigo": {
+                      "type": "string",
+                      "description": "SKU do item."
+                    },
+                    "descricao": {
+                      "type": "string",
+                      "description": "Descrição do item."
+                    },
+                    "quantidade": {
+                      "type": "number",
+                      "description": "Quantidade."
+                    },
+                    "valor": {
+                      "type": "number",
+                      "description": "Valor unitário."
+                    },
+                    "desconto": {
+                      "type": "number",
+                      "description": "Desconto do item em percentual."
+                    }
+                  }
+                }
+              },
+              "parcelas": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "dataVencimento": {
+                      "type": "string",
+                      "format": "date",
+                      "description": "Vencimento da parcela."
+                    },
+                    "valor": {
+                      "type": "number",
+                      "description": "Valor da parcela."
+                    },
+                    "formaPagamento": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "description": "Forma de pagamento (bling.tabela_auxiliar.listar.formas_pagamento)."
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "transporte": {
+                "type": "object",
+                "properties": {
+                  "fretePorConta": {
+                    "type": "integer",
+                    "enum": [
+                      0,
+                      1,
+                      2,
+                      3,
+                      4,
+                      9
+                    ],
+                    "description": "Modalidade do frete (0 CIF remetente, 1 FOB destinatário, ... 9 sem frete)."
+                  },
+                  "frete": {
+                    "type": "number",
+                    "description": "Valor do frete."
+                  }
+                }
+              },
+              "desconto": {
+                "type": "object",
+                "properties": {
+                  "valor": {
+                    "type": "number",
+                    "description": "Desconto do pedido."
+                  },
+                  "unidade": {
+                    "type": "string",
+                    "enum": [
+                      "REAL",
+                      "PERCENTUAL"
+                    ],
+                    "description": "REAL ou PERCENTUAL."
+                  }
+                }
+              },
+              "observacoes": {
+                "type": "string",
+                "description": "Observações impressas."
+              },
+              "observacoesInternas": {
+                "type": "string",
+                "description": "Observações internas."
+              },
+              "intermediador": {
+                "type": "object",
+                "properties": {
+                  "cnpj": {
+                    "type": "string",
+                    "description": "CNPJ do intermediador (marketplace)."
+                  }
+                }
+              },
+              "vendedor": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Vendedor."
+                  }
+                }
+              }
+            },
+            "required": [
+              "data",
+              "dataSaida",
+              "dataPrevista"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pedido__substituir__venda",
+      "title": "Altera um pedido de venda",
+      "description": "Bling (PUT /pedidos/vendas/{idPedidoVenda}): Regrava o pedido de venda com o objeto completo (cabeçalho, itens, parcelas, transporte). Quando usar: Corrigir pedido ainda não faturado a partir do sistema de origem. Para mudar só o status, use bling.pedido.atualizar.venda_situacao. Pré-requisitos: GET do pedido para montar o objeto completo. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idPedidoVenda": {
+            "type": "integer",
+            "description": "ID do pedido."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "contato": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Cliente (ID do contato)."
+                  }
+                }
+              },
+              "data": {
+                "type": "string",
+                "format": "date",
+                "description": "Data do pedido."
+              },
+              "dataSaida": {
+                "type": "string",
+                "format": "date",
+                "description": "Data de saída."
+              },
+              "dataPrevista": {
+                "type": "string",
+                "format": "date",
+                "description": "Data prevista de entrega."
+              },
+              "numero": {
+                "type": "integer",
+                "description": "Número do pedido (se omitido, o Bling numera; confirme na conta)."
+              },
+              "numeroLoja": {
+                "type": "string",
+                "description": "Número do pedido na loja de origem (use como id_externo)."
+              },
+              "loja": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Loja/canal de venda."
+                  }
+                }
+              },
+              "itens": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "produto": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "description": "Produto do item."
+                        }
+                      }
+                    },
+                    "codigo": {
+                      "type": "string",
+                      "description": "SKU do item."
+                    },
+                    "descricao": {
+                      "type": "string",
+                      "description": "Descrição do item."
+                    },
+                    "quantidade": {
+                      "type": "number",
+                      "description": "Quantidade."
+                    },
+                    "valor": {
+                      "type": "number",
+                      "description": "Valor unitário."
+                    }
+                  }
+                }
+              }
+            },
+            "required": [
+              "data",
+              "dataSaida",
+              "dataPrevista"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idPedidoVenda",
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pedido__excluir__venda",
+      "title": "Remove um pedido de venda",
+      "description": "Bling (DELETE /pedidos/vendas/{idPedidoVenda}): Remove um pedido de venda. Quando usar: Descartar pedido criado por engano. Para cancelamento de negócio, prefira mudar a situação para a de cancelado da conta. Pré-requisitos: ID do pedido. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idPedidoVenda": {
+            "type": "integer",
+            "description": "ID do pedido."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idPedidoVenda"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pedido__atualizar__venda_situacao",
+      "title": "Altera a situação de um pedido de venda",
+      "description": "Bling (PATCH /pedidos/vendas/{idPedidoVenda}/situacoes/{idSituacao}): Move o pedido de venda para outra situação (em aberto, em andamento, atendido, cancelado ou situações personalizadas da conta). Quando usar: Refletir no Bling o avanço do pedido em outro sistema (pago, separado, enviado, cancelado). Pré-requisitos: IDs de situação obtidos em GET /situacoes/modulos e /situacoes/modulos/{id}/transicoes. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idPedidoVenda": {
+            "type": "integer",
+            "description": "ID do pedido."
+          },
+          "idSituacao": {
+            "type": "integer",
+            "description": "ID da situação de destino (configurável por conta)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idPedidoVenda",
+          "idSituacao"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__criar__nfe_de_pedido",
+      "title": "Gera nota fiscal eletrônica a partir do pedido de venda",
+      "description": "Bling (POST /pedidos/vendas/{idPedidoVenda}/gerar-nfe): Gera uma NF-e em rascunho no Bling a partir de um pedido de venda e devolve o idNotaFiscal. Não transmite à SEFAZ. Quando usar: Fluxo pedido -> nota sem remontar itens e impostos. Em seguida chame bling.nota_fiscal.emitir.nfe para autorizar. Pré-requisitos: Pedido de venda existente; Configuração fiscal da empresa (natureza de operação, certificado) feita no Bling. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idPedidoVenda": {
+            "type": "integer",
+            "description": "ID do pedido de venda."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idPedidoVenda"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pedido__listar__compra",
+      "title": "Obtém pedidos de compras",
+      "description": "Bling (GET /pedidos/compras): Lista pedidos de compra com número, datas, totais, fornecedor e situação. Quando usar: Acompanhar compras em aberto, prazos de fornecedor e custo de reposição em BI. Pré-requisitos: Escopo de pedidos de compra.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "idFornecedor": {
+            "type": "integer",
+            "description": "ID do contato fornecedor."
+          },
+          "idSituacao": {
+            "type": "integer",
+            "description": "ID da situação."
+          },
+          "valorSituacao": {
+            "type": "integer",
+            "description": "Valor da situação (0 em aberto, 1 atendido, 2 cancelado, 3 em andamento)."
+          },
+          "dataInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "Início do período (intervalo máximo de 1 ano entre inicial e final)."
+          },
+          "dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "Fim do período (intervalo máximo de 1 ano)."
+          },
+          "idsNotasFiscais[]": {
+            "type": "array",
+            "description": "Notas de entrada vinculadas.",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pedido__obter__compra",
+      "title": "Obtém um pedido de compra",
+      "description": "Bling (GET /pedidos/compras/{idPedidoCompra}): Retorna o pedido de compra completo com itens, parcelas, transporte e observações. Quando usar: Conferência de recebimento e integração com contas a pagar. Pré-requisitos: ID do pedido de compra.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idPedidoCompra": {
+            "type": "integer",
+            "description": "ID do pedido de compra."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idPedidoCompra"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pedido__criar__compra",
+      "title": "Cria um pedido de compra",
+      "description": "Bling (POST /pedidos/compras): Cria um pedido de compra para um fornecedor, com itens, parcelas e frete. Quando usar: Reposição automática (a partir de ponto de pedido/BI) ou compras vindas de portal de suprimentos. Pré-requisitos: Fornecedor cadastrado. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "fornecedor": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Fornecedor (ID do contato)."
+                  }
+                }
+              },
+              "data": {
+                "type": "string",
+                "format": "date",
+                "description": "Data do pedido."
+              },
+              "dataPrevista": {
+                "type": "string",
+                "format": "date",
+                "description": "Previsão de entrega."
+              },
+              "ordemCompra": {
+                "type": "string",
+                "description": "Número da ordem de compra (id_externo)."
+              },
+              "itens": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "descricao": {
+                      "type": "string",
+                      "description": "Descrição do item."
+                    },
+                    "valor": {
+                      "type": "number",
+                      "description": "Valor unitário."
+                    },
+                    "quantidade": {
+                      "type": "number",
+                      "description": "Quantidade."
+                    },
+                    "codigoFornecedor": {
+                      "type": "string",
+                      "description": "Código do item no fornecedor."
+                    }
+                  }
+                }
+              },
+              "parcelas": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "valor": {
+                      "type": "number",
+                      "description": "Valor da parcela."
+                    },
+                    "dataVencimento": {
+                      "type": "string",
+                      "format": "date",
+                      "description": "Vencimento."
+                    }
+                  }
+                }
+              },
+              "transporte": {
+                "type": "object",
+                "properties": {
+                  "frete": {
+                    "type": "number",
+                    "description": "Frete."
+                  },
+                  "fretePorConta": {
+                    "type": "integer",
+                    "enum": [
+                      0,
+                      1,
+                      2,
+                      3,
+                      4,
+                      9
+                    ],
+                    "description": "Modalidade de frete."
+                  }
+                }
+              },
+              "observacoes": {
+                "type": "string",
+                "description": "Observações."
+              },
+              "categoria": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Categoria financeira."
+                  }
+                }
+              }
+            },
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pedido__substituir__compra",
+      "title": "Altera um pedido de compra",
+      "description": "Bling (PUT /pedidos/compras/{idPedidoCompra}): Regrava um pedido de compra com o objeto completo. Quando usar: Ajuste de quantidades/preços negociados antes do recebimento. Pré-requisitos: GET do pedido de compra. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idPedidoCompra": {
+            "type": "integer",
+            "description": "ID do pedido de compra."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "fornecedor": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Fornecedor (ID do contato)."
+                  }
+                }
+              },
+              "data": {
+                "type": "string",
+                "format": "date",
+                "description": "Data do pedido."
+              },
+              "dataPrevista": {
+                "type": "string",
+                "format": "date",
+                "description": "Previsão de entrega."
+              },
+              "ordemCompra": {
+                "type": "string",
+                "description": "Número da ordem de compra (id_externo)."
+              },
+              "itens": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "descricao": {
+                      "type": "string",
+                      "description": "Descrição do item."
+                    },
+                    "valor": {
+                      "type": "number",
+                      "description": "Valor unitário."
+                    },
+                    "quantidade": {
+                      "type": "number",
+                      "description": "Quantidade."
+                    },
+                    "codigoFornecedor": {
+                      "type": "string",
+                      "description": "Código do item no fornecedor."
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idPedidoCompra"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__pedido__excluir__compra",
+      "title": "Remove um pedido de compra",
+      "description": "Bling (DELETE /pedidos/compras/{idPedidoCompra}): Remove um pedido de compra. Quando usar: Descartar pedido de compra criado por engano. Pré-requisitos: ID do pedido de compra. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idPedidoCompra": {
+            "type": "integer",
+            "description": "ID do pedido de compra."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idPedidoCompra"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__orcamento__listar",
+      "title": "Obtém propostas comerciais",
+      "description": "Bling (GET /propostas-comerciais): Lista propostas comerciais (orçamentos) com data, situação textual, totais, número, contato e loja. Quando usar: Funil de orçamentos, taxa de conversão e follow-up comercial. Pré-requisitos: Escopo de propostas comerciais.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "situacao": {
+            "type": "string",
+            "description": "Situação textual (Pendente, Aguardando, Não aprovado, Aprovado, Concluído...)."
+          },
+          "idContato": {
+            "type": "integer",
+            "description": "ID interno do contato (cliente/fornecedor) no Bling."
+          },
+          "dataInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "Início do período (intervalo máximo de 1 ano entre inicial e final)."
+          },
+          "dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "Fim do período (intervalo máximo de 1 ano)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__orcamento__obter",
+      "title": "Obtém uma proposta comercial",
+      "description": "Bling (GET /propostas-comerciais/{idPropostaComercial}): Retorna a proposta comercial completa: itens, parcelas, garantia, prazo de entrega, introdução e observações. Quando usar: Gerar PDF próprio da proposta ou converter em pedido no sistema de origem. Pré-requisitos: ID da proposta.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idPropostaComercial": {
+            "type": "integer",
+            "description": "ID da proposta."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idPropostaComercial"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__orcamento__criar",
+      "title": "Cria uma proposta comercial",
+      "description": "Bling (POST /propostas-comerciais): Cria uma proposta comercial com itens, condições e textos de apresentação. Quando usar: Orçamentos gerados em CRM/configurador que precisam existir no Bling. Pré-requisitos: Contato e produtos cadastrados. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "contato": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Cliente."
+                  }
+                }
+              },
+              "loja": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Loja (obrigatório no schema quando loja é enviada)."
+                  }
+                }
+              },
+              "data": {
+                "type": "string",
+                "format": "date",
+                "description": "Data da proposta."
+              },
+              "situacao": {
+                "type": "string",
+                "description": "Situação textual."
+              },
+              "itens": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "produto": {
+                      "type": "object",
+                      "description": "Produto do item (objeto com id)."
+                    },
+                    "codigo": {
+                      "type": "string",
+                      "description": "SKU."
+                    },
+                    "quantidade": {
+                      "type": "number",
+                      "description": "Quantidade."
+                    },
+                    "valor": {
+                      "type": "number",
+                      "description": "Valor unitário."
+                    },
+                    "desconto": {
+                      "type": "number",
+                      "description": "Desconto do item."
+                    }
+                  }
+                }
+              },
+              "parcelas": {
+                "type": "array",
+                "description": "Parcelas (lista obrigatória no schema)."
+              },
+              "garantia": {
+                "type": "integer",
+                "description": "Garantia (meses)."
+              },
+              "prazoEntrega": {
+                "type": "string",
+                "description": "Prazo de entrega em texto."
+              },
+              "dataProximoContato": {
+                "type": "string",
+                "description": "Data de follow-up."
+              },
+              "aosCuidadosDe": {
+                "type": "string",
+                "description": "Pessoa de contato."
+              }
+            },
+            "required": [
+              "parcelas"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__orcamento__substituir",
+      "title": "Altera uma proposta comercial",
+      "description": "Bling (PUT /propostas-comerciais/{idPropostaComercial}): Regrava uma proposta comercial com o objeto completo. Quando usar: Revisão de proposta antes da aprovação. Pré-requisitos: GET da proposta. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idPropostaComercial": {
+            "type": "integer",
+            "description": "ID da proposta."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "contato": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Cliente."
+                  }
+                }
+              },
+              "loja": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Loja (obrigatório no schema quando loja é enviada)."
+                  }
+                }
+              },
+              "data": {
+                "type": "string",
+                "format": "date",
+                "description": "Data da proposta."
+              },
+              "situacao": {
+                "type": "string",
+                "description": "Situação textual."
+              },
+              "itens": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "produto": {
+                      "type": "object",
+                      "description": "Produto do item (objeto com id)."
+                    },
+                    "codigo": {
+                      "type": "string",
+                      "description": "SKU."
+                    },
+                    "quantidade": {
+                      "type": "number",
+                      "description": "Quantidade."
+                    },
+                    "valor": {
+                      "type": "number",
+                      "description": "Valor unitário."
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idPropostaComercial"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__orcamento__excluir",
+      "title": "Remove uma proposta comercial",
+      "description": "Bling (DELETE /propostas-comerciais/{idPropostaComercial}): Remove uma proposta comercial. Quando usar: Limpeza de propostas vencidas ou duplicadas. Pré-requisitos: ID da proposta. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idPropostaComercial": {
+            "type": "integer",
+            "description": "ID da proposta."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idPropostaComercial"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__listar__nfe",
+      "title": "Obtém notas fiscais",
+      "description": "Bling (GET /nfe): Lista NF-e (modelo 55) de entrada e saída com número, situação, datas, chave de acesso, contato e natureza de operação. Quando usar: Livro de saídas/entradas em BI, conferência de notas rejeitadas e conciliação pedido x nota. Pré-requisitos: Escopo de notas fiscais.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "situacao": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "description": "Situação da nota: 1 pendente, 2 cancelada, 3 aguardando recibo, 4 rejeitada, 5 autorizada, 6 emitida DANFE, 7 registrada, 8 aguardando protocolo, 9 denegada, 10 consulta situação, 11 bloqueada. Sem este filtro, canceladas ficam de fora."
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "0",
+              "1"
+            ],
+            "description": "0 entrada, 1 saída (padrão)."
+          },
+          "dataEmissaoInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "Início do período de emissão."
+          },
+          "dataEmissaoFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "Fim do período de emissão."
+          },
+          "numero": {
+            "type": "integer",
+            "description": "Número da NF-e."
+          },
+          "serie": {
+            "type": "integer",
+            "description": "Série."
+          },
+          "chaveAcesso": {
+            "type": "integer",
+            "description": "Chave de 44 dígitos."
+          },
+          "numeroLoja": {
+            "type": "string",
+            "description": "Número do pedido na loja."
+          },
+          "idTransportador": {
+            "type": "integer",
+            "description": "Contato transportador."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__obter__nfe",
+      "title": "Obtém uma nota fiscal",
+      "description": "Bling (GET /nfe/{idNotaFiscal}): Retorna a NF-e completa: destinatário, natureza, itens, parcelas, transporte, intermediador, links do XML/DANFE/PDF e documentos referenciados. Quando usar: Consultar situação SEFAZ de uma nota enviada, obter chave e links, ou montar relatório fiscal detalhado. Pré-requisitos: ID da nota.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaFiscal": {
+            "type": "integer",
+            "description": "ID da nota no Bling."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaFiscal"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__criar__nfe",
+      "title": "Cria uma nota fiscal",
+      "description": "Bling (POST /nfe): Cria uma NF-e (entrada ou saída) no Bling em situação pendente, com destinatário, natureza de operação, itens, parcelas e transporte. A autorização é um passo separado. Quando usar: Emitir nota para venda que não nasceu como pedido no Bling, nota de entrada/devolução ou complementar. Pré-requisitos: Certificado digital A1 e dados fiscais configurados na conta Bling; Natureza de operação cadastrada. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "tipo": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "0 entrada, 1 saída."
+              },
+              "numero": {
+                "type": "string",
+                "description": "Número da nota."
+              },
+              "dataOperacao": {
+                "type": "string",
+                "description": "Data/hora de saída ou entrada. AAAA-MM-DD HH:MM:SS"
+              },
+              "contato": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "description": "Nome do destinatário."
+                  },
+                  "tipoPessoa": {
+                    "type": "string",
+                    "enum": [
+                      "F",
+                      "J",
+                      "E"
+                    ],
+                    "description": "F, J ou E."
+                  },
+                  "numeroDocumento": {
+                    "type": "string",
+                    "description": "CPF/CNPJ do destinatário."
+                  },
+                  "contribuinte": {
+                    "type": "integer",
+                    "enum": [
+                      1,
+                      2,
+                      9
+                    ],
+                    "description": "1 contribuinte ICMS, 2 isento, 9 não contribuinte."
+                  },
+                  "ie": {
+                    "type": "string",
+                    "description": "IE do destinatário."
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "E-mail que recebe XML/DANFE."
+                  }
+                }
+              },
+              "naturezaOperacao": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Natureza de operação cadastrada (GET /naturezas-operacoes)."
+                  }
+                }
+              },
+              "finalidade": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ],
+                "description": "1 normal, 2 complementar, 3 ajuste, 4 devolução, 5 crédito, 6 débito."
+              },
+              "loja": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Loja de origem."
+                  }
+                }
+              },
+              "itens": {
+                "type": "array",
+                "description": "Itens da nota (código, descrição, unidade, quantidade, valor, dados fiscais). Schema completo na referência."
+              }
+            },
+            "required": [
+              "tipo",
+              "numero",
+              "dataOperacao"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__emitir__nfe",
+      "title": "Envia uma nota fiscal",
+      "description": "Bling (POST /nfe/{idNotaFiscal}/enviar): Transmite a NF-e pendente para autorização na SEFAZ usando o certificado configurado no Bling; opcionalmente envia e-mail ao destinatário. Quando usar: Depois de criar a nota (direto ou a partir do pedido) e revisar os dados. Após a chamada, acompanhe a situação em bling.nota_fiscal.obter.nfe ou pelo webhook invoice.updated. Pré-requisitos: Nota em situação pendente; Certificado A1 válido na conta; Ambiente (produção/homologação) configurado no Bling. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaFiscal": {
+            "type": "integer",
+            "description": "ID da nota pendente."
+          },
+          "enviarEmail": {
+            "type": "boolean",
+            "description": "true para mandar XML/DANFE por e-mail após emitir."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaFiscal"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__baixar_arquivo__nfe",
+      "title": "Obtém o documento de uma nota fiscal",
+      "description": "Bling (GET /nfe/documento/{chaveAcesso}): Baixa o DANFE (pdf) ou o XML da NF-e pela chave de acesso. O conteúdo vem compactado em GZIP e codificado em base64 dentro do JSON. Quando usar: Arquivar XML para o contador, anexar DANFE em e-mail/portal ou alimentar data lake fiscal. Pré-requisitos: Nota autorizada com chave de acesso.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "chaveAcesso": {
+            "type": "string",
+            "description": "Chave de acesso de 44 dígitos."
+          },
+          "formato": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "xml"
+            ],
+            "description": "pdf para DANFE, xml para o XML."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "chaveAcesso",
+          "formato"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__listar__nfce",
+      "title": "Obtém notas fiscais de consumidor",
+      "description": "Bling (GET /nfce): Lista NFC-e (modelo 65, varejo/PDV) com número, situação, datas, chave, contato e natureza. Quando usar: BI de vendas de balcão e conferência de notas de consumidor rejeitadas. Pré-requisitos: Escopo de NFC-e.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "situacao": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12
+            ],
+            "description": "Situação: 1 pendente, 2 cancelada, 3 aguardando recibo, 4 rejeitada, 5 autorizada, 6 emitida DANFE, 7 registrada, 8 aguardando protocolo, 9 denegada, 10 consulta situação, 11 bloqueada."
+          },
+          "dataEmissaoInicial": {
+            "type": "string",
+            "description": "Início do período de emissão. AAAA-MM-DD HH:MM:SS"
+          },
+          "dataEmissaoFinal": {
+            "type": "string",
+            "description": "Fim do período de emissão. AAAA-MM-DD HH:MM:SS"
+          },
+          "numero": {
+            "type": "integer",
+            "description": "Número."
+          },
+          "serie": {
+            "type": "integer",
+            "description": "Série."
+          },
+          "chaveAcesso": {
+            "type": "integer",
+            "description": "Chave de acesso."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__obter__nfce",
+      "title": "Obtém uma nota fiscal de consumidor",
+      "description": "Bling (GET /nfce/{idNotaFiscalConsumidor}): Retorna a NFC-e completa, no mesmo formato de dados da NF-e. Quando usar: Acompanhar autorização de uma NFC-e enviada ou obter itens/pagamentos de uma venda de balcão. Pré-requisitos: ID da NFC-e.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaFiscalConsumidor": {
+            "type": "integer",
+            "description": "ID da NFC-e."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaFiscalConsumidor"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__criar__nfce",
+      "title": "Cria uma nota fiscal de consumidor",
+      "description": "Bling (POST /nfce): Cria uma NFC-e pendente com consumidor, natureza, itens e pagamentos. Quando usar: PDV/totem próprio que usa o Bling como emissor. Depois chame bling.nota_fiscal.emitir.nfce. Pré-requisitos: CSC/credenciamento NFC-e e certificado configurados no Bling. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "tipo": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "1 saída."
+              },
+              "numero": {
+                "type": "string",
+                "description": "Número."
+              },
+              "dataOperacao": {
+                "type": "string",
+                "description": "Data/hora da operação. AAAA-MM-DD HH:MM:SS"
+              },
+              "contato": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "description": "Consumidor."
+                  },
+                  "tipoPessoa": {
+                    "type": "string",
+                    "enum": [
+                      "F",
+                      "J",
+                      "E"
+                    ],
+                    "description": "F, J ou E."
+                  },
+                  "numeroDocumento": {
+                    "type": "string",
+                    "description": "CPF/CNPJ do consumidor."
+                  },
+                  "contribuinte": {
+                    "type": "integer",
+                    "enum": [
+                      1,
+                      2,
+                      9
+                    ],
+                    "description": "Indicador de contribuinte."
+                  }
+                }
+              },
+              "naturezaOperacao": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Natureza de operação."
+                  }
+                }
+              }
+            },
+            "required": [
+              "tipo",
+              "numero",
+              "dataOperacao"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__emitir__nfce",
+      "title": "Envia uma nota de consumidor",
+      "description": "Bling (POST /nfce/{idNotaFiscalConsumidor}/enviar): Transmite a NFC-e pendente para autorização na SEFAZ. Quando usar: Logo após criar a NFC-e no fluxo de PDV. Pré-requisitos: NFC-e pendente. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaFiscalConsumidor": {
+            "type": "integer",
+            "description": "ID da NFC-e pendente."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaFiscalConsumidor"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__listar__nfse",
+      "title": "Obtém notas de serviços",
+      "description": "Bling (GET /nfse): Lista notas de serviço (NFS-e) com número, RPS, série, situação, data, valor e tomador. Quando usar: Faturamento de serviços em BI e conferência de notas pendentes/canceladas. Pré-requisitos: Escopo de NFS-e.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "situacao": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "description": "Filtro de situação (a spec descreve 0 pendente, 1 emitida, 2 disponível para consulta, 3 cancelada, mas o enum do filtro é 1-4)."
+          },
+          "dataEmissaoInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "Início do período de emissão."
+          },
+          "dataEmissaoFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "Fim do período de emissão."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__obter__nfse",
+      "title": "Obtém uma nota de serviço",
+      "description": "Bling (GET /nfse/{idNotaServico}): Retorna a NFS-e com tomador, serviços, valores, código de verificação e link de impressão. Quando usar: Acompanhar a emissão (situação) e obter o link público da nota para enviar ao cliente. Pré-requisitos: ID da NFS-e.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaServico": {
+            "type": "integer",
+            "description": "ID da nota de serviço."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaServico"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__criar__nfse",
+      "title": "Cria uma nota de serviço",
+      "description": "Bling (POST /nfse): Cria uma NFS-e (RPS) pendente com tomador, serviços, retenção de ISS, desconto e parcelas. Quando usar: Faturamento de serviços recorrentes ou avulsos gerado por outro sistema (contratos, agenda, CRM). Pré-requisitos: Configuração de NFS-e do município feita no Bling (GET/PUT /nfse/configuracoes). Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "numeroRPS": {
+                "type": "string",
+                "description": "Número do RPS."
+              },
+              "serie": {
+                "type": "string",
+                "description": "Série do RPS."
+              },
+              "data": {
+                "type": "string",
+                "format": "date",
+                "description": "Data usada na criação."
+              },
+              "contato": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Tomador (ID)."
+                  },
+                  "nome": {
+                    "type": "string",
+                    "description": "Nome do tomador."
+                  },
+                  "numeroDocumento": {
+                    "type": "string",
+                    "description": "CPF/CNPJ do tomador."
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "E-mail do tomador."
+                  },
+                  "im": {
+                    "type": "string",
+                    "description": "Inscrição municipal do tomador."
+                  }
+                }
+              },
+              "servicos": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "codigo": {
+                      "type": "string",
+                      "description": "Código do serviço (lista municipal/LC 116)."
+                    },
+                    "descricao": {
+                      "type": "string",
+                      "description": "Descrição do serviço."
+                    },
+                    "valor": {
+                      "type": "number",
+                      "description": "Valor do serviço."
+                    }
+                  }
+                }
+              },
+              "reterISS": {
+                "type": "boolean",
+                "description": "Retém ISS; se omitido vale a configuração da conta."
+              },
+              "baseCalculo": {
+                "type": "number",
+                "description": "Base de cálculo."
+              },
+              "desconto": {
+                "type": "number",
+                "description": "Desconto."
+              },
+              "parcelas": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "string",
+                      "format": "date",
+                      "description": "Vencimento da parcela."
+                    }
+                  }
+                }
+              }
+            },
+            "required": [
+              "numeroRPS",
+              "serie"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__emitir__nfse",
+      "title": "Envia uma nota de serviço",
+      "description": "Bling (POST /nfse/{idNotaServico}/enviar): Envia a NFS-e pendente ao provedor da prefeitura e devolve a nota com situação atualizada. Quando usar: Depois de criar a NFS-e. Pré-requisitos: NFS-e pendente; Certificado/credenciais do município configurados no Bling. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaServico": {
+            "type": "integer",
+            "description": "ID da NFS-e."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaServico"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__cancelar__nfse",
+      "title": "Cancela uma nota de serviço",
+      "description": "Bling (POST /nfse/{idNotaServico}/cancelar): Solicita o cancelamento de uma NFS-e emitida, com motivo e justificativa. Quando usar: Serviço não prestado ou erro de emissão, dentro do prazo aceito pela prefeitura. Pré-requisitos: NFS-e emitida. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaServico": {
+            "type": "integer",
+            "description": "ID da NFS-e."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "codigoMotivo": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  9
+                ],
+                "description": "1 erro na emissão, 2 serviço não prestado, 9 outros."
+              },
+              "justificativa": {
+                "type": "string",
+                "description": "Texto da justificativa."
+              }
+            },
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaServico"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__nota_fiscal__excluir__nfse",
+      "title": "Exclui uma nota de serviço",
+      "description": "Bling (DELETE /nfse/{idNotaServico}): Exclui uma NFS-e do Bling (tipicamente rascunho não emitido). Quando usar: Descartar RPS criado por engano antes de enviar. Para nota emitida use o cancelamento. Pré-requisitos: ID da NFS-e. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaServico": {
+            "type": "integer",
+            "description": "ID da NFS-e."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaServico"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__conta_receber__listar",
+      "title": "Obtém contas a receber",
+      "description": "Bling (GET /contas/receber): Lista títulos a receber com situação, vencimento, valor, links de boleto/QR Pix, contato e forma de pagamento; o período pode se referir à emissão, ao vencimento ou ao recebimento. Quando usar: Fluxo de caixa, inadimplência, aging e conciliação em Excel/Power BI. Pré-requisitos: Escopo de contas a receber.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "situacoes[]": {
+            "type": "array",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "description": "Situações: 1 em aberto, 2 recebido, 3 parcialmente recebido, 4 devolvido, 5 cancelado.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tipoFiltroData": {
+            "type": "string",
+            "enum": [
+              "E",
+              "V",
+              "R"
+            ],
+            "description": "Qual data o período filtra: E emissão (padrão), V vencimento, R recebimento."
+          },
+          "dataInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "Início do período (padrão: um ano atrás)."
+          },
+          "dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "Fim do período (padrão: hoje)."
+          },
+          "idContato": {
+            "type": "integer",
+            "description": "ID interno do contato (cliente/fornecedor) no Bling."
+          },
+          "idsCategorias[]": {
+            "type": "array",
+            "description": "Categorias financeiras.",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "idPortador": {
+            "type": "integer",
+            "description": "Conta financeira (portador)."
+          },
+          "idVendedor": {
+            "type": "integer",
+            "description": "ID do vendedor cadastrado."
+          },
+          "idFormaPagamento": {
+            "type": "integer",
+            "description": "Forma de pagamento."
+          },
+          "boletoGerado": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "description": "0 sem boleto emitido por integração, 1 com boleto."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__conta_receber__obter",
+      "title": "Obtém uma conta a receber",
+      "description": "Bling (GET /contas/receber/{idContaReceber}): Retorna o título a receber completo: saldo, vencimento original, competência, histórico, portador, categoria, vendedor, borderôs e ocorrência (recorrência/parcelamento). Quando usar: Consultar saldo de um título específico ou os borderôs de recebimento para conciliação. Pré-requisitos: ID do título.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContaReceber": {
+            "type": "integer",
+            "description": "ID do título."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idContaReceber"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__conta_receber__criar",
+      "title": "Cria uma conta a receber",
+      "description": "Bling (POST /contas/receber): Lança um título a receber para um contato, com vencimento, valor, forma de pagamento, categoria e portador. Quando usar: Receitas que não nascem de pedido/nota no Bling (contratos, mensalidades, receitas financeiras). Pré-requisitos: Contato; IDs de forma de pagamento e categoria. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "vencimento": {
+                "type": "string",
+                "format": "date",
+                "description": "Vencimento."
+              },
+              "valor": {
+                "type": "number",
+                "description": "Valor do título."
+              },
+              "contato": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Contato (cliente/fornecedor)."
+                  }
+                }
+              },
+              "formaPagamento": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Forma de pagamento."
+                  }
+                }
+              },
+              "dataEmissao": {
+                "type": "string",
+                "format": "date",
+                "description": "Data de emissão."
+              },
+              "competencia": {
+                "type": "string",
+                "format": "date",
+                "description": "Competência (regime de competência/DRE)."
+              },
+              "numeroDocumento": {
+                "type": "string",
+                "description": "Número de controle interno (use como id_externo)."
+              },
+              "historico": {
+                "type": "string",
+                "description": "Descrição do lançamento."
+              },
+              "portador": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Conta financeira (portador)."
+                  }
+                }
+              },
+              "categoria": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Categoria de receita/despesa (PlanoContas)."
+                  }
+                }
+              },
+              "ocorrencia": {
+                "type": "object",
+                "description": "Configuração de ocorrência (única, parcelada, recorrente); estrutura na referência."
+              }
+            },
+            "required": [
+              "vencimento",
+              "valor"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__conta_receber__substituir",
+      "title": "Altera uma conta a receber",
+      "description": "Bling (PUT /contas/receber/{idContaReceber}): Regrava um título a receber com o objeto completo. Quando usar: Renegociação de vencimento/valor de título em aberto. Pré-requisitos: GET do título. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContaReceber": {
+            "type": "integer",
+            "description": "ID do título."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "vencimento": {
+                "type": "string",
+                "format": "date",
+                "description": "Vencimento."
+              },
+              "valor": {
+                "type": "number",
+                "description": "Valor do título."
+              },
+              "contato": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Contato (cliente/fornecedor)."
+                  }
+                }
+              },
+              "formaPagamento": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Forma de pagamento."
+                  }
+                }
+              },
+              "dataEmissao": {
+                "type": "string",
+                "format": "date",
+                "description": "Data de emissão."
+              },
+              "competencia": {
+                "type": "string",
+                "format": "date",
+                "description": "Competência (regime de competência/DRE)."
+              }
+            },
+            "required": [
+              "vencimento",
+              "valor"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idContaReceber",
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__conta_receber__excluir",
+      "title": "Remove uma conta a receber",
+      "description": "Bling (DELETE /contas/receber/{idContaReceber}): Remove um título a receber. Quando usar: Estornar lançamento criado por engano. Pré-requisitos: ID do título. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContaReceber": {
+            "type": "integer",
+            "description": "ID do título."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idContaReceber"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__conta_receber__liquidar",
+      "title": "Cria o recebimento de uma conta a receber",
+      "description": "Bling (POST /contas/receber/{idContaReceber}/baixar): Registra o recebimento (baixa total ou parcial) de um título a receber e devolve o borderô gerado. Quando usar: Conciliação: ao confirmar um Pix/boleto/cartão em banco ou PSP, baixe o título correspondente no Bling. Pré-requisitos: Título em aberto; Portador e categoria. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContaReceber": {
+            "type": "integer",
+            "description": "ID do título."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "string",
+                "format": "date",
+                "description": "Data da baixa."
+              },
+              "usarDataVencimento": {
+                "type": "boolean",
+                "description": "true usa a data de vencimento como data da baixa."
+              },
+              "portador": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Conta financeira que recebeu/pagou."
+                  }
+                }
+              },
+              "categoria": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Categoria financeira."
+                  }
+                }
+              },
+              "historico": {
+                "type": "string",
+                "description": "Histórico do lançamento."
+              },
+              "valorRecebido": {
+                "type": "number",
+                "description": "Valor bruto baixado (inclui taxa de marketplace se houver)."
+              },
+              "juros": {
+                "type": "number",
+                "description": "Juros em reais."
+              },
+              "desconto": {
+                "type": "number",
+                "description": "Desconto em reais."
+              },
+              "acrescimo": {
+                "type": "number",
+                "description": "Acréscimo em reais."
+              },
+              "tarifa": {
+                "type": "number",
+                "description": "Tarifa, quando a forma de pagamento cobra taxa."
+              }
+            },
+            "required": [
+              "data",
+              "usarDataVencimento",
+              "historico"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idContaReceber",
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__cobranca__listar__boletos",
+      "title": "Obtém boletos de contas a receber",
+      "description": "Bling (GET /contas/receber/boletos): Lista os boletos (contas a receber com boleto emitido por integração) de uma venda ou nota fiscal de origem. Quando usar: Enviar a 2ª via/links de boleto ao cliente ou verificar se a venda já tem boleto. Pré-requisitos: ID da venda ou nota.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idOrigem": {
+            "type": "integer",
+            "description": "ID da venda ou da nota fiscal de origem (obrigatório)."
+          },
+          "situacoes[]": {
+            "type": "array",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "description": "Situações dos títulos (1 em aberto ... ).",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idOrigem"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__conta_pagar__listar",
+      "title": "Obtém contas a pagar",
+      "description": "Bling (GET /contas/pagar): Lista títulos a pagar com situação, vencimento, valor, contato e forma de pagamento, com filtros por emissão, vencimento e pagamento. Quando usar: Programação de pagamentos, fluxo de caixa e DRE em BI. Pré-requisitos: Escopo de contas a pagar.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "situacao": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "description": "1 em aberto, 2 pago, 3 parcialmente pago, 4 devolvido, 5 cancelado."
+          },
+          "dataEmissaoInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "Início do período de emissão."
+          },
+          "dataEmissaoFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "Fim do período de emissão."
+          },
+          "dataVencimentoInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "Início do período de vencimento."
+          },
+          "dataVencimentoFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "Fim do período de vencimento."
+          },
+          "dataPagamentoInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "Início do período de pagamento."
+          },
+          "dataPagamentoFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "Fim do período de pagamento."
+          },
+          "idContato": {
+            "type": "integer",
+            "description": "ID interno do contato (cliente/fornecedor) no Bling."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__conta_pagar__obter",
+      "title": "Obtém uma conta a pagar",
+      "description": "Bling (GET /contas/pagar/{idContaPagar}): Retorna o título a pagar completo (saldo, competência, histórico, portador, categoria, borderôs, ocorrência). Quando usar: Conferir saldo antes de pagar ou conciliar. Pré-requisitos: ID do título.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContaPagar": {
+            "type": "integer",
+            "description": "ID do título."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idContaPagar"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__conta_pagar__criar",
+      "title": "Cria uma conta a pagar",
+      "description": "Bling (POST /contas/pagar): Lança um título a pagar para um fornecedor. Quando usar: Despesas vindas de portal de compras, OCR de boletos ou folha/benefícios. Pré-requisitos: Fornecedor cadastrado; Categoria e forma de pagamento. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "vencimento": {
+                "type": "string",
+                "format": "date",
+                "description": "Vencimento."
+              },
+              "valor": {
+                "type": "number",
+                "description": "Valor do título."
+              },
+              "contato": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Contato (cliente/fornecedor)."
+                  }
+                }
+              },
+              "formaPagamento": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Forma de pagamento."
+                  }
+                }
+              },
+              "dataEmissao": {
+                "type": "string",
+                "format": "date",
+                "description": "Data de emissão."
+              },
+              "competencia": {
+                "type": "string",
+                "format": "date",
+                "description": "Competência (regime de competência/DRE)."
+              },
+              "numeroDocumento": {
+                "type": "string",
+                "description": "Número de controle interno (use como id_externo)."
+              },
+              "historico": {
+                "type": "string",
+                "description": "Descrição do lançamento."
+              },
+              "portador": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Conta financeira (portador)."
+                  }
+                }
+              },
+              "categoria": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Categoria de receita/despesa (PlanoContas)."
+                  }
+                }
+              },
+              "ocorrencia": {
+                "type": "object",
+                "description": "Configuração de ocorrência (única, parcelada, recorrente); estrutura na referência."
+              }
+            },
+            "required": [
+              "vencimento",
+              "valor"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__conta_pagar__substituir",
+      "title": "Atualiza uma conta a pagar",
+      "description": "Bling (PUT /contas/pagar/{idContaPagar}): Regrava um título a pagar com o objeto completo. Quando usar: Ajustar vencimento/valor de título em aberto. Pré-requisitos: GET do título. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContaPagar": {
+            "type": "integer",
+            "description": "ID do título."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "vencimento": {
+                "type": "string",
+                "format": "date",
+                "description": "Vencimento."
+              },
+              "valor": {
+                "type": "number",
+                "description": "Valor do título."
+              },
+              "contato": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Contato (cliente/fornecedor)."
+                  }
+                }
+              },
+              "formaPagamento": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Forma de pagamento."
+                  }
+                }
+              },
+              "dataEmissao": {
+                "type": "string",
+                "format": "date",
+                "description": "Data de emissão."
+              },
+              "competencia": {
+                "type": "string",
+                "format": "date",
+                "description": "Competência (regime de competência/DRE)."
+              }
+            },
+            "required": [
+              "vencimento",
+              "valor"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idContaPagar",
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__conta_pagar__excluir",
+      "title": "Remove uma conta a pagar",
+      "description": "Bling (DELETE /contas/pagar/{idContaPagar}): Remove um título a pagar. Quando usar: Remover lançamento duplicado. Pré-requisitos: ID do título. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContaPagar": {
+            "type": "integer",
+            "description": "ID do título."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idContaPagar"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__conta_pagar__liquidar",
+      "title": "Cria o recebimento de uma conta a pagar",
+      "description": "Bling (POST /contas/pagar/{idContaPagar}/baixar): Registra o pagamento (baixa) de um título a pagar e devolve o borderô. Quando usar: Após confirmar o pagamento no banco (TED, Pix, boleto pago), baixar o título no Bling. Pré-requisitos: Título em aberto. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContaPagar": {
+            "type": "integer",
+            "description": "ID do título."
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "string",
+                "format": "date",
+                "description": "Data da baixa."
+              },
+              "usarDataVencimento": {
+                "type": "boolean",
+                "description": "true usa a data de vencimento como data da baixa."
+              },
+              "portador": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Conta financeira que recebeu/pagou."
+                  }
+                }
+              },
+              "categoria": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Categoria financeira."
+                  }
+                }
+              },
+              "historico": {
+                "type": "string",
+                "description": "Histórico do lançamento."
+              },
+              "valorRecebido": {
+                "type": "number",
+                "description": "Valor bruto baixado (inclui taxa de marketplace se houver)."
+              },
+              "juros": {
+                "type": "number",
+                "description": "Juros em reais."
+              },
+              "desconto": {
+                "type": "number",
+                "description": "Desconto em reais."
+              },
+              "acrescimo": {
+                "type": "number",
+                "description": "Acréscimo em reais."
+              },
+              "tarifa": {
+                "type": "number",
+                "description": "Tarifa, quando a forma de pagamento cobra taxa."
+              }
+            },
+            "required": [
+              "data",
+              "usarDataVencimento",
+              "historico"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idContaPagar",
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__tabela_auxiliar__listar__formas_pagamento",
+      "title": "Obtém formas de pagamentos",
+      "description": "Bling (GET /formas-pagamentos): Lista as formas de pagamento da conta com tipo (dinheiro, cartão, boleto, Pix...), situação, finalidade, juros e multa. Quando usar: Obter o formaPagamento.id exigido em pedidos, parcelas e contas. Pré-requisitos: Escopo de formas de pagamento.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "descricao": {
+            "type": "string",
+            "description": "Parte do nome."
+          },
+          "tiposPagamentos[]": {
+            "type": "array",
+            "description": "Tipos (1 dinheiro, 3 cartão de crédito, 15 boleto, 17 Pix dinâmico, 20 Pix estático, 99 outros...).",
+            "items": {
+              "type": "string"
+            }
+          },
+          "situacao": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "description": "0 inativa, 1 ativa."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__tabela_auxiliar__obter__forma_pagamento",
+      "title": "Obtém uma forma de pagamento",
+      "description": "Bling (GET /formas-pagamentos/{idFormaPagamento}): Retorna uma forma de pagamento com suas configurações (taxas, condição, finalidade). Quando usar: Checar juros/multa ou tipo antes de lançar parcelas. Pré-requisitos: ID da forma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idFormaPagamento": {
+            "type": "integer",
+            "description": "ID da forma de pagamento."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idFormaPagamento"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__plano_contas__listar",
+      "title": "Obtém categorias de receitas e despesas",
+      "description": "Bling (GET /categorias/receitas-despesas): Lista as categorias de receitas e despesas (plano de contas gerencial) com hierarquia (idCategoriaPai) e tipo. Quando usar: Mapear categorias para DRE em BI e obter categoria.id para lançamentos financeiros. Pré-requisitos: Escopo de categorias financeiras.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página (começa em 1). Avance até receber menos registros que o limite."
+          },
+          "limite": {
+            "type": "integer",
+            "description": "Registros por página; padrão 100. Máximo aceito não informado na doc."
+          },
+          "tipo": {
+            "type": "integer",
+            "enum": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "description": "0 todas, 1 despesa, 2 receita, 3 receita e despesa."
+          },
+          "situacao": {
+            "type": "integer",
+            "enum": [
+              0,
+              1,
+              2
+            ],
+            "description": "0 ativas e inativas, 1 ativas, 2 inativas."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__plano_contas__obter",
+      "title": "Obtém uma categoria de receita e despesa",
+      "description": "Bling (GET /categorias/receitas-despesas/{idCategoria}): Retorna uma categoria de receita/despesa com situação. Quando usar: Validar categoria antes de lançar. Pré-requisitos: ID da categoria.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idCategoria": {
+            "type": "integer",
+            "description": "ID da categoria."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idCategoria"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__plano_contas__criar",
+      "title": "Cria uma categoria de receita e despesa",
+      "description": "Bling (POST /categorias/receitas-despesas): Cria uma categoria de receita/despesa, opcionalmente filha de outra e vinculada a um grupo da DRE. Quando usar: Replicar plano de contas gerencial de outro sistema. Pré-requisitos: Escopo de categorias financeiras. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "descricao": {
+                "type": "string",
+                "description": "Nome da categoria."
+              },
+              "tipo": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3
+                ],
+                "description": "1 despesa, 2 receita, 3 ambos."
+              },
+              "idCategoriaPai": {
+                "type": "integer",
+                "description": "Categoria pai (0 = raiz)."
+              },
+              "grupoDRE": {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  13
+                ],
+                "description": "Grupo da DRE (1 não exibir, 2 receita operacional bruta, 3 deduções... ver enum)."
+              }
+            },
+            "required": [
+              "descricao",
+              "tipo"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__envio__criar",
+      "title": "Cria um objeto de logística",
+      "description": "Bling (POST /logisticas/objetos): Cria um objeto de logística personalizada (volume com rastreio, dimensões, embalagem, prazo e frete previstos) ligado a pedido/nota. Quando usar: Transportadora ou hub de fretes próprio que precisa registrar rastreio no Bling para o pedido/marketplace. Pré-requisitos: Logística personalizada e serviço cadastrados (GET /logisticas, /logisticas/servicos). Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "pedidoVenda": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Pedido de venda."
+                  }
+                }
+              },
+              "notaFiscal": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Nota fiscal."
+                  }
+                }
+              },
+              "servico": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Serviço da logística (GET /logisticas/servicos)."
+                  }
+                }
+              },
+              "rastreamento": {
+                "type": "object",
+                "properties": {
+                  "codigo": {
+                    "type": "string",
+                    "description": "Código de rastreio."
+                  },
+                  "situacao": {
+                    "type": "integer",
+                    "enum": [
+                      0,
+                      1,
+                      2,
+                      3,
+                      4,
+                      5,
+                      6,
+                      7,
+                      8,
+                      9
+                    ],
+                    "description": "0 postado ... (enum 0-9)."
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "URL pública de rastreio."
+                  }
+                }
+              },
+              "dimensoes": {
+                "type": "object",
+                "properties": {
+                  "peso": {
+                    "type": "number",
+                    "description": "Peso."
+                  },
+                  "altura": {
+                    "type": "number",
+                    "description": "Altura."
+                  },
+                  "largura": {
+                    "type": "number",
+                    "description": "Largura."
+                  },
+                  "comprimento": {
+                    "type": "number",
+                    "description": "Comprimento."
+                  }
+                }
+              },
+              "embalagem": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Produto usado como embalagem."
+                  }
+                }
+              },
+              "dataSaida": {
+                "type": "string",
+                "format": "date",
+                "description": "Data de saída."
+              },
+              "prazoEntregaPrevisto": {
+                "type": "integer",
+                "description": "Prazo em dias."
+              },
+              "fretePrevisto": {
+                "type": "number",
+                "description": "Frete previsto."
+              },
+              "valorDeclarado": {
+                "type": "number",
+                "description": "Valor declarado."
+              },
+              "avisoRecebimento": {
+                "type": "boolean",
+                "description": "Aviso de recebimento."
+              },
+              "maoPropria": {
+                "type": "boolean",
+                "description": "Mão própria."
+              }
+            },
+            "required": [
+              "dataSaida",
+              "prazoEntregaPrevisto",
+              "fretePrevisto",
+              "valorDeclarado",
+              "avisoRecebimento",
+              "maoPropria"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__envio__obter",
+      "title": "Obtém um objeto de logística",
+      "description": "Bling (GET /logisticas/objetos/{idObjeto}): Retorna um objeto logístico com pedido, nota, serviço, rastreio, dimensões, embalagem, prazo e frete. Quando usar: Consultar rastreio e dados do volume. Pré-requisitos: ID do objeto.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idObjeto": {
+            "type": "integer",
+            "description": "ID do objeto logístico."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idObjeto"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__envio__baixar_arquivo__etiquetas",
+      "title": "Obtém etiquetas das vendas",
+      "description": "Bling (GET /logisticas/etiquetas): Devolve links para a etiqueta de envio de pedidos de venda, em PDF ou ZPL. Quando usar: Impressão de etiquetas na expedição (impressora térmica com ZPL ou PDF). Pré-requisitos: Pedido com objeto logístico/etiqueta gerada.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "formato": {
+            "type": "string",
+            "enum": [
+              "PDF",
+              "ZPL"
+            ],
+            "description": "PDF ou ZPL."
+          },
+          "idsVendas[]": {
+            "type": "array",
+            "description": "ID do pedido de venda (hoje limitado a um ID por chamada).",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "formato",
+          "idsVendas[]"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "bling__envio__criar__remessa",
+      "title": "Cria uma remessa de postagem de uma logística",
+      "description": "Bling (POST /logisticas/remessas): Cria uma remessa (lista de postagem/PLP) agrupando objetos de uma logística. Quando usar: Fechamento do lote diário de postagem. Pré-requisitos: Objetos logísticos criados. Altera dados reais da conta Bling do cliente: confirme com o usuário antes de chamar e não repita em caso de dúvida (sem idempotência).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "numeroPlp": {
+                "type": "string",
+                "description": "Número da PLP/remessa."
+              },
+              "situacao": {
+                "type": "integer",
+                "enum": [
+                  -3,
+                  -2,
+                  -1,
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ],
+                "description": "-3 a corrigir, -2 em processamento, -1 cancelado, 0 em aberto, ... (enum)."
+              },
+              "descricao": {
+                "type": "string",
+                "description": "Descrição da remessa."
+              },
+              "logistica": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Logística."
+                  }
+                }
+              },
+              "objetos": {
+                "type": "array",
+                "description": "Objetos logísticos incluídos (estrutura na referência)."
+              }
+            },
+            "required": [
+              "numeroPlp",
+              "situacao",
+              "descricao"
+            ],
+            "description": "Corpo JSON da requisição (campos principais; schema completo na referência oficial)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "body"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

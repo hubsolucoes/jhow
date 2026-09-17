@@ -1,0 +1,765 @@
+{
+  "sistema": "sygecom",
+  "tools": [
+    {
+      "name": "sygecom__autenticacao__autenticar",
+      "title": "createSessionLogin (Autorização)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — POST /login. Troca e-mail e senha de um usuário cadastrado dentro do SAGI/SGR por um token JWT, devolvendo junto os dados do usuário, as empresas/filiais a que ele tem acesso e a versão do sistema instalado. É o primeiro passo obrigatório de qualquer integração. Quando usar: Sempre, antes da primeira chamada, e de novo sempre que uma rota responder 401. Não existe refresh token: renovar é repetir este login. Prefira a rota /login à rota /auth porque ela devolve a lista de empresas e a versão do ERP, informações úteis para saber o que a integração vai conseguir ler. Quando NÃO usar: Não use para responder a uma pergunta do usuário: é passo interno. Nunca exiba o token. Pré-requisitos: Ser cliente Sagi ou SGR com contrato ativo (contrato vencido devolve 403 TENANT_FINANCIAL_BLOCK). Ter um usuário criado no ERP em Menu Úteis > Controle de Usuários e Senhas > Cadastro de Usuários, com senha, com e-mail preenchido na aba E-mail e com a opção 'Bloquear Acesso ao SAGI Mobile' DESMARCADA. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: O bloqueio 'Bloquear Acesso ao SAGI Mobile' é o motivo número um de 401 em integração nova: o usuário existe, a senha está certa e mesmo assim não autentica. O 403 com code TENANT_FINANCIAL_BLOCK não é erro de credencial, é contrato vencido. Guarde o token no cofre do backend e nunca no código nem no chat.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "E-mail cadastrado no usuário do ERP (aba E-mail do Cadastro de Usuários)."
+          },
+          "password": {
+            "type": "string",
+            "description": "Senha desse usuário no ERP."
+          },
+          "origem": {
+            "type": "string",
+            "description": "Sistema de origem da chamada. Para integração própria use API.",
+            "enum": [
+              "SAGI",
+              "SGR",
+              "APP_SYGECOM",
+              "SRM",
+              "LOGVERDE",
+              "API_MTR",
+              "DEVOLVA",
+              "VIRA_VERDE",
+              "REVER",
+              "API"
+            ],
+            "default": "API"
+          },
+          "app": {
+            "type": "string",
+            "description": "Aplicação que está autenticando; mesmo conjunto de valores de origem.",
+            "enum": [
+              "SAGI",
+              "SGR",
+              "APP_SYGECOM",
+              "SRM",
+              "LOGVERDE",
+              "API_MTR",
+              "DEVOLVA",
+              "VIRA_VERDE",
+              "REVER",
+              "API"
+            ],
+            "default": "APP_SYGECOM"
+          },
+          "homol": {
+            "type": "boolean",
+            "description": "Quando true, gera token do ambiente de homologação. A documentação avisa que o token só funciona no ambiente em que foi gerado, mas não publica a URL base de homologação.",
+            "default": false
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__autenticacao__autenticar__app",
+      "title": "createSession (Autorização)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — POST /auth. Rota alternativa de autenticação, usada pelo aplicativo móvel. Aceita e-mail e senha e devolve o usuário com uma chave e o token JWT, sem a lista de empresas que a rota /login traz. Quando usar: Quando você precisa reproduzir o comportamento do App Sygecom ou quando /login não estiver disponível. Para integração de dados, prefira /login, que devolve mais contexto (empresas e versão do ERP). Quando NÃO usar: Prefira sygecom__autenticacao__autenticar (/login), que devolve empresas e versão do ERP. Nunca exiba o token. Pré-requisitos: Mesmo pré-requisito de /login: usuário do ERP com e-mail e sem bloqueio de acesso mobile. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: Diferença prática para /login: aqui o token vem dentro de user[0].token e não na raiz da resposta, e não vem a lista de empresas. Código que lê resposta.token quebra nesta rota.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "E-mail do usuário do ERP."
+          },
+          "password": {
+            "type": "string",
+            "description": "Senha do usuário do ERP."
+          },
+          "app": {
+            "type": "string",
+            "description": "Aplicação de origem.",
+            "default": "APP_SYGECOM"
+          },
+          "homol": {
+            "type": "boolean",
+            "description": "Quando true, gera token de homologação.",
+            "default": false
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__empresa__listar",
+      "title": "listarFiliais (Filiais)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /filiais. Lista as filiais que o usuário autenticado tem permissão de acessar, com id, CNPJ, nome, código da filial e status, em resposta paginada com total de registros e de páginas. Quando usar: Logo depois do login, para descobrir o universo real que aquele token enxerga antes de disparar qualquer extração. É também a melhor rota para validar que a credencial funciona, porque é barata, paginada e tem contrato de resposta bem definido. Quando NÃO usar: Não use para dados de negócio; serve para descobrir o escopo do token e validar a credencial. Pré-requisitos: Token JWT válido. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: A lista devolvida já vem filtrada pelas permissões do usuário do token (controle na função PostgreSQL syg_retorna_filiais_user). Um token com menos permissão devolve menos filiais sem nenhum aviso, e as extrações seguintes vão parecer incompletas sem motivo aparente. Vale registrar o resultado desta rota junto com toda extração, como carimbo de escopo.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "description": "Página, base 1.",
+            "default": 1,
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Registros por página.",
+            "default": 50,
+            "minimum": 1,
+            "maximum": 500
+          },
+          "filial": {
+            "type": "string",
+            "description": "Código da filial (ex.: MATRIZ, FILIAL1)."
+          },
+          "status": {
+            "type": "string",
+            "description": "Status da filial (ex.: ATIVO, INATIVO)."
+          },
+          "cnpj": {
+            "type": "string",
+            "description": "CNPJ com 14 dígitos, sem máscara.",
+            "pattern": "^[0-9]{14}$"
+          },
+          "nome": {
+            "type": "string",
+            "description": "Nome da filial; busca parcial, sem diferenciar maiúsculas."
+          },
+          "id": {
+            "type": "integer",
+            "description": "ID da filial.",
+            "minimum": 1
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__estoque__listar__movimentos",
+      "title": "buscarMovimentos (Movimentações)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /movimentos. Lista as movimentações de material por período e tipo (entrada, saída ou serviço): é o boleto de balança do ERP, com peso bruto, tara, peso líquido, impureza, desconto, preço unitário, valor total, produto, categoria, fornecedor ou cliente, placa, motorista, classificador, filial, nota fiscal e impostos. Quando usar: É o endpoint central para análise deste ERP. Use para margem por material, volume comprado e vendido por período, produtividade por comprador, conferência de pesagem e conciliação com o financeiro. Para o recorte por fornecedor específico, /cargas/fornecedores é mais direto, mas traz muito menos campos. Quando NÃO usar: Não use sem recorte de período: os defaults 1800-01-01 e 2500-12-31 puxariam a base inteira. Não use para saldo de estoque — para isso use sygecom__produto__listar. Pré-requisitos: Token JWT válido. Saber qual tipo de movimento você quer: uma chamada devolve um tipo só. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: Três armadilhas juntas. Primeira: offset é base 1, não 0 — quem começa em 0 pula ou duplica registro dependendo da implementação. Segunda: quando o período não tem movimento a API responde 204 sem corpo, e chamar .json() quebra. Terceira: tipo é obrigatório e aceita um valor por chamada, então um relatório de entradas e saídas exige duas extrações e a união delas. Os pesos vêm na unidade do produto (campo unidade, tipicamente TN ou KG): somar peso_liquido sem agrupar por unidade produz número sem sentido.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "datainicial": {
+            "type": "string",
+            "description": "Início do período.",
+            "format": "date",
+            "default": "1800-01-01"
+          },
+          "datafinal": {
+            "type": "string",
+            "description": "Fim do período.",
+            "format": "date",
+            "default": "2500-12-31"
+          },
+          "tipo": {
+            "type": "string",
+            "description": "Tipo de movimento.",
+            "enum": [
+              "ENTRADA",
+              "SAIDA",
+              "SERVICO"
+            ],
+            "default": "ENTRADA"
+          },
+          "numbol": {
+            "type": "integer",
+            "description": "Número do boleto de balança; 0 traz todos.",
+            "default": 0
+          },
+          "codforcli": {
+            "type": "integer",
+            "description": "Código do fornecedor (entrada) ou do cliente (saída); 0 traz todos.",
+            "default": 0
+          },
+          "ordem": {
+            "type": "integer",
+            "description": "Número da ordem de coleta/embarque; 0 traz todas.",
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Quantidade de registros por página.",
+            "default": 100
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Registro inicial. Atenção: base 1 — offset=1 com limit=10 devolve os 10 primeiros.",
+            "default": 1
+          }
+        },
+        "required": [
+          "datainicial",
+          "datafinal",
+          "tipo",
+          "limit",
+          "offset"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__produto__listar",
+      "title": "buscarProdutos (Produtos)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /produtos. Lista os produtos com o saldo de estoque na data e hora informadas, trazendo código, subcódigo, descrição, unidade, categoria, status, quantidade em estoque, quantidade reservada, previsão de chegada, custo médio, valor total e a tabela de preços de compra/venda e serviço. Quando usar: Para foto de estoque por filial, custo médio por material e conferência de inventário, e como tabela de apoio para dar nome e categoria aos códigos que aparecem em /movimentos. Quando NÃO usar: Não use para movimentação nem para margem: este endpoint é a foto de saldo. Para movimento, use sygecom__estoque__listar__movimentos. Pré-requisitos: Token JWT válido. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: Este endpoint não tem paginação: ele devolve tudo que casar com o filtro, então em base grande vale sempre restringir por filial e por código. A chave do produto é composta (codpro + subcod): juntar com /movimentos só por codpro mistura qualidades diferentes do mesmo material. O campo tabela vem como array de arrays com os preços e precisa ser achatado antes de virar coluna. A spec descreve a resposta apenas com um bloco de exemplo, sem schema tipado — confirme tipo e nulabilidade contra a resposta viva.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "codpro": {
+            "type": "string",
+            "description": "Código do produto; vazio traz todos."
+          },
+          "subcod": {
+            "type": "string",
+            "description": "Subcódigo do produto (variação/qualidade do material)."
+          },
+          "data": {
+            "type": "string",
+            "description": "Data de referência do saldo.",
+            "format": "date"
+          },
+          "hora": {
+            "type": "string",
+            "description": "Hora de referência do saldo (HH:MM:SS)."
+          },
+          "filial": {
+            "type": "string",
+            "description": "Filial ou TODAS.",
+            "default": "TODAS"
+          },
+          "ecommerce": {
+            "type": "boolean",
+            "description": "Restringe a produtos marcados para e-commerce.",
+            "enum": [
+              true,
+              false
+            ],
+            "default": true
+          },
+          "unidade_negocio": {
+            "type": "integer",
+            "description": "Unidade de negócio; 0 traz todas.",
+            "default": 0,
+            "maximum": 9999
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__fornecedor__listar",
+      "title": "buscarFornecedores (Fornecedores)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /fornecedores. Lista os fornecedores cadastrados, com código interno, razão social, nome fantasia, CNPJ ou CPF, inscrição estadual, endereço completo, município IBGE, contatos, categoria, região, condição de pagamento, status, limite de crédito, CNAE, coordenadas e cadastro FEPAM com vencimento. Quando usar: Para montar a dimensão de fornecedores do painel, cruzar com /movimentos e /pagamentos/fornecedores, checar vencimento de licença ambiental (FEPAM) e enriquecer análise por região ou categoria de sucateiro. Quando NÃO usar: Não use para saldo nem para pagamentos do fornecedor; use sygecom__fornecedor__obter__saldo e sygecom__conta_pagar__listar__pagamentos_fornecedor. Pré-requisitos: Token JWT válido. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: Cuidado com os nomes: o CNPJ vem em cgc e a razão social em fornecedor, não em cnpj nem razao_social. A paginação é limit + page (base 1), diferente do limit + offset de /movimentos — reaproveitar o paginador de movimentos aqui produz resultado errado em silêncio. O código do município vem em numcid no padrão IBGE de 7 dígitos. Esta rota trafega dado pessoal de pessoa física (fornecedores PF com CPF): trate a extração sob LGPD e evite salvar a base inteira sem necessidade.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "description": "CNPJ para filtrar."
+          },
+          "cpf": {
+            "type": "string",
+            "description": "CPF para filtrar."
+          },
+          "nome": {
+            "type": "string",
+            "description": "Nome ou parte do nome."
+          },
+          "status": {
+            "type": "string",
+            "description": "Situação do cadastro.",
+            "enum": [
+              "ATIVO",
+              "INATIVO"
+            ],
+            "default": "ATIVO"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Tamanho da página."
+          },
+          "page": {
+            "type": "integer",
+            "description": "Número da página.",
+            "default": 1
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__cliente__listar",
+      "title": "buscarClientes (Clientes)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /clientes. Lista os clientes cadastrados, com código, razão social, documento, inscrição estadual, endereço, contatos, vendedor responsável, regime tributário e status. Quando usar: Para montar a dimensão de clientes e cruzar com as saídas de /movimentos (tipo=SAIDA), com /pedido-venda e com /contrato. Existe também uma rota /clientes/lista, com outra finalidade (conferência de laudo de boleto) e outro conjunto de campos — não confunda. Quando NÃO usar: Não confunda com a rota /clientes/lista, que devolve conferência de laudo de boleto. Como não há paginação, não chame sem filtro em base grande. Pré-requisitos: Token JWT válido. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: Não tem paginação: sem filtro, devolve a base de clientes inteira em uma resposta só. Existe uma rota homônima /clientes/lista que parece ser a mesma coisa e não é — ela devolve dados de conferência de laudo de boleto (fornecedor, nota, visto do laudo), e tem paginação por limit/offset. O CNPJ aqui vem em cpf_cnpj, enquanto na rota de fornecedores vem em cgc; a API não é consistente entre cadastros.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "description": "CNPJ do cliente."
+          },
+          "cpf": {
+            "type": "string",
+            "description": "CPF do cliente."
+          },
+          "nome": {
+            "type": "string",
+            "description": "Nome ou parte do nome."
+          },
+          "status": {
+            "type": "string",
+            "description": "Situação do cadastro.",
+            "enum": [
+              "ATIVO",
+              "INATIVO"
+            ],
+            "default": "ATIVO"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__pedido__listar__venda",
+      "title": "Listar pedidos de venda (Pedidos Venda)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /pedido-venda. Lista os pedidos de venda com os itens de cada pedido, trazendo número, data de emissão, data de validade, cliente, vendedor, observação e valor do frete. Quando usar: Para carteira de pedidos, previsão de faturamento e acompanhamento de pedidos abertos versus fechados. Combine com /contrato quando a venda for de exportação. Quando NÃO usar: Não use para faturamento efetivo nem para saída de material pesada: para isso use sygecom__estoque__listar__movimentos com tipo=SAIDA. Pré-requisitos: Token JWT válido. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: A lista de pedidos de venda vem na chave response, enquanto a de pedidos de compra, que é o endpoint gêmeo, vem na chave results. É uma inconsistência da API, não erro de leitura: um extrator genérico precisa tratar as duas. Os dois parâmetros de paginação são obrigatórios e chamam limite_por_pagina e pagina, diferente de limit/offset e de page/pageSize usados em outras rotas. Os itens vêm aninhados em itens[]: para planilha, é preciso explodir o pedido em uma linha por item.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "limite_por_pagina": {
+            "type": "integer",
+            "description": "Registros por página."
+          },
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página."
+          },
+          "data_inicial_pedido": {
+            "type": "string",
+            "description": "Início do período de emissão.",
+            "format": "date"
+          },
+          "data_final_pedido": {
+            "type": "string",
+            "description": "Fim do período de emissão.",
+            "format": "date"
+          },
+          "status_pedido": {
+            "type": "string",
+            "description": "Situação do pedido: A para aberto, F para fechado.",
+            "enum": [
+              "A",
+              "F"
+            ]
+          }
+        },
+        "required": [
+          "limite_por_pagina",
+          "pagina"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__pedido__listar__compra",
+      "title": "Listar pedidos de compra (Pedidos Compra)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /pedido-compra. Lista os pedidos de compra com os itens de cada pedido, trazendo número, data de emissão, data de validade, fornecedor, comprador, observação e valor do frete. Quando usar: Para acompanhar compras programadas de material, comparar preço negociado com o preço efetivamente praticado na pesagem (/movimentos com tipo=ENTRADA) e medir a produtividade por comprador. Quando NÃO usar: Não use para entrada efetiva de material: para isso use sygecom__estoque__listar__movimentos com tipo=ENTRADA. Pré-requisitos: Token JWT válido. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: Aqui a lista vem em results, e no endpoint gêmeo de pedidos de venda vem em response. Além disso o status_pedido usa código de uma letra (A de aberto, F de fechado) e não a palavra por extenso. Os itens ficam aninhados em itens[] e precisam ser explodidos para virar linha de planilha. Não confunda pedido de compra com a entrada efetiva de material: quem registra o que entrou de fato é /movimentos com tipo=ENTRADA.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "limite_por_pagina": {
+            "type": "integer",
+            "description": "Registros por página."
+          },
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página."
+          },
+          "data_inicial_pedido": {
+            "type": "string",
+            "description": "Início do período de emissão.",
+            "format": "date"
+          },
+          "data_final_pedido": {
+            "type": "string",
+            "description": "Fim do período de emissão.",
+            "format": "date"
+          },
+          "status_pedido": {
+            "type": "string",
+            "description": "Situação do pedido: A para aberto, F para fechado.",
+            "enum": [
+              "A",
+              "F"
+            ]
+          }
+        },
+        "required": [
+          "limite_por_pagina",
+          "pagina"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__conta_pagar__listar__pagamentos_fornecedor",
+      "title": "buscarPagamentosFornecedores (Fornecedores)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /pagamentos/fornecedores. Lista os pagamentos realizados a fornecedores num período, com boleto de origem, parcela, código do fornecedor, data de vencimento, valor da parcela, valor de vale, desconto, acréscimo, valor efetivamente pago, data de pagamento e condição de pagamento. Quando usar: Para o extrato financeiro por fornecedor, conciliação entre o que foi pesado e o que foi pago, e apuração de vales adiantados. Para o saldo consolidado num único número, use /saldo/fornecedores/{id}. Quando NÃO usar: Só lista pagamento já realizado. Não serve para títulos em aberto nem para saldo consolidado (use sygecom__fornecedor__obter__saldo). Pré-requisitos: Token JWT válido. Ter o código do fornecedor (codfor) quando quiser o extrato individual — obtenha em /fornecedores. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: Os três parâmetros são obrigatórios, inclusive codfor, que precisa ser enviado como 0 quando você quer todos os fornecedores — omitir devolve 400. Não há paginação: períodos largos em base grande podem devolver resposta muito pesada, então quebre a extração por mês. A resposta traz o código do fornecedor mas não o nome: para a planilha ficar legível é preciso juntar com /fornecedores por codfor. Sem registro, não dá para distinguir o que não foi pago daquilo que não existe — o endpoint só lista pagamento realizado.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "datainicial": {
+            "type": "string",
+            "description": "Início do período.",
+            "format": "date"
+          },
+          "datafinal": {
+            "type": "string",
+            "description": "Fim do período.",
+            "format": "date"
+          },
+          "codfor": {
+            "type": "integer",
+            "description": "Código do fornecedor; 0 traz todos.",
+            "default": 0
+          }
+        },
+        "required": [
+          "datainicial",
+          "datafinal",
+          "codfor"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__fornecedor__obter__saldo",
+      "title": "buscarSaldoFornecedores (Fornecedores)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /saldo/fornecedores/{id}. Retorna o saldo final de um fornecedor, em um objeto com o código do fornecedor e o valor do saldo. Quando usar: Quando o cliente pergunta 'quanto eu devo para esse fornecedor'. É a consulta mais barata para checar posição individual; para entender a composição, use /pagamentos/fornecedores e /cargas/fornecedores. Quando NÃO usar: Não use em laço para montar ranking de muitos fornecedores: é uma chamada por fornecedor e não há rate limit publicado. Nesse caso prefira sygecom__tabela_auxiliar__listar__sql com um agregado. Pré-requisitos: Token JWT válido. Código do fornecedor obtido em /fornecedores. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: Responde um objeto único, não uma lista, então lista_em é nulo. Não existe rota de saldo em lote: montar um ranking de saldo por fornecedor exige uma chamada por fornecedor, o que em base grande é caro e, sem rate limit publicado, arriscado — nesse caso vale mais um SELECT agregado em POST /sql-query. A documentação não define o sinal do saldo (a favor de quem) nem a data de corte; confirme com a Sygecom antes de usar o número em relatório contábil.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Código do fornecedor (codfor)."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__estoque__listar__cargas_fornecedor",
+      "title": "buscarCargasFornecedores (Fornecedores)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /cargas/fornecedores. Lista as cargas entregues por fornecedores num período, com boleto, data, código do fornecedor, produto e subcódigo, descrição, peso bruto, tara, peso líquido, desconto, preço e valor total. Quando usar: Quando você quer o extrato de entregas de um fornecedor sem o peso de campos de /movimentos. É o recorte natural para o portal do fornecedor e para conferência de quanto cada sucateiro entregou no mês. Quando NÃO usar: É um subconjunto reduzido de movimentos. Se a análise precisar de impureza, filial, classificador ou nota fiscal, use sygecom__estoque__listar__movimentos. Pré-requisitos: Token JWT válido. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: É um subconjunto de /movimentos com tipo=ENTRADA: mesmos boletos, bem menos campos e sem impureza, classificador, filial nem nota fiscal. Se a análise precisar de margem ou de rateio por filial, vá direto em /movimentos. Aqui também não há paginação e os três parâmetros são obrigatórios, incluindo codfor=0 para todos. A resposta traz código de produto e de fornecedor, mas não a unidade de medida: confirme em /produtos antes de somar pesos.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "datainicial": {
+            "type": "string",
+            "description": "Início do período.",
+            "format": "date"
+          },
+          "datafinal": {
+            "type": "string",
+            "description": "Fim do período.",
+            "format": "date"
+          },
+          "codfor": {
+            "type": "integer",
+            "description": "Código do fornecedor; 0 traz todos.",
+            "default": 0
+          }
+        },
+        "required": [
+          "datainicial",
+          "datafinal",
+          "codfor"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__envio__listar__ordens_coleta",
+      "title": "buscarOrdemsPorData (Ordems)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /ordems. Lista as ordens de coleta e de embarque por período, com número da ordem, datas e horas de cadastro e de alteração, status, tipo (coleta ou embarque), comprador ou vendedor responsável e telefone, endereço da coleta, placa, tipo de caminhão, produto, motorista e CNH. Quando usar: Para programação e acompanhamento de coleta, medição de atraso, ocupação de frota e produtividade por motorista. Para saber o que efetivamente entrou na balança depois da coleta, cruze com /movimentos pelo parâmetro ordem. Quando NÃO usar: Não use para o que efetivamente foi pesado: a ordem é a programação. O realizado está em sygecom__estoque__listar__movimentos. Pré-requisitos: Token JWT válido. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: Cinco parâmetros são obrigatórios (codforcli, forcli, codmot, sr_recno e ordem) mesmo quando você não quer filtrar nada: é preciso enviar 0 e TODOS explicitamente, senão a resposta é 400. As datas, ao contrário, são opcionais — e sem elas a rota varre toda a base, porque não há paginação nenhuma. O status_ordem da listagem traz valores como FINALIZADO, enquanto a criação de ordem aceita AGUARDANDO, EM ANDAMENTO, ATRASADO e URGENTE: os dois vocabulários não coincidem, então não trate a lista de status como fechada.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "datainicial": {
+            "type": "string",
+            "description": "Início do período.",
+            "format": "date"
+          },
+          "datafinal": {
+            "type": "string",
+            "description": "Fim do período.",
+            "format": "date"
+          },
+          "codforcli": {
+            "type": "integer",
+            "description": "Código do fornecedor ou do cliente; 0 traz todos.",
+            "default": 0
+          },
+          "forcli": {
+            "type": "string",
+            "description": "Se o código anterior é de fornecedor, de cliente ou de ambos.",
+            "enum": [
+              "TODOS",
+              "FOR",
+              "CLI"
+            ],
+            "default": "TODOS"
+          },
+          "codmot": {
+            "type": "integer",
+            "description": "Código do motorista; 0 traz todos.",
+            "default": 0
+          },
+          "sr_recno": {
+            "type": "integer",
+            "description": "Registro interno da ordem; 0 traz todas.",
+            "default": 0
+          },
+          "ordem": {
+            "type": "integer",
+            "description": "Número da ordem; 0 traz todas.",
+            "default": 0
+          }
+        },
+        "required": [
+          "codforcli",
+          "forcli",
+          "codmot",
+          "sr_recno",
+          "ordem"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__documento__listar__mtr",
+      "title": "Lista os MTRs (MTR)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /mtr. Lista os Manifestos de Transporte de Resíduos (MTR) emitidos, com número e série, ordem de coleta vinculada, data, filial de geração, responsável pela elaboração, CNPJ da geradora e da receptora, marcações de tipo de resíduo (papel, plástico, metal, madeira, vidro, orgânico, não reciclável, comum), origem, acondicionamento, estado físico e quantidade em quilo, tonelada, metro cúbico e litro. Quando usar: Para prestação de contas ambiental, resposta a auditoria, relatório para o cliente gerador e conferência do que foi manifestado contra o que foi pesado. É o endpoint que dá lastro regulatório à operação. Quando NÃO usar: Reflete o que está registrado no ERP; não consulta o SINIR nem os sistemas estaduais de MTR. Não use como prova de regularidade junto ao órgão ambiental. Pré-requisitos: Token JWT válido. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: O tipo de resíduo, a origem, o acondicionamento e o estado físico não vêm como categoria: vêm como uma dúzia de campos booleanos independentes (tipo_residuo_papel, tipo_residuo_metal, acondicionamento_cacamba, estado_fisico_solido e assim por diante), e um mesmo MTR pode ter vários marcados. Para planilha, é preciso derivar uma coluna categórica ou manter as colunas booleanas. As quatro quantidades (kg, ton, m3, litro) convivem e normalmente só uma está preenchida — somar todas produz número sem sentido. Este endpoint reflete o que foi registrado no ERP; ele não consulta o SINIR nem os sistemas estaduais de MTR, então divergência com o órgão ambiental não aparece aqui.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "limite_por_pagina": {
+            "type": "integer",
+            "description": "Registros por página."
+          },
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página."
+          },
+          "data_inicial_mtr": {
+            "type": "string",
+            "description": "Início do período do MTR.",
+            "format": "date"
+          },
+          "data_final_mtr": {
+            "type": "string",
+            "description": "Fim do período do MTR.",
+            "format": "date"
+          },
+          "cnpj_gerador": {
+            "type": "string",
+            "description": "CNPJ da empresa geradora do resíduo."
+          },
+          "cnpj_receptor": {
+            "type": "string",
+            "description": "CNPJ da empresa receptora do resíduo."
+          }
+        },
+        "required": [
+          "limite_por_pagina",
+          "pagina"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__contrato__listar",
+      "title": "Lista os contratos (Contratos)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — GET /contrato. Lista os contratos comerciais e os produtos de cada um, com empresa, identificador e número do contrato, data, código do cliente, porto de destino, moeda do contrato e a lista de produtos com o peso contratado. Quando usar: Para acompanhar contratos de exportação: quanto foi contratado por produto, para qual porto, em qual moeda, e quanto já foi embarcado. Combine com /invoice e /container para fechar o ciclo de exportação. Quando NÃO usar: Porto e moeda vêm como código; não os apresente como nome sem resolver em GET /porto e GET /cotacao-moeda. Pré-requisitos: Token JWT válido. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: Porto de destino e moeda vêm como código numérico, não como nome: para virar relatório legível é preciso resolver os códigos em GET /porto e GET /cotacao-moeda. Os produtos vêm aninhados em produtos[], com produto e peso, então uma linha de planilha por produto exige explodir o array. O cliente vem só como codcli — o nome está em /clientes. A rota não expõe valor do contrato, apenas peso contratado por produto.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "limite_por_pagina": {
+            "type": "integer",
+            "description": "Registros por página."
+          },
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página."
+          },
+          "cnpj": {
+            "type": "string",
+            "description": "CNPJ do cliente, para recortar os contratos de um comprador."
+          }
+        },
+        "required": [
+          "limite_por_pagina",
+          "pagina"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "sygecom__tabela_auxiliar__listar__sql",
+      "title": "Execução segura de consultas SQL (Consultas SQL)",
+      "description": "SyGeCom / API SAGI (ERP de gestão de resíduos e reciclagem) — POST /sql-query. Executa uma consulta SQL do tipo SELECT no banco de dados do tenant do usuário autenticado, com paginação por page e pageSize, teto de 1000 registros retornados e timeout de 5 segundos. A documentação declara bloqueio automático de comandos de escrita (DELETE, UPDATE, INSERT, CREATE, DROP, ALTER e afins) e sanitização contra SQL injection. Quando usar: Quando a informação pedida não tem endpoint dedicado, ou quando um agregado (soma por material, ranking de fornecedor, saldo consolidado) resolveria em uma chamada o que os endpoints REST resolveriam em centenas. É o endpoint mais poderoso da API e também o que exige mais cuidado: use sempre SELECT com filtro de período, coluna explícita e LIMIT. Quando NÃO usar: Só aceita SELECT. Não use para carga completa (teto de 1000 registros) nem quando existir endpoint dedicado. Nunca use SELECT * e nunca devolva a mensagem de erro crua do banco ao usuário. Pré-requisitos: Token JWT válido. Conhecer o nome das tabelas e colunas do banco do tenant. O dicionário oficial é um PDF: https://sagierp.com.br/devel/uteis/sagi_dicionario_dados.pdf Acordo explícito com o cliente sobre o uso desta rota, porque ela alcança o banco inteiro, inclusive tabelas com dado pessoal que os endpoints REST não expõem. Autenticação: JWT Bearer obtido em POST /login com e-mail e senha de um usuário do próprio ERP; não há refresh token, então em 401 refaça o login. Base: https://api.sagierp.com.br/api/v1. Atenção operacional: Poder e risco no mesmo lugar. O teto de 1000 registros retornados é global, então esta rota não substitui uma extração completa: ela serve para agregado e amostra, não para carga total. O timeout é de 5 segundos, curto para junção pesada. As mensagens de erro vazam texto do banco (por exemplo, relation não existe), o que ajuda a depurar e também expõe estrutura — não devolva a mensagem crua ao usuário final. Mesmo com SELECT, a rota alcança tabelas com dado pessoal que os endpoints REST filtram, então o princípio da minimização da LGPD vale aqui mais do que em qualquer outro endpoint: selecione coluna por coluna, nunca SELECT *. Por fim, o esquema pode variar conforme a versão do ERP instalada no cliente, e a documentação não publica o modelo de dados em formato consultável.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Comando SELECT a executar. Somente SELECT é aceito; qualquer outro comando é recusado com 400."
+          },
+          "page": {
+            "type": "integer",
+            "description": "Página do resultado, base 1.",
+            "default": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Registros por página.",
+            "default": 50,
+            "maximum": 500
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "sistema": "asaas",
+  "detalhados": [],
+  "secundarios": [
+    {"metodo": "GET", "path": "/v3/chargebacks/", "entidade": "Contestacao", "acao": "listar"},
+    {"metodo": "GET", "path": "/v3/payments/{id}/chargeback", "entidade": "Contestacao", "acao": "obter"},
+    {"metodo": "POST", "path": "/v3/chargebacks/{id}/dispute", "entidade": "Contestacao", "acao": "criar"},
+    {"metodo": "POST", "path": "/v3/creditCard/tokenizeCreditCard", "entidade": "Cartao", "acao": "criar"},
+    {"metodo": "POST", "path": "/v3/creditCard/preAuthorization/config", "entidade": "Cartao", "acao": "atualizar"},
+    {"metodo": "GET", "path": "/v3/creditCard/preAuthorization/config", "entidade": "Cartao", "acao": "obter"}
+  ]
+}

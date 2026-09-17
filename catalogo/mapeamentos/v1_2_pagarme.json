@@ -1,0 +1,26 @@
+{
+  "sistema": "pagarme",
+  "detalhados": [
+    {"de": "pagarme.cliente.criar.cartao", "para": "pagarme.cartao.criar", "entidade": "Cartao", "acao": "criar"},
+    {"de": "pagarme.cliente.listar.cartao", "para": "pagarme.cartao.listar", "entidade": "Cartao", "acao": "listar"},
+    {"de": "pagarme.cliente.obter.cartao", "para": "pagarme.cartao.obter", "entidade": "Cartao", "acao": "obter"},
+    {"de": "pagarme.cliente.excluir.cartao", "para": "pagarme.cartao.excluir", "entidade": "Cartao", "acao": "excluir"},
+    {"de": "pagarme.cliente.criar.token_cartao", "para": "pagarme.cartao.criar.token", "entidade": "Cartao", "acao": "criar"},
+    {"de": "pagarme.produto.criar.plano", "para": "pagarme.plano.criar", "entidade": "Plano", "acao": "criar"},
+    {"de": "pagarme.produto.listar.plano", "para": "pagarme.plano.listar", "entidade": "Plano", "acao": "listar"},
+    {"de": "pagarme.produto.obter.plano", "para": "pagarme.plano.obter", "entidade": "Plano", "acao": "obter"},
+    {"de": "pagarme.produto.atualizar.plano", "para": "pagarme.plano.atualizar", "entidade": "Plano", "acao": "atualizar"}
+  ],
+  "secundarios": [
+    {"metodo": "PUT", "path": "/core/v5/customers/{customer_id}/cards/{card_id}", "entidade": "Cartao", "acao": "atualizar"},
+    {"metodo": "POST", "path": "/core/v5/customers/{customer_id}/cards/{card_id}/renew", "entidade": "Cartao", "acao": "atualizar"},
+    {"metodo": "DELETE", "path": "/core/v5/plans/{plan_id}", "entidade": "Plano", "acao": "excluir"},
+    {"metodo": "PATCH", "path": "/core/v5/plans/{plan_id}/metadata", "entidade": "Plano", "acao": "atualizar"},
+    {"metodo": "POST", "path": "/core/v5/plans/{plan_id}/items", "entidade": "Plano", "acao": "atualizar"},
+    {"metodo": "PUT", "path": "/core/v5/plans/{plan_id}/items/{item_id}", "entidade": "Plano", "acao": "atualizar"},
+    {"metodo": "DELETE", "path": "/core/v5/plans/{plan_id}/items/{item_id}", "entidade": "Plano", "acao": "atualizar"},
+    {"metodo": "GET", "path": "/v1/disputes", "entidade": "Contestacao", "acao": "listar"},
+    {"metodo": "GET", "path": "/v1/disputes/{dispute_id}", "entidade": "Contestacao", "acao": "obter"},
+    {"metodo": "POST", "path": "/v1/disputes/{dispute_id}/evidences", "entidade": "Contestacao", "acao": "enviar"}
+  ]
+}

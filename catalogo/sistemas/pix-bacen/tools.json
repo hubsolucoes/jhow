@@ -1,0 +1,2608 @@
+{
+  "sistema": "pix-bacen",
+  "tools": [
+    {
+      "name": "pix-bacen__cobranca__criar",
+      "title": "Criar cobrança imediata (txid definido pelo recebedor)",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Cria (ou revisa) o registro da cobrança no PSP e gera o BR Code. Não movimenta dinheiro). Só execute com autorização explícita do cliente.  Cria uma cobrança Pix imediata (QR dinâmico sem vencimento) com um txid escolhido pelo usuário recebedor. Se o txid já existir e a cobrança estiver ATIVA, a chamada atualiza os campos enviados e incrementa a revisão. Forma recomendada de criar cobrança: como o txid é seu, a operação vira idempotente — repetir o PUT com o mesmo txid e o mesmo corpo não gera uma segunda cobrança, o que salva a integração em timeout e retry. Use o número do pedido/título do ERP dentro do txid para conciliar depois. Pré-requisitos: Conta transacional em um PSP com o produto de cobrança imediata contratado; Chave Pix registrada no DICT em nome do usuário recebedor; Certificado cliente emitido pelo PSP e credenciais OAuth com escopo cob.write. Escopo OAuth: cob.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{26,35}",
+            "description": "Identificador da transação definido pelo usuário recebedor. Escolha um valor derivado do seu documento de origem, por exemplo o número do pedido com prefixo e padding. Único por CPF/CNPJ do recebedor para sempre: não pode ser reaproveitado nem depois de a cobrança ser removida."
+          },
+          "calendario.expiracao": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 3600,
+            "description": "Tempo de vida da cobrança em segundos, contado da criação. Padrão do arranjo: 3600. Expirada, a cobrança deixa de ser pagável mas o registro continua ATIVA até baixa/remoção."
+          },
+          "devedor.cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "CPF do devedor. Exclusivo com devedor.cnpj."
+          },
+          "devedor.cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "CNPJ do devedor. Exclusivo com devedor.cpf."
+          },
+          "devedor.nome": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Nome ou razão social do devedor."
+          },
+          "valor.original": {
+            "type": "string",
+            "description": "Valor da cobrança em reais, como texto com duas casas decimais. É string, não número: 37.00, nunca 37 nem 37,00. Serializar float aqui quebra a validação do PSP."
+          },
+          "valor.modalidadeAlteracao": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "default": 0,
+            "description": "0 (padrão) não deixa o pagador alterar o valor; 1 permite valor aberto no app do pagador."
+          },
+          "chave": {
+            "type": "string",
+            "maxLength": 77,
+            "description": "Chave Pix do recebedor, registrada no DICT, que receberá o crédito. Precisa pertencer a uma conta do próprio usuário recebedor; chave de terceiro devolve 400."
+          },
+          "solicitacaoPagador": {
+            "type": "string",
+            "maxLength": 140,
+            "description": "Texto exibido ao pagador pedindo uma informação (ex.: número do pedido)."
+          },
+          "infoAdicionais": {
+            "type": "array",
+            "description": "Lista de pares {nome, valor} mostrados ao pagador no app. nome até 50 e valor até 200 caracteres."
+          },
+          "loc.id": {
+            "type": "integer",
+            "description": "Id de uma location criada em POST /loc, para servir o QR dinâmico nessa URL. A location precisa ser do tipo compatível (cob para /cob, cobv para /cobv) e não pode estar em uso por outra cobrança."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "txid",
+          "valor.original",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__criar__cob_txid_psp",
+      "title": "Criar cobrança imediata com txid gerado pelo PSP",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Cria um novo registro de cobrança a cada chamada — sem idempotência). Só execute com autorização explícita do cliente.  Cria uma cobrança Pix imediata deixando a geração do txid a cargo do PSP recebedor. O txid gerado volta no corpo da resposta. Use quando não houver um identificador próprio para amarrar à cobrança — carrinho anônimo, totem, doação. Para qualquer fluxo com pedido/título no ERP, prefira o PUT /cob/{txid}: o POST não é idempotente e uma retentativa por timeout cria uma segunda cobrança. Pré-requisitos: Escopo cob.write liberado pelo PSP; Chave Pix do recebedor registrada no DICT. Escopo OAuth: cob.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "calendario.expiracao": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 3600,
+            "description": "Tempo de vida da cobrança em segundos a partir da criação."
+          },
+          "devedor.cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "CPF do devedor. Exclusivo com devedor.cnpj."
+          },
+          "devedor.cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "CNPJ do devedor. Exclusivo com devedor.cpf."
+          },
+          "devedor.nome": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Nome ou razão social do devedor."
+          },
+          "valor.original": {
+            "type": "string",
+            "description": "Valor da cobrança em reais, como texto com duas casas decimais. É string, não número: 37.00, nunca 37 nem 37,00. Serializar float aqui quebra a validação do PSP."
+          },
+          "valor.modalidadeAlteracao": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "default": 0,
+            "description": "0 (padrão) não deixa o pagador alterar o valor; 1 permite valor aberto no app do pagador."
+          },
+          "chave": {
+            "type": "string",
+            "maxLength": 77,
+            "description": "Chave Pix do recebedor, registrada no DICT, que receberá o crédito. Precisa pertencer a uma conta do próprio usuário recebedor; chave de terceiro devolve 400."
+          },
+          "solicitacaoPagador": {
+            "type": "string",
+            "maxLength": 140,
+            "description": "Texto exibido ao pagador pedindo uma informação (ex.: número do pedido)."
+          },
+          "infoAdicionais": {
+            "type": "array",
+            "description": "Lista de pares {nome, valor} mostrados ao pagador no app. nome até 50 e valor até 200 caracteres."
+          },
+          "loc.id": {
+            "type": "integer",
+            "description": "Id de uma location criada em POST /loc, para servir o QR dinâmico nessa URL. A location precisa ser do tipo compatível (cob para /cob, cobv para /cobv) e não pode estar em uso por outra cobrança."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "valor.original",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__atualizar",
+      "title": "Revisar cobrança imediata",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Altera o registro e o BR Code servido na location; incrementa revisao (exceto quando só loc muda)). Só execute com autorização explícita do cliente.  Altera campos de uma cobrança imediata ATIVA, incrementando revisao, ou remove a cobrança enviando status REMOVIDA_PELO_USUARIO_RECEBEDOR. Use para corrigir valor, devedor ou informações adicionais antes do pagamento, e para cancelar uma cobrança que não será mais paga — no Pix, cancelar é justamente este PATCH com status REMOVIDA_PELO_USUARIO_RECEBEDOR. Pré-requisitos: Cobrança existente e em status ATIVA; Escopo cob.write. Escopo OAuth: cob.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{26,35}",
+            "description": "Identificador da transação definido pelo usuário recebedor. Único por CPF/CNPJ do recebedor para sempre: não pode ser reaproveitado nem depois de a cobrança ser removida."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REMOVIDA_PELO_USUARIO_RECEBEDOR"
+            ],
+            "description": "Envie REMOVIDA_PELO_USUARIO_RECEBEDOR para cancelar a cobrança. Não combine a remoção com outras alterações na mesma requisição: o PSP devolve 400."
+          },
+          "devedor.cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "CPF do devedor. Exclusivo com devedor.cnpj."
+          },
+          "devedor.cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "CNPJ do devedor. Exclusivo com devedor.cpf."
+          },
+          "devedor.nome": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Nome ou razão social do devedor."
+          },
+          "valor.original": {
+            "type": "string",
+            "description": "Valor da cobrança em reais, como texto com duas casas decimais. É string, não número: 37.00, nunca 37 nem 37,00. Serializar float aqui quebra a validação do PSP."
+          },
+          "valor.modalidadeAlteracao": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ],
+            "default": 0,
+            "description": "0 (padrão) não deixa o pagador alterar o valor; 1 permite valor aberto no app do pagador."
+          },
+          "chave": {
+            "type": "string",
+            "maxLength": 77,
+            "description": "Chave Pix do recebedor, registrada no DICT, que receberá o crédito. Precisa pertencer a uma conta do próprio usuário recebedor; chave de terceiro devolve 400."
+          },
+          "solicitacaoPagador": {
+            "type": "string",
+            "maxLength": 140,
+            "description": "Texto exibido ao pagador pedindo uma informação (ex.: número do pedido)."
+          },
+          "infoAdicionais": {
+            "type": "array",
+            "description": "Lista de pares {nome, valor} mostrados ao pagador no app. nome até 50 e valor até 200 caracteres."
+          },
+          "loc.id": {
+            "type": "integer",
+            "description": "Id de uma location criada em POST /loc, para servir o QR dinâmico nessa URL. A location precisa ser do tipo compatível (cob para /cob, cobv para /cobv) e não pode estar em uso por outra cobrança."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "txid",
+          "valor.original",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__obter",
+      "title": "Consultar cobrança imediata",
+      "description": "Use para LER dados. Não altera nada no PSP.  Devolve uma cobrança imediata pelo txid, com status, valores, BR Code e o array pix[] com os pagamentos já liquidados e suas devoluções. É a confirmação oficial de que um Pix foi recebido: o webhook é só um aviso sem assinatura, então consulte aqui (ou GET /pix) antes de liberar pedido ou dar baixa no título. Também serve para recuperar uma revisão anterior. Pré-requisitos: Escopo cob.read; txid conhecido. Escopo OAuth: cob.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{26,35}",
+            "description": "Identificador da transação definido pelo usuário recebedor. Único por CPF/CNPJ do recebedor para sempre: não pode ser reaproveitado nem depois de a cobrança ser removida."
+          },
+          "revisao": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Recupera uma revisão específica da cobrança. Sem o parâmetro, vem a revisão corrente. Revisão inexistente devolve 400 CobConsultaInvalida, não 404."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "txid",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__listar",
+      "title": "Consultar lista de cobranças imediatas",
+      "description": "Use para LER dados. Não altera nada no PSP.  Lista cobranças imediatas criadas dentro de um período, com filtros por CPF/CNPJ do devedor, status e presença de location, e paginação por página. É a consulta que alimenta planilha de cobranças emitidas: quantas foram geradas no mês, quais continuam ATIVA e quais já foram pagas. Para extrato de dinheiro recebido, use GET /pix — aqui aparecem cobranças, inclusive as nunca pagas. Pré-requisitos: Escopo cob.read; Período definido: inicio e fim são obrigatórios. Escopo OAuth: cob.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "inicio": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite inferior do período: devolve registros cuja data de criação da cobrança seja maior ou igual a este instante. Informe o fuso. Mandar horário de Brasília sem offset faz o PSP ler como UTC e desloca o recorte em 3 horas."
+          },
+          "fim": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite superior do período: devolve registros cuja data de criação da cobrança seja menor ou igual a este instante. fim anterior a inicio devolve 400 com type terminado em ConsultaInvalida."
+          },
+          "cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "Filtra pelo CPF do devedor. Não pode ser combinado com cnpj. Sem máscara. Enviar cpf e cnpj juntos devolve 400."
+          },
+          "cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "Filtra pelo CNPJ do devedor. Não pode ser combinado com cpf. O schema da 2.10.0 já aceita letras nas 12 primeiras posições (CNPJ alfanumérico)."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ATIVA",
+              "CONCLUIDA",
+              "REMOVIDA_PELO_USUARIO_RECEBEDOR",
+              "REMOVIDA_PELO_PSP"
+            ],
+            "description": "Filtra pelo status do registro da cobrança."
+          },
+          "locationPresente": {
+            "type": "boolean",
+            "description": "true devolve só cobranças com location vinculada; false, só as sem location."
+          },
+          "paginacao.paginaAtual": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Página a recuperar. Começa em 0; se omitida, o PSP assume 0."
+          },
+          "paginacao.itensPorPagina": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100,
+            "description": "Quantidade de registros por página. Só a última página pode vir com menos. Teto de 1000 no padrão; PSPs podem praticar limite menor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "inicio",
+          "fim",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__criar__cobv",
+      "title": "Criar cobrança com vencimento",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Cria o documento com vencimento no PSP e gera o BR Code correspondente). Só execute com autorização explícita do cliente.  Cria uma cobrança Pix com vencimento (o substituto do boleto no arranjo): data de vencimento, prazo de validade após o vencimento e regras de multa, juros, abatimento e desconto calculadas pelo PSP. Use quando o documento tem vencimento e encargos — mensalidade, fatura, carnê, parcela. O PSP calcula o valor final no momento do pagamento, e o pagador vê no app o valor já com juros e multa. Para pagamento na hora, use /cob. Pré-requisitos: Produto de cobrança com vencimento contratado com o PSP (não vem por padrão); Escopo cobv.write; Chave Pix do recebedor no DICT. Escopo OAuth: cobv.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{26,35}",
+            "description": "Identificador da transação definido pelo usuário recebedor. Único por CPF/CNPJ do recebedor para sempre: não pode ser reaproveitado nem depois de a cobrança ser removida."
+          },
+          "calendario.dataDeVencimento": {
+            "type": "string",
+            "format": "date",
+            "description": "Data de vencimento do documento, em YYYY-MM-DD. A cobrança é considerada válida até o fim desse dia no fuso de Brasília."
+          },
+          "calendario.validadeAposVencimento": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Dias corridos depois do vencimento em que a cobrança ainda pode ser paga. Sem o campo, o padrão é 30 dias. Passado o prazo, o QR deixa de ser pagável."
+          },
+          "devedor.cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "CPF do devedor. Exclusivo com cnpj."
+          },
+          "devedor.cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "CNPJ do devedor. Exclusivo com cpf."
+          },
+          "devedor.nome": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Nome ou razão social do devedor."
+          },
+          "devedor.email": {
+            "type": "string",
+            "description": "E-mail do devedor."
+          },
+          "devedor.logradouro": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Logradouro do devedor."
+          },
+          "devedor.cidade": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Cidade do devedor."
+          },
+          "devedor.uf": {
+            "type": "string",
+            "maxLength": 2,
+            "description": "UF do devedor."
+          },
+          "devedor.cep": {
+            "type": "string",
+            "maxLength": 8,
+            "description": "CEP do devedor, só dígitos."
+          },
+          "valor.original": {
+            "type": "string",
+            "description": "Valor base do documento, como texto com duas casas."
+          },
+          "valor.multa.modalidade": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "description": "Modalidade da multa conforme tabela de domínios do arranjo (valor fixo ou percentual)."
+          },
+          "valor.multa.valorPerc": {
+            "type": "string",
+            "description": "Multa em reais ou em percentual, conforme a modalidade."
+          },
+          "valor.juros.modalidade": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "description": "Modalidade dos juros conforme tabela de domínios (valor/dia, percentual ao dia, ao mês, ao ano)."
+          },
+          "valor.juros.valorPerc": {
+            "type": "string",
+            "description": "Juros em reais ou percentual, conforme a modalidade."
+          },
+          "valor.abatimento.modalidade": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "description": "Modalidade do abatimento (fixo ou percentual)."
+          },
+          "valor.abatimento.valorPerc": {
+            "type": "string",
+            "description": "Abatimento em reais ou percentual."
+          },
+          "valor.desconto.modalidade": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "description": "Modalidade do desconto: fixo/percentual até a data informada, ou por antecipação diária."
+          },
+          "valor.desconto.descontoDataFixa": {
+            "type": "array",
+            "description": "Lista de {data, valorPerc} com os descontos por data, quando a modalidade é por data fixa."
+          },
+          "chave": {
+            "type": "string",
+            "maxLength": 77,
+            "description": "Chave Pix do recebedor registrada no DICT."
+          },
+          "solicitacaoPagador": {
+            "type": "string",
+            "maxLength": 140,
+            "description": "Texto exibido ao pagador."
+          },
+          "infoAdicionais": {
+            "type": "array",
+            "description": "Lista de pares {nome, valor} exibidos ao pagador."
+          },
+          "loc.id": {
+            "type": "integer",
+            "description": "Id de uma location do tipo cobv, criada em POST /loc."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "txid",
+          "calendario.dataDeVencimento",
+          "valor.original",
+          "chave",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__atualizar__cobv",
+      "title": "Revisar cobrança com vencimento",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Altera o documento e o valor que o pagador verá; incrementa revisao). Só execute com autorização explícita do cliente.  Altera campos de uma cobrança com vencimento ATIVA ou a remove enviando status REMOVIDA_PELO_USUARIO_RECEBEDOR. Use para prorrogar vencimento, aplicar abatimento negociado ou cancelar um documento que não será mais cobrado. Pré-requisitos: Cobrança com vencimento existente e ATIVA; Escopo cobv.write. Escopo OAuth: cobv.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{26,35}",
+            "description": "Identificador da transação definido pelo usuário recebedor. Único por CPF/CNPJ do recebedor para sempre: não pode ser reaproveitado nem depois de a cobrança ser removida."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REMOVIDA_PELO_USUARIO_RECEBEDOR"
+            ],
+            "description": "REMOVIDA_PELO_USUARIO_RECEBEDOR para cancelar o documento."
+          },
+          "calendario.dataDeVencimento": {
+            "type": "string",
+            "format": "date",
+            "description": "Data de vencimento do documento, em YYYY-MM-DD. A cobrança é considerada válida até o fim desse dia no fuso de Brasília."
+          },
+          "calendario.validadeAposVencimento": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Dias corridos depois do vencimento em que a cobrança ainda pode ser paga. Sem o campo, o padrão é 30 dias. Passado o prazo, o QR deixa de ser pagável."
+          },
+          "devedor.cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "CPF do devedor. Exclusivo com cnpj."
+          },
+          "devedor.cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "CNPJ do devedor. Exclusivo com cpf."
+          },
+          "devedor.nome": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Nome ou razão social do devedor."
+          },
+          "devedor.email": {
+            "type": "string",
+            "description": "E-mail do devedor."
+          },
+          "devedor.logradouro": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Logradouro do devedor."
+          },
+          "devedor.cidade": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Cidade do devedor."
+          },
+          "devedor.uf": {
+            "type": "string",
+            "maxLength": 2,
+            "description": "UF do devedor."
+          },
+          "devedor.cep": {
+            "type": "string",
+            "maxLength": 8,
+            "description": "CEP do devedor, só dígitos."
+          },
+          "valor.original": {
+            "type": "string",
+            "description": "Valor base do documento, como texto com duas casas."
+          },
+          "valor.multa.modalidade": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "description": "Modalidade da multa conforme tabela de domínios do arranjo (valor fixo ou percentual)."
+          },
+          "valor.multa.valorPerc": {
+            "type": "string",
+            "description": "Multa em reais ou em percentual, conforme a modalidade."
+          },
+          "valor.juros.modalidade": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "description": "Modalidade dos juros conforme tabela de domínios (valor/dia, percentual ao dia, ao mês, ao ano)."
+          },
+          "valor.juros.valorPerc": {
+            "type": "string",
+            "description": "Juros em reais ou percentual, conforme a modalidade."
+          },
+          "valor.abatimento.modalidade": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "description": "Modalidade do abatimento (fixo ou percentual)."
+          },
+          "valor.abatimento.valorPerc": {
+            "type": "string",
+            "description": "Abatimento em reais ou percentual."
+          },
+          "valor.desconto.modalidade": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "description": "Modalidade do desconto: fixo/percentual até a data informada, ou por antecipação diária."
+          },
+          "valor.desconto.descontoDataFixa": {
+            "type": "array",
+            "description": "Lista de {data, valorPerc} com os descontos por data, quando a modalidade é por data fixa."
+          },
+          "chave": {
+            "type": "string",
+            "maxLength": 77,
+            "description": "Chave Pix do recebedor registrada no DICT."
+          },
+          "solicitacaoPagador": {
+            "type": "string",
+            "maxLength": 140,
+            "description": "Texto exibido ao pagador."
+          },
+          "infoAdicionais": {
+            "type": "array",
+            "description": "Lista de pares {nome, valor} exibidos ao pagador."
+          },
+          "loc.id": {
+            "type": "integer",
+            "description": "Id de uma location do tipo cobv, criada em POST /loc."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "txid",
+          "calendario.dataDeVencimento",
+          "valor.original",
+          "chave",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__obter__cobv",
+      "title": "Consultar cobrança com vencimento",
+      "description": "Use para LER dados. Não altera nada no PSP.  Devolve uma cobrança com vencimento pelo txid, com encargos configurados, BR Code, status e os pagamentos liquidados no array pix[]. Confirmação de pagamento de fatura/mensalidade antes da baixa no contas a receber, e consulta de revisões anteriores quando é preciso provar qual era o valor no momento do pagamento. Pré-requisitos: Escopo cobv.read; txid conhecido. Escopo OAuth: cobv.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{26,35}",
+            "description": "Identificador da transação definido pelo usuário recebedor. Único por CPF/CNPJ do recebedor para sempre: não pode ser reaproveitado nem depois de a cobrança ser removida."
+          },
+          "revisao": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Recupera uma revisão específica; sem o parâmetro vem a corrente."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "txid",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__listar__cobv",
+      "title": "Consultar lista de cobranças com vencimento",
+      "description": "Use para LER dados. Não altera nada no PSP.  Lista cobranças com vencimento criadas no período, com filtros por devedor, status, presença de location e pelo id do lote que as originou. Base da planilha de carteira: o que foi emitido, o que está em aberto e o que foi pago, por mês e por aluno/cliente. O filtro loteCobVId é o caminho para trazer todas as cobranças geradas por um carnê. Pré-requisitos: Escopo cobv.read; inicio e fim obrigatórios. Escopo OAuth: cobv.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "inicio": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite inferior do período: devolve registros cuja data de criação da cobrança seja maior ou igual a este instante. Informe o fuso. Mandar horário de Brasília sem offset faz o PSP ler como UTC e desloca o recorte em 3 horas."
+          },
+          "fim": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite superior do período: devolve registros cuja data de criação da cobrança seja menor ou igual a este instante. fim anterior a inicio devolve 400 com type terminado em ConsultaInvalida."
+          },
+          "cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "Filtra pelo CPF do devedor. Não pode ser combinado com cnpj. Sem máscara. Enviar cpf e cnpj juntos devolve 400."
+          },
+          "cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "Filtra pelo CNPJ do devedor. Não pode ser combinado com cpf. O schema da 2.10.0 já aceita letras nas 12 primeiras posições (CNPJ alfanumérico)."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ATIVA",
+              "CONCLUIDA",
+              "REMOVIDA_PELO_USUARIO_RECEBEDOR",
+              "REMOVIDA_PELO_PSP"
+            ],
+            "description": "Filtra pelo status do registro."
+          },
+          "locationPresente": {
+            "type": "boolean",
+            "description": "Filtra pela existência de location vinculada."
+          },
+          "loteCobVId": {
+            "type": "integer",
+            "description": "Traz somente as cobranças pertencentes a esse lote."
+          },
+          "paginacao.paginaAtual": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Página a recuperar. Começa em 0; se omitida, o PSP assume 0."
+          },
+          "paginacao.itensPorPagina": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100,
+            "description": "Quantidade de registros por página. Só a última página pode vir com menos. Teto de 1000 no padrão; PSPs podem praticar limite menor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "inicio",
+          "fim",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__criar__lote_cobv",
+      "title": "Criar ou alterar lote de cobranças com vencimento",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Enfileira a criação de todas as cobranças do lote. Cada cobrança nasce individualmente e pode falhar sozinha). Só execute com autorização explícita do cliente.  Cria de uma vez um conjunto de cobranças com vencimento, cada uma com seu txid, ou reenvia o mesmo lote com alterações. O processamento é assíncrono: a resposta é 202 sem corpo. Carnê, mensalidades da turma, faturamento mensal recorrente: uma requisição no lugar de centenas de PUT /cobv. O resultado individual de cada cobrança só aparece depois, em GET /lotecobv/{id}. Pré-requisitos: Produto lotecobv contratado com o PSP; Escopo lotecobv.write; txid único para cada cobrança do lote. Escopo OAuth: lotecobv.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identificador do lote, definido por você. É texto no path, mas o lote devolvido em GET traz id numérico atribuído pelo PSP em alguns campos de consulta."
+          },
+          "descricao": {
+            "type": "string",
+            "description": "Descrição do lote, para identificá-lo depois."
+          },
+          "cobsv": {
+            "type": "array",
+            "description": "Array de cobranças com vencimento; cada item é um objeto cobv completo acrescido do campo txid. Depois de criado, o lote é fechado: não dá para adicionar nem remover cobranças, só revisar as mesmas."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "id",
+          "descricao",
+          "cobsv",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__atualizar__lote_cobv",
+      "title": "Revisar cobranças específicas de um lote",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Enfileira a revisão das cobranças indicadas). Só execute com autorização explícita do cliente.  Revisa um subconjunto das cobranças de um lote já existente, sem mexer nas demais. Também é assíncrono (202). Correção em massa: prorrogar o vencimento de parte do carnê, aplicar desconto negociado em algumas parcelas, remover as parcelas de quem cancelou a matrícula. Pré-requisitos: Lote existente; Escopo lotecobv.write. Escopo OAuth: lotecobv.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identificador do lote a revisar."
+          },
+          "descricao": {
+            "type": "string",
+            "description": "Nova descrição do lote."
+          },
+          "cobsv": {
+            "type": "array",
+            "description": "Array com as cobranças a revisar; cada item traz o txid e os campos alterados. Só é válido txid que já pertence ao lote: incluir um txid novo devolve 400."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "id",
+          "cobsv",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__obter__lote_cobv",
+      "title": "Consultar lote de cobranças com vencimento",
+      "description": "Use para LER dados. Não altera nada no PSP.  Devolve um lote com a descrição, a data de criação e o array cobsv com o resultado de cada cobrança: EM_PROCESSAMENTO, CRIADA ou NEGADA — esta última com o objeto problema explicando a recusa. Chamada obrigatória depois de todo PUT/PATCH de lote: é a única forma de saber quais cobranças nasceram e por que as outras falharam. Gera direto a planilha de rejeições do carnê. Pré-requisitos: Escopo lotecobv.read; Id do lote. Escopo OAuth: lotecobv.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identificador do lote."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "id",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__listar__lote_cobv",
+      "title": "Consultar lotes de cobranças com vencimento",
+      "description": "Use para LER dados. Não altera nada no PSP.  Lista os lotes criados no período, com a composição de cada um, paginados. Auditoria de emissão em massa: quais carnês foram gerados no semestre, quando e com quantas parcelas cada um. Pré-requisitos: Escopo lotecobv.read; inicio e fim obrigatórios. Escopo OAuth: lotecobv.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "inicio": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite inferior do período: devolve registros cuja data de criação do lote seja maior ou igual a este instante. Informe o fuso. Mandar horário de Brasília sem offset faz o PSP ler como UTC e desloca o recorte em 3 horas."
+          },
+          "fim": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite superior do período: devolve registros cuja data de criação do lote seja menor ou igual a este instante. fim anterior a inicio devolve 400 com type terminado em ConsultaInvalida."
+          },
+          "paginacao.paginaAtual": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Página a recuperar. Começa em 0; se omitida, o PSP assume 0."
+          },
+          "paginacao.itensPorPagina": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100,
+            "description": "Quantidade de registros por página. Só a última página pode vir com menos. Teto de 1000 no padrão; PSPs podem praticar limite menor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "inicio",
+          "fim",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__location_pagamento__criar",
+      "title": "Criar location de payload (QR dinâmico reutilizável)",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Cria um recurso de URL no PSP. Não gera cobrança nem movimenta dinheiro). Só execute com autorização explícita do cliente.  Cria uma URL (location) que o aplicativo do pagador consulta para obter o payload JSON da cobrança vigente. A mesma location pode servir cobranças diferentes ao longo do tempo, uma por vez. Cenário de QR impresso ou fixo em maquininha/totem: você imprime um QR uma vez e vai trocando a cobrança vinculada à location. Também é o que permite reaproveitar QR em fila de caixa. Pré-requisitos: Escopo payloadlocation.write. Escopo OAuth: payloadlocation.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "tipoCob": {
+            "type": "string",
+            "enum": [
+              "cob",
+              "cobv"
+            ],
+            "description": "Tipo de cobrança que essa location vai servir. Location de tipo cob não aceita cobrança com vencimento e vice-versa: o PUT da cobrança devolve 400."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "tipoCob",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__location_pagamento__obter",
+      "title": "Recuperar location de payload",
+      "description": "Use para LER dados. Não altera nada no PSP.  Devolve uma location pelo id, incluindo o txid da cobrança atualmente vinculada, se houver. Descobrir qual cobrança um QR impresso está servindo neste momento, e auditar reaproveitamento de location. Pré-requisitos: Escopo payloadlocation.read; Id da location. Escopo OAuth: payloadlocation.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Id da location, devolvido na criação."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "id",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__location_pagamento__listar",
+      "title": "Consultar locations cadastradas",
+      "description": "Use para LER dados. Não altera nada no PSP.  Lista as locations criadas no período, com filtro por tipo de cobrança e pela existência de txid vinculado. Inventário de QR impressos: quantas locations existem, quais estão livres (txIdPresente=false) e quais estão ocupadas por uma cobrança. Pré-requisitos: Escopo payloadlocation.read; inicio e fim obrigatórios. Escopo OAuth: payloadlocation.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "inicio": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite inferior do período: devolve registros cuja data de criação da location seja maior ou igual a este instante. Informe o fuso. Mandar horário de Brasília sem offset faz o PSP ler como UTC e desloca o recorte em 3 horas."
+          },
+          "fim": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite superior do período: devolve registros cuja data de criação da location seja menor ou igual a este instante. fim anterior a inicio devolve 400 com type terminado em ConsultaInvalida."
+          },
+          "txIdPresente": {
+            "type": "boolean",
+            "description": "true traz só locations com cobrança vinculada; false, só as livres."
+          },
+          "tipoCob": {
+            "type": "string",
+            "enum": [
+              "cob",
+              "cobv"
+            ],
+            "description": "Filtra por tipo de cobrança servida."
+          },
+          "paginacao.paginaAtual": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Página a recuperar. Começa em 0; se omitida, o PSP assume 0."
+          },
+          "paginacao.itensPorPagina": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100,
+            "description": "Quantidade de registros por página. Só a última página pode vir com menos. Teto de 1000 no padrão; PSPs podem praticar limite menor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "inicio",
+          "fim",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__location_pagamento__desvincular__txid",
+      "title": "Desvincular cobrança de uma location",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Desfaz o vínculo. O QR impresso passa a não servir nenhuma cobrança até você vincular outra). Só execute com autorização explícita do cliente.  Remove o vínculo entre a location e a cobrança que ela serve. A location continua existindo e fica livre para receber outra cobrança; a cobrança também continua existindo. Reaproveitar um QR impresso para a próxima cobrança, ou liberar a location quando a cobrança vinculada foi cancelada. Pré-requisitos: Escopo payloadlocation.write; Location existente. Escopo OAuth: payloadlocation.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Id da location a liberar."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "id",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__autenticacao__autenticar",
+      "title": "Obter access token (OAuth2 client credentials sobre mTLS)",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Emite uma credencial de acesso vinculada ao thumbprint do certificado cliente usado no handshake (RFC 8705)). Só execute com autorização explícita do cliente.  Troca client_id e client_secret por um access_token no Authorization Server do PSP recebedor, pedindo os escopos necessários. O caminho mostrado é o exemplo da especificação: o endpoint real é definido por cada PSP. Primeira chamada de qualquer integração Pix, e sempre que o token em cache expirar ou uma chamada devolver 401. Peça só os escopos de que a rotina precisa — token de leitura para relatório, token de escrita só para emissão. Pré-requisitos: Onboarding concluído na área logada do PSP; Certificado cliente emitido pelo PSP (ou por AC aceita por ele) e sua chave privada; client_id e client_secret recebidos por canal seguro. Escopo OAuth: não se aplica. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "grant_type": {
+            "type": "string",
+            "enum": [
+              "client_credentials"
+            ],
+            "description": "Sempre client_credentials: é o único fluxo previsto pelo arranjo."
+          },
+          "scope": {
+            "type": "string",
+            "description": "Escopos separados por espaço, entre os liberados em contrato (ex.: 'pix.read cob.read cobv.read'). Pedir escopo não contratado costuma devolver erro no token ou 403 depois, na chamada da API."
+          },
+          "Authorization": {
+            "type": "string",
+            "description": "Basic com client_id:client_secret em base64, quando o PSP usa client_secret_basic. Muitos PSPs aceitam alternativamente client_id e client_secret no corpo (client_secret_post). Confira a doc do seu PSP."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "grant_type",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__transacao__listar",
+      "title": "Consultar Pix recebidos",
+      "description": "Use para LER dados. Não altera nada no PSP.  Lista os Pix creditados na conta do usuário recebedor dentro de um período, com endToEndId, valor, horário de liquidação, txid quando houver, composição do valor e as devoluções de cada um. É o extrato de recebimentos Pix e a consulta mais importante da API para BI e conciliação: entra tudo que foi creditado, inclusive Pix por chave, QR estático e transferências avulsas — que nunca geram webhook por não terem txid. Pré-requisitos: Escopo pix.read; inicio e fim obrigatórios, em RFC 3339 com fuso. Escopo OAuth: pix.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "inicio": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite inferior do período: devolve registros cuja data de liquidação do Pix seja maior ou igual a este instante. Informe o fuso. Mandar horário de Brasília sem offset faz o PSP ler como UTC e desloca o recorte em 3 horas."
+          },
+          "fim": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite superior do período: devolve registros cuja data de liquidação do Pix seja menor ou igual a este instante. fim anterior a inicio devolve 400 com type terminado em ConsultaInvalida."
+          },
+          "cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "Filtra pelo CPF do pagador. Não pode ser combinado com cnpj. Sem máscara. Enviar cpf e cnpj juntos devolve 400."
+          },
+          "cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "Filtra pelo CNPJ do pagador. Não pode ser combinado com cpf. O schema da 2.10.0 já aceita letras nas 12 primeiras posições (CNPJ alfanumérico)."
+          },
+          "txid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{1,35}",
+            "description": "Filtra pelos Pix associados a esse txid."
+          },
+          "txIdPresente": {
+            "type": "boolean",
+            "description": "true traz só Pix com txid (originados de cobrança); false, só os sem txid."
+          },
+          "devolucaoPresente": {
+            "type": "boolean",
+            "description": "Filtra pela existência de devolução associada."
+          },
+          "finalidadeMED": {
+            "type": "boolean",
+            "description": "Filtra Pix marcados com finalidade do Mecanismo Especial de Devolução."
+          },
+          "paginacao.paginaAtual": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Página a recuperar. Começa em 0; se omitida, o PSP assume 0."
+          },
+          "paginacao.itensPorPagina": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100,
+            "description": "Quantidade de registros por página. Só a última página pode vir com menos. Teto de 1000 no padrão; PSPs podem praticar limite menor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "inicio",
+          "fim",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__transacao__obter",
+      "title": "Consultar Pix por endToEndId",
+      "description": "Use para LER dados. Não altera nada no PSP.  Devolve um Pix recebido pelo seu endToEndId, com valor, horário, txid, composição do valor e o histórico de devoluções solicitadas sobre ele. Confirmação pontual de um recebimento citado por um cliente, auditoria de uma linha do extrato e checagem do estado de uma devolução em andamento. É também o jeito certo de confirmar um webhook antes de dar baixa. Pré-requisitos: Escopo pix.read; endToEndId de 32 caracteres. Escopo OAuth: pix.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "e2eid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{32}",
+            "description": "EndToEndId do Pix, identificador que circula nas mensagens pacs.002/pacs.004/pacs.008 do SPI. Chave natural de conciliação: todo Pix tem endToEndId, mesmo quando não tem txid."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "e2eid",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__transacao__estornar",
+      "title": "Solicitar devolução de um Pix recebido",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Movimenta dinheiro: debita a conta do usuário recebedor e devolve ao pagador via SPI (pacs.004). Irreversível depois de liquidada). Só execute com autorização explícita do cliente.  Solicita a devolução, total ou parcial, de um Pix já liquidado. O id da devolução é definido por você, o que torna a operação idempotente por construção. Estorno de venda cancelada, cobrança em duplicidade, valor pago a maior. É o único caminho rastreável: a devolução nasce amarrada ao endToEndId original e recebe um rtrId próprio, que circula na pacs.004. Pré-requisitos: Escopo pix.write; Pix original liquidado há no máximo 90 dias; Saldo disponível na conta. Escopo OAuth: pix.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "e2eid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{32}",
+            "description": "EndToEndId do Pix, identificador que circula nas mensagens pacs.002/pacs.004/pacs.008 do SPI. Chave natural de conciliação: todo Pix tem endToEndId, mesmo quando não tem txid."
+          },
+          "id": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{1,35}",
+            "description": "Identificador da devolução, escolhido por você. Repetir o mesmo id para outra devolução do mesmo e2eid devolve 400 — o que protege contra devolução duplicada por retry."
+          },
+          "valor": {
+            "type": "string",
+            "description": "Valor a devolver, como texto com duas casas. A soma das devoluções não pode passar do valor do Pix original."
+          },
+          "natureza": {
+            "type": "string",
+            "enum": [
+              "ORIGINAL",
+              "RETIRADA"
+            ],
+            "description": "ORIGINAL para Pix comum ou o valor da compra em Pix Troco; RETIRADA para Pix Saque ou o troco. Omitido, assume ORIGINAL."
+          },
+          "descricao": {
+            "type": "string",
+            "maxLength": 140,
+            "description": "Texto exibido ao pagador sobre a devolução."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "e2eid",
+          "id",
+          "valor",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__transacao__obter__devolucao",
+      "title": "Consultar devolução de Pix",
+      "description": "Use para LER dados. Não altera nada no PSP.  Devolve o estado de uma devolução específica: valor, rtrId, horários de solicitação e liquidação, status e, quando não realizada, o motivo informado pelo PSP. Fechar o ciclo do estorno: saber se a devolução saiu de EM_PROCESSAMENTO para DEVOLVIDO antes de baixar o estorno no ERP, e descobrir o motivo quando ficou NAO_REALIZADO. Pré-requisitos: Escopo pix.read; endToEndId e id da devolução. Escopo OAuth: pix.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "e2eid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{32}",
+            "description": "EndToEndId do Pix, identificador que circula nas mensagens pacs.002/pacs.004/pacs.008 do SPI. Chave natural de conciliação: todo Pix tem endToEndId, mesmo quando não tem txid."
+          },
+          "id": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{1,35}",
+            "description": "Id da devolução, o mesmo que você definiu na solicitação."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "e2eid",
+          "id",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__webhook__assinar_webhook",
+      "title": "Configurar webhook de Pix recebidos",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Passa a haver tráfego do PSP para a sua infraestrutura a cada Pix com txid na chave indicada). Só execute com autorização explícita do cliente.  Registra a URL base que o PSP vai chamar quando um Pix com txid for creditado na conta associada àquela chave Pix. As notificações chegam em POST {webhookUrl}/pix. Substituir o polling em GET /pix por notificação quase em tempo real no checkout. Cada webhook é por chave Pix: se você recebe em mais de uma chave, registre um webhook para cada. Pré-requisitos: Escopo webhook.write; Chave Pix ativa no DICT; Endpoint público HTTPS preparado para mTLS com o certificado do PSP. Escopo OAuth: webhook.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "chave": {
+            "type": "string",
+            "maxLength": 77,
+            "description": "Chave Pix do recebedor, registrada no DICT, cujos recebimentos serão notificados. Precisa ser chave do próprio usuário recebedor; chave de terceiro devolve 400."
+          },
+          "webhookUrl": {
+            "type": "string",
+            "description": "URL base HTTPS do seu endpoint. O PSP acrescenta /pix ao chamar. Precisa ser pública, com certificado servidor válido e capaz de negociar mTLS com o certificado do PSP."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "chave",
+          "webhookUrl",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__webhook__obter",
+      "title": "Exibir webhook de uma chave Pix",
+      "description": "Use para LER dados. Não altera nada no PSP.  Mostra a configuração de webhook associada a uma chave Pix: URL registrada, CNPJ do recebedor e data de cadastro. Conferir, antes de sair caçando bug, se o webhook está mesmo apontando para o ambiente certo — é o erro mais comum depois de uma migração de servidor ou de domínio. Pré-requisitos: Escopo webhook.read; Chave Pix. Escopo OAuth: webhook.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "chave": {
+            "type": "string",
+            "maxLength": 77,
+            "description": "Chave Pix do recebedor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "chave",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__webhook__excluir",
+      "title": "Cancelar webhook de uma chave Pix",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Interrompe o envio de notificações. Nenhum Pix é perdido — eles continuam em GET /pix). Só execute com autorização explícita do cliente.  Remove a configuração de webhook da chave Pix indicada. O PSP para de enviar notificações imediatamente. Desligar o ambiente antigo em uma migração, ou parar as notificações enquanto o endpoint está em manutenção — lembrando de voltar ao polling em GET /pix nesse período. Pré-requisitos: Escopo webhook.write. Escopo OAuth: webhook.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "chave": {
+            "type": "string",
+            "maxLength": 77,
+            "description": "Chave Pix cujo webhook será removido."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "chave",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__webhook__listar",
+      "title": "Consultar webhooks cadastrados",
+      "description": "Use para LER dados. Não altera nada no PSP.  Lista todos os webhooks Pix configurados pelo usuário recebedor, com a URL de cada um e a data de cadastro. Aqui inicio e fim são opcionais. Inventário de integrações: descobrir quantas chaves têm webhook, se sobrou algum apontando para ambiente desativado e desde quando cada um está no ar. Pré-requisitos: Escopo webhook.read. Escopo OAuth: webhook.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "inicio": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite inferior do período: devolve registros cuja data de cadastro do webhook seja maior ou igual a este instante. Informe o fuso. Mandar horário de Brasília sem offset faz o PSP ler como UTC e desloca o recorte em 3 horas."
+          },
+          "fim": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite superior do período: devolve registros cuja data de cadastro do webhook seja menor ou igual a este instante. fim anterior a inicio devolve 400 com type terminado em ConsultaInvalida."
+          },
+          "paginacao.paginaAtual": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Página a recuperar. Começa em 0; se omitida, o PSP assume 0."
+          },
+          "paginacao.itensPorPagina": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100,
+            "description": "Quantidade de registros por página. Só a última página pode vir com menos. Teto de 1000 no padrão; PSPs podem praticar limite menor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__webhook__assinar_webhook__rec",
+      "title": "Configurar webhook de recorrências do Pix Automático",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Passa a haver tráfego do PSP para a sua infraestrutura a cada mudança de status). Só execute com autorização explícita do cliente.  Registra a URL base que receberá as notificações de mudanças de status das recorrências (CRIADA, APROVADA, REJEITADA, EXPIRADA, CANCELADA). Diferente do webhook de Pix, não há chave no path: o webhook é do usuário recebedor como um todo. Obrigatório em qualquer integração de Pix Automático que não queira viver de polling: sem ele, você só descobre que o pagador autorizou (ou que a cobrança foi liquidada) consultando a API de tempos em tempos. Pré-requisitos: Pix Automático contratado com o PSP; Escopo webhookrec.write; Endpoint público HTTPS com mTLS. Escopo OAuth: webhookrec.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "webhookUrl": {
+            "type": "string",
+            "description": "URL base HTTPS do seu endpoint; o PSP acrescenta /rec ao chamar. Precisa ser pública e capaz de negociar mTLS com o certificado do PSP."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "webhookUrl",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__webhook__obter__rec",
+      "title": "Exibir webhook de recorrências do Pix Automático",
+      "description": "Use para LER dados. Não altera nada no PSP.  Mostra a URL registrada para as notificações de mudanças de status das recorrências (CRIADA, APROVADA, REJEITADA, EXPIRADA, CANCELADA) e a data de cadastro. Verificação de configuração antes de investigar ausência de notificações de Pix Automático. Pré-requisitos: Escopo webhookrec.read. Escopo OAuth: webhookrec.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__webhook__excluir__rec",
+      "title": "Cancelar webhook de recorrências do Pix Automático",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Interrompe as notificações; os dados continuam disponíveis por consulta). Só execute com autorização explícita do cliente.  Remove a configuração de webhook de mudanças de status das recorrências (CRIADA, APROVADA, REJEITADA, EXPIRADA, CANCELADA). O PSP para de notificar. Desativação de ambiente ou migração de endpoint de Pix Automático. Pré-requisitos: Escopo webhookrec.write. Escopo OAuth: webhookrec.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__webhook__assinar_webhook__cobr",
+      "title": "Configurar webhook de cobranças recorrentes do Pix Automático",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Passa a haver tráfego do PSP para a sua infraestrutura a cada mudança de status). Só execute com autorização explícita do cliente.  Registra a URL base que receberá as notificações de mudanças de status das cobranças recorrentes e das suas tentativas de liquidação. Diferente do webhook de Pix, não há chave no path: o webhook é do usuário recebedor como um todo. Obrigatório em qualquer integração de Pix Automático que não queira viver de polling: sem ele, você só descobre que o pagador autorizou (ou que a cobrança foi liquidada) consultando a API de tempos em tempos. Pré-requisitos: Pix Automático contratado com o PSP; Escopo webhookcobr.write; Endpoint público HTTPS com mTLS. Escopo OAuth: webhookcobr.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "webhookUrl": {
+            "type": "string",
+            "description": "URL base HTTPS do seu endpoint; o PSP acrescenta /cobr ao chamar. Precisa ser pública e capaz de negociar mTLS com o certificado do PSP."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "webhookUrl",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__webhook__obter__cobr",
+      "title": "Exibir webhook de cobranças recorrentes do Pix Automático",
+      "description": "Use para LER dados. Não altera nada no PSP.  Mostra a URL registrada para as notificações de mudanças de status das cobranças recorrentes e das suas tentativas de liquidação e a data de cadastro. Verificação de configuração antes de investigar ausência de notificações de Pix Automático. Pré-requisitos: Escopo webhookcobr.read. Escopo OAuth: webhookcobr.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__webhook__excluir__cobr",
+      "title": "Cancelar webhook de cobranças recorrentes do Pix Automático",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Interrompe as notificações; os dados continuam disponíveis por consulta). Só execute com autorização explícita do cliente.  Remove a configuração de webhook de mudanças de status das cobranças recorrentes e das suas tentativas de liquidação. O PSP para de notificar. Desativação de ambiente ou migração de endpoint de Pix Automático. Pré-requisitos: Escopo webhookcobr.write. Escopo OAuth: webhookcobr.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__assinatura__criar",
+      "title": "Criar recorrência do Pix Automático",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Cria a autorização no PSP. Ainda não cobra nada: sem aprovação do pagador, nenhuma cobrança é liquidada). Só execute com autorização explícita do cliente.  Cria a recorrência (autorização de débito recorrente) do Pix Automático: o contrato entre recebedor e pagador que define objeto, periodicidade, data do primeiro pagamento, valor e política de retentativa. O PSP devolve o idRec de 29 caracteres. Primeiro passo de qualquer assinatura, mensalidade ou conta de consumo no Pix Automático. A recorrência nasce CRIADA e só vira APROVADA depois que o pagador autoriza no app do banco dele. Pré-requisitos: Pix Automático contratado com o PSP; Escopo rec.write; Webhook /webhookrec configurado, para saber quando o pagador aprovar. Escopo OAuth: rec.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "vinculo.contrato": {
+            "type": "string",
+            "maxLength": 35,
+            "description": "Número ou código do contrato/pedido que a recorrência representa."
+          },
+          "vinculo.objeto": {
+            "type": "string",
+            "maxLength": 35,
+            "description": "Texto livre que ajuda o pagador a reconhecer o que está autorizando (ex.: 'Plano mensal Exemplo')."
+          },
+          "vinculo.devedor.cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "CPF do devedor da recorrência. Exclusivo com cnpj."
+          },
+          "vinculo.devedor.cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "CNPJ do devedor. Exclusivo com cpf."
+          },
+          "vinculo.devedor.nome": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Nome ou razão social do devedor."
+          },
+          "calendario.dataInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "Data estimada do primeiro pagamento, em YYYY-MM-DD."
+          },
+          "calendario.dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "Fim da vigência, quando a autorização tem prazo definido."
+          },
+          "calendario.periodicidade": {
+            "type": "string",
+            "enum": [
+              "SEMANAL",
+              "MENSAL",
+              "TRIMESTRAL",
+              "SEMESTRAL",
+              "ANUAL"
+            ],
+            "description": "Intervalo entre as cobranças."
+          },
+          "valor.valorRec": {
+            "type": "string",
+            "description": "Valor fixo das parcelas, quando não varia. Omita em conta de consumo com valor variável."
+          },
+          "valor.valorMinimoRecebedor": {
+            "type": "string",
+            "description": "Piso definido pelo recebedor para o valor máximo que o pagador pode fixar."
+          },
+          "politicaRetentativa": {
+            "type": "string",
+            "enum": [
+              "NAO_PERMITE",
+              "PERMITE_3R_7D"
+            ],
+            "description": "NAO_PERMITE: uma única tentativa. PERMITE_3R_7D: até 3 novas tentativas dentro de 7 dias após o vencimento."
+          },
+          "recebedor.convenio": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "Convênio entre o recebedor e o PSP, usado para segmentar carteiras."
+          },
+          "loc": {
+            "type": "integer",
+            "description": "Id de uma location de recorrência (POST /locrec) para servir o QR composto."
+          },
+          "ativacao.dadosJornada": {
+            "type": "object",
+            "description": "Dados da jornada de autorização quando a ativação já nasce vinculada a uma cobrança (jornada 3)."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "vinculo.contrato",
+          "calendario.dataInicial",
+          "calendario.periodicidade",
+          "politicaRetentativa",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__assinatura__obter",
+      "title": "Consultar recorrência",
+      "description": "Use para LER dados. Não altera nada no PSP.  Devolve uma recorrência pelo idRec, com status atual, histórico de mudanças de status, dados do pagador quando já autorizada, solicitações vinculadas e o encerramento, se houver. Saber se o cliente já autorizou a assinatura antes de gerar a primeira cobrança, e investigar por que uma recorrência parou de cobrar (REJEITADA, EXPIRADA ou CANCELADA — o array atualizacao mostra quando e para qual estado). Pré-requisitos: Escopo rec.read; idRec conhecido. Escopo OAuth: rec.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idRec": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{29}",
+            "minLength": 29,
+            "maxLength": 29,
+            "description": "Identificador da recorrência, de 29 caracteres."
+          },
+          "txid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{26,35}",
+            "description": "TxID de uma cobrança associada; faz o PSP devolver também o bloco dadosQR com o Pix copia e cola da jornada."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "idRec",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__assinatura__listar",
+      "title": "Consultar lista de recorrências",
+      "description": "Use para LER dados. Não altera nada no PSP.  Lista as recorrências criadas no período, com filtros por devedor, status, convênio e presença de location. Planilha da base de assinantes: quantas autorizações foram criadas no mês, quantas o cliente aprovou, quantas caducaram sem resposta e quantas foram canceladas — a taxa de conversão da adesão ao Pix Automático. Pré-requisitos: Escopo rec.read; inicio e fim obrigatórios. Escopo OAuth: rec.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "inicio": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite inferior do período: devolve registros cuja data de criação da recorrência seja maior ou igual a este instante. Informe o fuso. Mandar horário de Brasília sem offset faz o PSP ler como UTC e desloca o recorte em 3 horas."
+          },
+          "fim": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite superior do período: devolve registros cuja data de criação da recorrência seja menor ou igual a este instante. fim anterior a inicio devolve 400 com type terminado em ConsultaInvalida."
+          },
+          "cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "Filtra pelo CPF do devedor. Não pode ser combinado com cnpj. Sem máscara. Enviar cpf e cnpj juntos devolve 400."
+          },
+          "cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "Filtra pelo CNPJ do devedor. Não pode ser combinado com cpf. O schema da 2.10.0 já aceita letras nas 12 primeiras posições (CNPJ alfanumérico)."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CRIADA",
+              "APROVADA",
+              "REJEITADA",
+              "EXPIRADA",
+              "CANCELADA"
+            ],
+            "description": "Filtra pelo status da recorrência."
+          },
+          "convenio": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "Filtra pelo convênio associado ao recebedor."
+          },
+          "locationPresente": {
+            "type": "boolean",
+            "description": "Filtra pela existência de location vinculada."
+          },
+          "paginacao.paginaAtual": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Página a recuperar. Começa em 0; se omitida, o PSP assume 0."
+          },
+          "paginacao.itensPorPagina": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100,
+            "description": "Quantidade de registros por página. Só a última página pode vir com menos. Teto de 1000 no padrão; PSPs podem praticar limite menor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "inicio",
+          "fim",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__assinatura__atualizar",
+      "title": "Revisar ou cancelar recorrência",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Altera ou encerra a autorização de débito. Cancelar interrompe as cobranças futuras da assinatura). Só execute com autorização explícita do cliente.  Altera dados da recorrência (devedor, calendário, valor, location) ou a encerra enviando status CANCELADA. Cancelamento de assinatura pelo cliente, mudança de plano com novo valor, ajuste de vigência. No Pix Automático, cancelar a recorrência é este PATCH — é o que interrompe as cobranças futuras. Pré-requisitos: Escopo rec.write; Recorrência em estado que admita alteração. Escopo OAuth: rec.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idRec": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{29}",
+            "description": "Identificador da recorrência."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CANCELADA"
+            ],
+            "description": "CANCELADA para encerrar a autorização."
+          },
+          "calendario.dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "Nova data de fim da vigência."
+          },
+          "valor.valorRec": {
+            "type": "string",
+            "description": "Novo valor fixo das parcelas."
+          },
+          "loc": {
+            "type": "integer",
+            "description": "Nova location de recorrência."
+          },
+          "vinculo.devedor.cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "CPF do devedor da recorrência. Exclusivo com cnpj."
+          },
+          "vinculo.devedor.cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "CNPJ do devedor. Exclusivo com cpf."
+          },
+          "vinculo.devedor.nome": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Nome ou razão social do devedor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "idRec",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__assinatura__enviar__solicitacao",
+      "title": "Enviar solicitação de confirmação de recorrência",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Dispara uma mensagem ao PSP do pagador, que exibe o pedido de autorização no app dele). Só execute com autorização explícita do cliente.  Envia ao PSP do pagador o pedido de confirmação da recorrência (jornada 1 de autorização): o pagador recebe a solicitação no app do próprio banco e aprova ou rejeita por lá, sem QR Code. Jornada 1 do Pix Automático, em que você já tem os dados bancários do cliente (agência, conta e ISPB) e quer que a autorização apareça direto no app do banco dele. Nas jornadas 2 a 4, o caminho é o QR servido por /locrec. Pré-requisitos: Recorrência já criada em POST /rec; Escopo solicrec.write; Dados bancários do pagador (ISPB, agência e conta) conferidos. Escopo OAuth: solicrec.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idRec": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{29}",
+            "description": "Recorrência que será submetida à confirmação do pagador."
+          },
+          "calendario.dataExpiracaoSolicitacao": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Prazo para o pagador responder. Depois disso, a solicitação vira EXPIRADA."
+          },
+          "destinatario.ispbParticipante": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{8}$",
+            "description": "ISPB do PSP do pagador (8 posições)."
+          },
+          "destinatario.conta": {
+            "type": "string",
+            "maxLength": 20,
+            "description": "Conta do pagador no PSP indicado."
+          },
+          "destinatario.agencia": {
+            "type": "string",
+            "maxLength": 4,
+            "description": "Agência do pagador."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "idRec",
+          "calendario.dataExpiracaoSolicitacao",
+          "destinatario.ispbParticipante",
+          "destinatario.conta",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__assinatura__obter__solicitacao",
+      "title": "Consultar solicitação de confirmação de recorrência",
+      "description": "Use para LER dados. Não altera nada no PSP.  Devolve o estado de uma solicitação de confirmação: se foi enviada, recebida pelo PSP pagador, aceita, rejeitada ou expirada, com o histórico de status e o motivo da rejeição quando houver. Acompanhar a adesão do cliente na jornada 1 e descobrir por que a autorização não saiu: foi rejeitada, expirou sem resposta ou nem chegou ao PSP do pagador. Pré-requisitos: Escopo solicrec.read; idSolicRec conhecido. Escopo OAuth: solicrec.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idSolicRec": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{29}",
+            "description": "Identificador da solicitação, de 29 caracteres."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "idSolicRec",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__assinatura__atualizar__solicitacao",
+      "title": "Cancelar solicitação de confirmação de recorrência",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Retira o pedido de autorização do app do pagador). Só execute com autorização explícita do cliente.  Cancela uma solicitação de confirmação ainda pendente, enviando status CANCELADA. Cliente desistiu antes de responder, dados bancários foram corrigidos e você vai reenviar, ou a venda caiu. Pré-requisitos: Solicitação em status CRIADA ou RECEBIDA; Escopo solicrec.write. Escopo OAuth: solicrec.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idSolicRec": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{29}",
+            "description": "Identificador da solicitação."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CANCELADA"
+            ],
+            "description": "Único valor aceito: CANCELADA."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "idSolicRec",
+          "status",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__location_pagamento__criar__recorrencia",
+      "title": "Criar location de recorrência",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Cria um recurso de URL no PSP). Só execute com autorização explícita do cliente.  Cria a URL que serve o payload JSON da recorrência, usada no QR Code de adesão ao Pix Automático (jornadas 2, 3 e 4). Como a location de cobrança, pode servir recorrências diferentes ao longo do tempo. Quando a adesão acontece por QR Code — na tela do checkout, no boleto do plano, no material impresso — em vez de partir dos dados bancários do cliente. Pré-requisitos: Pix Automático contratado; Escopo payloadlocationrec.write. Escopo OAuth: payloadlocationrec.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "rec"
+            ],
+            "description": "Único valor aceito no padrão: rec."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "tipo",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__location_pagamento__obter__recorrencia",
+      "title": "Recuperar location de recorrência",
+      "description": "Use para LER dados. Não altera nada no PSP.  Devolve uma location de recorrência pelo id, com a URL e o idRec atualmente vinculado, quando houver. Descobrir qual recorrência um QR de adesão está servindo, antes de reaproveitá-lo para outro plano. Pré-requisitos: Escopo payloadlocationrec.read. Escopo OAuth: payloadlocationrec.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Id da location de recorrência."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "id",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__location_pagamento__listar__recorrencia",
+      "title": "Consultar locations de recorrência",
+      "description": "Use para LER dados. Não altera nada no PSP.  Lista as locations de recorrência criadas no período, com filtro por convênio e pela existência de idRec vinculado. Inventário dos QR de adesão ao Pix Automático: quantos existem, quais estão livres e quais já estão amarrados a uma recorrência. Pré-requisitos: Escopo payloadlocationrec.read; inicio e fim obrigatórios. Escopo OAuth: payloadlocationrec.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "inicio": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite inferior do período: devolve registros cuja data de criação da location seja maior ou igual a este instante. Informe o fuso. Mandar horário de Brasília sem offset faz o PSP ler como UTC e desloca o recorte em 3 horas."
+          },
+          "fim": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite superior do período: devolve registros cuja data de criação da location seja menor ou igual a este instante. fim anterior a inicio devolve 400 com type terminado em ConsultaInvalida."
+          },
+          "idRecPresente": {
+            "type": "boolean",
+            "description": "true traz só locations com recorrência vinculada; false, só as livres."
+          },
+          "convenio": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "Filtra pelo convênio associado."
+          },
+          "paginacao.paginaAtual": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Página a recuperar. Começa em 0; se omitida, o PSP assume 0."
+          },
+          "paginacao.itensPorPagina": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100,
+            "description": "Quantidade de registros por página. Só a última página pode vir com menos. Teto de 1000 no padrão; PSPs podem praticar limite menor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "inicio",
+          "fim",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__location_pagamento__desvincular__id_rec",
+      "title": "Desvincular recorrência de uma location",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Desfaz o vínculo; o QR de adesão deixa de servir recorrência até você vincular outra). Só execute com autorização explícita do cliente.  Remove o vínculo entre a location de recorrência e o idRec que ela serve, mantendo location e recorrência. Reaproveitar um QR de adesão para outro plano ou liberar a location quando a recorrência foi cancelada. Pré-requisitos: Escopo payloadlocationrec.write. Escopo OAuth: payloadlocationrec.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Id da location de recorrência a liberar."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "id",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__criar__cobr",
+      "title": "Criar cobrança recorrente (txid do recebedor)",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Agenda um débito na conta do pagador para a data de vencimento). Só execute com autorização explícita do cliente.  Cria a cobrança de uma parcela dentro de uma recorrência aprovada do Pix Automático, com txid definido por você. O PSP pagador agenda a liquidação para a data de vencimento. Geração mensal das faturas de uma assinatura já autorizada. Com txid próprio, a criação é idempotente e a conciliação amarra a parcela ao documento do ERP. Pré-requisitos: Recorrência com status APROVADA; Escopo cobr.write; Webhook /webhookcobr configurado para acompanhar a liquidação. Escopo OAuth: cobr.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{26,35}",
+            "description": "Identificador da transação definido pelo usuário recebedor. Identifica a parcela dentro da recorrência. Único por CPF/CNPJ do recebedor para sempre: não pode ser reaproveitado nem depois de a cobrança ser removida."
+          },
+          "idRec": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{29}",
+            "description": "Recorrência APROVADA à qual a cobrança pertence."
+          },
+          "infoAdicional": {
+            "type": "string",
+            "maxLength": 140,
+            "description": "Descrição da fatura exibida ao pagador."
+          },
+          "calendario.dataDeVencimento": {
+            "type": "string",
+            "format": "date",
+            "description": "Data de vencimento da parcela, em YYYY-MM-DD."
+          },
+          "valor.original": {
+            "type": "string",
+            "description": "Valor da parcela, como texto com duas casas."
+          },
+          "ajusteDiaUtil": {
+            "type": "boolean",
+            "description": "true joga a liquidação para o próximo dia útil quando o vencimento cai em dia não útil."
+          },
+          "recebedor.conta": {
+            "type": "string",
+            "maxLength": 20,
+            "description": "Conta do recebedor que receberá o crédito."
+          },
+          "recebedor.tipoConta": {
+            "type": "string",
+            "enum": [
+              "CORRENTE",
+              "POUPANCA",
+              "PAGAMENTO"
+            ],
+            "description": "Tipo da conta do recebedor."
+          },
+          "recebedor.agencia": {
+            "type": "string",
+            "maxLength": 4,
+            "description": "Agência do recebedor."
+          },
+          "devedor.cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "CPF do devedor."
+          },
+          "devedor.cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "CNPJ do devedor."
+          },
+          "devedor.nome": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Nome do devedor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "txid",
+          "idRec",
+          "calendario.dataDeVencimento",
+          "valor.original",
+          "ajusteDiaUtil",
+          "recebedor.conta",
+          "recebedor.tipoConta",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__criar__cobr_txid_psp",
+      "title": "Criar cobrança recorrente com txid gerado pelo PSP",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Agenda um débito e cria um registro novo a cada chamada — sem idempotência). Só execute com autorização explícita do cliente.  Cria uma parcela da recorrência deixando o txid a cargo do PSP. Mesmo comportamento do PUT, sem idempotência. Só quando não houver um identificador próprio para a parcela. Em faturamento recorrente, o normal é usar o PUT /cobr/{txid} com um txid derivado de contrato + competência. Pré-requisitos: Recorrência APROVADA; Escopo cobr.write. Escopo OAuth: cobr.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idRec": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{29}",
+            "description": "Recorrência APROVADA à qual a cobrança pertence."
+          },
+          "infoAdicional": {
+            "type": "string",
+            "maxLength": 140,
+            "description": "Descrição da fatura exibida ao pagador."
+          },
+          "calendario.dataDeVencimento": {
+            "type": "string",
+            "format": "date",
+            "description": "Data de vencimento da parcela, em YYYY-MM-DD."
+          },
+          "valor.original": {
+            "type": "string",
+            "description": "Valor da parcela, como texto com duas casas."
+          },
+          "ajusteDiaUtil": {
+            "type": "boolean",
+            "description": "true joga a liquidação para o próximo dia útil quando o vencimento cai em dia não útil."
+          },
+          "recebedor.conta": {
+            "type": "string",
+            "maxLength": 20,
+            "description": "Conta do recebedor que receberá o crédito."
+          },
+          "recebedor.tipoConta": {
+            "type": "string",
+            "enum": [
+              "CORRENTE",
+              "POUPANCA",
+              "PAGAMENTO"
+            ],
+            "description": "Tipo da conta do recebedor."
+          },
+          "recebedor.agencia": {
+            "type": "string",
+            "maxLength": 4,
+            "description": "Agência do recebedor."
+          },
+          "devedor.cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "CPF do devedor."
+          },
+          "devedor.cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "CNPJ do devedor."
+          },
+          "devedor.nome": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Nome do devedor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "idRec",
+          "calendario.dataDeVencimento",
+          "valor.original",
+          "ajusteDiaUtil",
+          "recebedor.conta",
+          "recebedor.tipoConta",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__atualizar__cobr",
+      "title": "Revisar ou cancelar cobrança recorrente",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Cancela o agendamento do débito na conta do pagador). Só execute com autorização explícita do cliente.  Cancela uma cobrança recorrente enviando status CANCELADA, desde que ainda não tenha chegado a data prevista da primeira tentativa de liquidação. Cliente cancelou o plano antes do vencimento, valor foi corrigido, cobrança foi gerada por engano. Pré-requisitos: Cobrança recorrente ainda não liquidada; Escopo cobr.write. Escopo OAuth: cobr.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{26,35}",
+            "description": "Identificador da transação definido pelo usuário recebedor. Único por CPF/CNPJ do recebedor para sempre: não pode ser reaproveitado nem depois de a cobrança ser removida."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CANCELADA"
+            ],
+            "description": "Único valor aceito: CANCELADA."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "txid",
+          "status",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__obter__cobr",
+      "title": "Consultar cobrança recorrente",
+      "description": "Use para LER dados. Não altera nada no PSP.  Devolve uma cobrança recorrente pelo txid, com status, valor, histórico de status e o array tentativas, que mostra cada tentativa de liquidação com data, tipo, status, endToEndId e motivo de rejeição. Saber se a parcela do mês foi paga, quando será a próxima tentativa e por que uma tentativa foi rejeitada — é onde a inadimplência do Pix Automático fica visível. Pré-requisitos: Escopo cobr.read; txid da parcela. Escopo OAuth: cobr.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{26,35}",
+            "description": "Identificador da transação definido pelo usuário recebedor. Único por CPF/CNPJ do recebedor para sempre: não pode ser reaproveitado nem depois de a cobrança ser removida."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "txid",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__listar__cobr",
+      "title": "Consultar lista de cobranças recorrentes",
+      "description": "Use para LER dados. Não altera nada no PSP.  Lista as cobranças recorrentes criadas no período, com filtros por recorrência, devedor, status e convênio. Relatório mensal da carteira de assinaturas: faturado, liquidado, rejeitado e cancelado por competência, e lista de inadimplentes para régua de cobrança. Pré-requisitos: Escopo cobr.read; inicio e fim obrigatórios. Escopo OAuth: cobr.read. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "inicio": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite inferior do período: devolve registros cuja data de criação da cobrança seja maior ou igual a este instante. Informe o fuso. Mandar horário de Brasília sem offset faz o PSP ler como UTC e desloca o recorte em 3 horas."
+          },
+          "fim": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Limite superior do período: devolve registros cuja data de criação da cobrança seja menor ou igual a este instante. fim anterior a inicio devolve 400 com type terminado em ConsultaInvalida."
+          },
+          "idRec": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{29}",
+            "minLength": 29,
+            "maxLength": 29,
+            "description": "Traz apenas as parcelas de uma recorrência."
+          },
+          "cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$",
+            "description": "Filtra pelo CPF do devedor. Não pode ser combinado com cnpj. Sem máscara. Enviar cpf e cnpj juntos devolve 400."
+          },
+          "cnpj": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{14}$",
+            "description": "Filtra pelo CNPJ do devedor. Não pode ser combinado com cpf. O schema da 2.10.0 já aceita letras nas 12 primeiras posições (CNPJ alfanumérico)."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CRIADA",
+              "ATIVA",
+              "CONCLUIDA",
+              "EXPIRADA",
+              "REJEITADA",
+              "CANCELADA"
+            ],
+            "description": "Filtra pelo status da cobrança recorrente."
+          },
+          "convenio": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "Filtra pelo convênio associado."
+          },
+          "paginacao.paginaAtual": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Página a recuperar. Começa em 0; se omitida, o PSP assume 0."
+          },
+          "paginacao.itensPorPagina": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100,
+            "description": "Quantidade de registros por página. Só a última página pode vir com menos. Teto de 1000 no padrão; PSPs podem praticar limite menor."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "inicio",
+          "fim",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "pix-bacen__cobranca__criar__retentativa_cobr",
+      "title": "Solicitar retentativa de cobrança recorrente",
+      "description": "NÃO use para consultar: esta ferramenta ESCREVE no PSP do cliente (Agenda um novo débito na conta do pagador para a data indicada). Só execute com autorização explícita do cliente.  Pede uma nova tentativa de liquidação de uma cobrança recorrente que não foi paga, para a data informada no path. Só funciona se a recorrência tiver política PERMITE_3R_7D. Régua de cobrança de assinatura: a parcela não liquidou por falta de saldo e você quer tentar de novo dentro da janela permitida, sem criar uma nova cobrança. Pré-requisitos: Recorrência com politicaRetentativa = PERMITE_3R_7D; Cobrança com tentativa anterior não liquidada; Escopo cobr.write. Escopo OAuth: cobr.write. Autenticação: OAuth2 client credentials sobre mTLS obrigatório, com a base URL do PSP do cliente (o padrão Pix não tem host próprio).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "pattern": "[a-zA-Z0-9]{26,35}",
+            "description": "Identificador da transação definido pelo usuário recebedor. Cobrança recorrente não liquidada. Único por CPF/CNPJ do recebedor para sempre: não pode ser reaproveitado nem depois de a cobrança ser removida."
+          },
+          "data": {
+            "type": "string",
+            "format": "date",
+            "description": "Data prevista para a nova tentativa de liquidação, em YYYY-MM-DD. Precisa cair dentro da janela permitida pela política de retentativa da recorrência."
+          },
+          "_base_url": {
+            "type": "string",
+            "description": "URL base da API Pix do PSP recebedor (ex.: https://api.seupsp.com.br/pix/v2). Obrigatória: o arranjo Pix não define host."
+          }
+        },
+        "required": [
+          "txid",
+          "data",
+          "_base_url"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

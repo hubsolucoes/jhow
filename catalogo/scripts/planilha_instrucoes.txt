@@ -1,0 +1,18 @@
+Kit Power Query — {SISTEMA}
+
+COMO USAR (3 passos)
+1. Abra a aba "Config" e preencha a coluna Valor: credenciais e Ambiente ("sandbox" para testes, "producao" para dados reais).
+2. Vá em Dados > Atualizar Tudo.
+3. Os dados aparecem nas abas seguintes, uma por assunto. Crie gráficos e tabelas dinâmicas a partir delas.
+
+SE APARECER UM AVISO NA PRIMEIRA ATUALIZAÇÃO
+- "Acesso ao conteúdo web": escolha Anônimo e clique em Conectar. A credencial é enviada pela aba Config, não por essa janela.
+- Esta planilha vem configurada para ignorar os níveis de privacidade do Power Query, porque precisa enviar os dados da aba Config para a API. Se a sua empresa bloqueia essa opção (Dados > Obter Dados > Opções de Consulta > Privacidade), peça ao TI para liberá-la para este arquivo.
+
+SEGURANÇA
+- Não envie esta planilha para outras pessoas com a aba Config preenchida.
+- Use uma credencial com o menor nível de permissão possível e troque-a se o arquivo vazar.
+- As consultas deste kit apenas LEEM dados. Nenhuma atualização cria, altera ou cancela nada no sistema.
+
+POWER BI
+- No Power BI Desktop, use o arquivo 00_Parametros_PowerBI.pq do kit no lugar da consulta Parametros e configure os parâmetros do Power BI.

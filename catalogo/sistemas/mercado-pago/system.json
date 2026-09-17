@@ -1,0 +1,534 @@
+{
+  "slug": "mercado-pago",
+  "nome": "Mercado Pago",
+  "categoria": "pagamentos_psp",
+  "fornecedor": {
+    "razao_social": "Mercado Pago Instituição de Pagamento Ltda.",
+    "pais": "BR",
+    "site": "https://www.mercadopago.com.br/developers"
+  },
+  "descricao_curta": "Instituição de pagamento do grupo Mercado Livre. API REST única (api.mercadopago.com) para receber por Pix, boleto, cartão e conta Mercado Pago, com checkout hospedado (Checkout Pro), checkout transparente (Orders API / Payments API), assinaturas recorrentes, cofre de cartões, maquininhas Point, OAuth para marketplace e relatórios financeiros de liberação de dinheiro.",
+  "porte_alvo": [
+    "pequena",
+    "media",
+    "grande"
+  ],
+  "verticais": [
+    "ecommerce",
+    "saas",
+    "marketplace",
+    "varejo_fisico",
+    "servicos"
+  ],
+  "status": "documentado",
+  "api": {
+    "estilo": "REST",
+    "base_urls": {
+      "producao": "https://api.mercadopago.com",
+      "sandbox": "https://api.mercadopago.com"
+    },
+    "versao_atual": "v1 (prefixo de path; Orders API e Payments API convivem)",
+    "politica_versionamento": "Versão fixa no path (/v1/..., mais recursos sem prefixo como /checkout/preferences, /preapproval e /merchant_orders). A documentação não publica política formal de depreciação nem calendário de sunset; as mudanças saem no changelog oficial. Em 2025 o Mercado Pago passou a recomendar a Orders API para novas integrações de Checkout Transparente e declarou que a Payments API continua funcionando, mas só recebe correções de segurança e estabilidade — sem funcionalidades novas.",
+    "formatos": [
+      "json"
+    ],
+    "spec_oficial_url": null,
+    "openapi_disponivel": false
+  },
+  "autenticacao": {
+    "tipos": [
+      "oauth2_authorization_code",
+      "oauth2_client_credentials",
+      "api_key"
+    ],
+    "fluxo_resumido": "Toda chamada de servidor leva o Access Token da aplicação no header Authorization: Bearer <token>. Para operar na própria conta, o Access Token é copiado do painel Suas integrações (par Public Key + Access Token, em versão de teste e de produção) e funciona como chave estática. Para operar em nome de terceiros (marketplace/plataforma), usa-se OAuth 2.0 em POST /oauth/token com grant_type authorization_code (o vendedor autoriza por redirecionamento, o code vale 10 minutos, PKCE opcional via code_verifier), refresh_token (renovação sem interação) ou client_credentials (token da própria aplicação, sem usuário). Public Key só é usada no frontend, para tokenizar cartão.",
+    "escopos_permissoes": [
+      "read",
+      "write",
+      "offline_access"
+    ],
+    "expiracao_token": "Access Token de OAuth: expires_in de 15552000 segundos (180 dias) por padrão. O Access Token copiado do painel não tem prazo publicado e vale até ser renovado manualmente.",
+    "renovacao": "POST /oauth/token com grant_type=refresh_token. O refresh_token é de uso único: depois de usado ele é invalidado e a resposta traz um novo par access_token + refresh_token, que precisa ser persistido. No modo painel, a renovação é manual (botão Renovar em Suas integrações), e trocar a credencial quebra a integração até o valor novo ser publicado.",
+    "ip_allowlist_obrigatorio": false
+  },
+  "execucao_auth": {
+    "tipo": "bearer",
+    "header": "Authorization",
+    "prefixo": "Bearer ",
+    "usuario_basic_e_a_credencial": false,
+    "headers_fixos": {
+      "Content-Type": "application/json"
+    },
+    "token_url": null,
+    "credenciais_necessarias": [
+      {
+        "nome": "access_token",
+        "rotulo": "Access Token da aplicação",
+        "segredo": true,
+        "onde_obter": "mercadopago.com.br/developers/panel/app > selecione a aplicação > Testes > Credenciais de teste (token que começa com TEST-) ou Produção > Credenciais de produção (token que começa com APP_USR-). O Access Token é a chave privada e só pode ser usado no backend.",
+        "obrigatoria": true
+      }
+    ],
+    "base_url_por_ambiente": {
+      "sandbox": "https://api.mercadopago.com",
+      "producao": "https://api.mercadopago.com"
+    },
+    "observacao": "A URL base é a MESMA nos dois ambientes: quem define se a chamada é de teste ou de produção é o prefixo do Access Token (TEST- x APP_USR-). Isso é a principal armadilha de execução — um token de produção enviado por engano consulta dados reais. O executor deve guardar o ambiente junto da credencial e conferir o prefixo antes de cada chamada, e tratar o campo live_mode da resposta como confirmação. Credenciais de teste só existem para integrações de Checkout Transparente e Checkout Bricks; nos demais produtos o teste é feito com credenciais de produção de uma conta de teste. Para operar em nome de terceiros (marketplace), o cofre precisa guardar também client_id, client_secret e refresh_token e renovar o access_token por POST /oauth/token — o refresh_token é de uso único e precisa ser regravado a cada renovação."
+  },
+  "ambiente_testes": {
+    "sandbox": true,
+    "como_obter": "Criar conta Mercado Pago e uma aplicação em Suas integrações (mercadopago.com.br/developers/panel/app). As credenciais de teste ficam disponíveis na hora, sem ativação. Contas de teste (vendedor, comprador e integrador) são criadas automaticamente junto com a aplicação, e podem ser criadas manualmente em Testes > Contas de teste, no limite de 15 contas simultâneas por aplicação (não é possível apagá-las). Há cartões de teste públicos e um código de verificação de 6 dígitos por conta de teste.",
+    "custo": "Gratuito.",
+    "dados_ficticios": true
+  },
+  "limites": {
+    "rate_limit": "Existe, mas o valor não é publicado. A Orders API documenta 429 em duas variantes — too_many_requests (Client ID bloqueado pelo gateway por atingir o limite de requisições) e usage_quota_exceeded (cota por cliente no backend) — e manda esperar o número de segundos do header Retry-After, com backoff exponencial e jitter. O /oauth/token documenta 429 local_rate_limited. Nenhuma página informa quantas requisições por minuto/hora são permitidas.",
+    "janela": null,
+    "burst": null,
+    "paginacao": {
+      "estilo": "offset",
+      "tamanho_max": 500
+    },
+    "tamanho_max_payload": null,
+    "timeout_recomendado": "30 s por chamada; o webhook precisa ser respondido em até 22 s.",
+    "politica_retry": "Repetir com backoff em 5xx e em 429 (local_rate_limited no /oauth/token). Escritas em /v1/payments e /v1/orders só devem ser repetidas com o MESMO X-Idempotency-Key, senão o pagamento é duplicado.",
+    "idempotencia": {
+      "suportada": true,
+      "header": "X-Idempotency-Key"
+    },
+    "volatil": true
+  },
+  "webhooks": {
+    "suportados": true,
+    "eventos": [
+      "order",
+      "payment",
+      "subscription_preapproval",
+      "subscription_preapproval_plan",
+      "subscription_authorized_payment",
+      "mp-connect",
+      "wallet_connect",
+      "stop_delivery_op_wh",
+      "topic_claims_integration_wh",
+      "topic_card_id_wh",
+      "topic_merchant_order_wh",
+      "topic_chargebacks_wh",
+      "point_integration_wh"
+    ],
+    "verificacao_assinatura": "Header x-signature no formato 'ts=<timestamp>,v1=<hmac>'. Monta-se o manifesto 'id:[data.id];request-id:[x-request-id];ts:[ts];' (data.id vem do query param da URL notificada e deve ser convertido para minúsculas quando vier alfanumérico maiúsculo, como ORD...; campos ausentes são removidos do manifesto), calcula-se HMAC-SHA256 em hexadecimal com a chave secreta da aplicação e compara-se com o v1 recebido. A chave secreta é gerada ao salvar a configuração de webhooks em Suas integrações, não expira e pode ser resetada. Notificações de QR Code não podem ser validadas por assinatura.",
+    "politica_reentrega": "O Mercado Pago espera HTTP 200 ou 201 em até 22 segundos. Sem confirmação, reenvia a cada 15 minutos; a partir da terceira tentativa o intervalo aumenta, mas as tentativas continuam. O painel tem um dashboard de notificações com o JSON de cada evento, usado para recuperar eventos perdidos. O número máximo de tentativas e o prazo de retenção não são publicados.",
+    "requer_endpoint_publico": true
+  },
+  "erros": {
+    "formato": "Duas famílias convivem. (1) APIs antigas (/v1/payments, /v1/customers, /checkout/preferences, /preapproval): HTTP status + corpo {\"message\", \"error\", \"status\", \"cause\": [{\"code\", \"description\", \"data\"}]}, onde code é um número inteiro (1, 2002, 2062, 3005, 9062...) — formato confirmado em 2026-09-17 com uma chamada de leitura usando token inválido, que devolveu 401 {\"message\":\"Unauthorized use of live credentials\",\"error\":\"unauthorized\",\"status\":401,\"cause\":[{\"code\":7,...}]}. (2) APIs novas (Orders, Relatórios, OAuth): HTTP status + códigos textuais (invalid_begin_date, unauthorized_user_id, invalid_client, order_not_found...). Na mesma verificação, GET /v1/orders com token inválido devolveu 403 {\"status\":403,\"message\":\"At least one policy returned UNAUTHORIZED.\",\"code\":\"PA_UNAUTHORIZED_RESULT_FROM_POLICIES\",\"blocked_by\":\"PolicyAgent\"} — ou seja, credencial inválida pode voltar como 403, não 401. A Orders API devolve TODOS os erros de validação da requisição de uma vez, não um por vez. Toda resposta traz o header X-Request-Id, que deve ser guardado em log para abrir chamado no suporte.",
+    "codigos_principais": [
+      {
+        "status": 400,
+        "codigo": "1",
+        "descricao": "Params Error — parâmetro ausente ou malformado na requisição."
+      },
+      {
+        "status": 400,
+        "codigo": "3",
+        "descricao": "Token must be for test — chamada de teste feita com credencial de produção (ou o contrário)."
+      },
+      {
+        "status": 400,
+        "codigo": "2062",
+        "descricao": "Invalid card token — token de cartão inválido, já usado ou expirado (vale poucos minutos e é de uso único)."
+      },
+      {
+        "status": 400,
+        "codigo": "2198",
+        "descricao": "Invalid test user email — e-mail do pagador não é de usuário de teste no ambiente de teste."
+      },
+      {
+        "status": 400,
+        "codigo": "3005",
+        "descricao": "Not valid action — o recurso está num estado que não permite a operação (ex.: capturar pagamento já capturado)."
+      },
+      {
+        "status": 400,
+        "codigo": "9062",
+        "descricao": "Invalid range interval — intervalo de busca maior que 365 dias em /v1/payments/search."
+      },
+      {
+        "status": 401,
+        "codigo": "unauthorized / Invalid token",
+        "descricao": "Access Token ausente, inválido, revogado ou do ambiente errado."
+      },
+      {
+        "status": 403,
+        "codigo": "4 / 3002",
+        "descricao": "Token válido mas sem permissão (escopo) para o recurso ou para a ação."
+      },
+      {
+        "status": 404,
+        "codigo": "2000 / not_found",
+        "descricao": "Recurso não encontrado — inclusive quando o id existe em outra conta ou no outro ambiente."
+      },
+      {
+        "status": 429,
+        "codigo": "local_rate_limited",
+        "descricao": "Limitação de taxa (documentada explicitamente em /oauth/token). O limite numérico não é publicado."
+      }
+    ]
+  },
+  "sdks_oficiais": [
+    {
+      "linguagem": "PHP",
+      "pacote": "mercadopago/dx-php",
+      "url": "https://github.com/mercadopago/sdk-php"
+    },
+    {
+      "linguagem": "Node.js",
+      "pacote": "mercadopago",
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/sdks-library/landing"
+    },
+    {
+      "linguagem": "Java",
+      "pacote": "com.mercadopago:sdk-java",
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/sdks-library/landing"
+    },
+    {
+      "linguagem": "Ruby",
+      "pacote": "mercadopago-sdk",
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/sdks-library/landing"
+    },
+    {
+      "linguagem": ".NET",
+      "pacote": "mercadopago-sdk-dotnet",
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/sdks-library/landing"
+    },
+    {
+      "linguagem": "Python",
+      "pacote": "mercadopago",
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/sdks-library/landing"
+    },
+    {
+      "linguagem": "Go",
+      "pacote": "github.com/mercadopago/sdk-go",
+      "url": "https://github.com/mercadopago/sdk-go"
+    },
+    {
+      "linguagem": "JavaScript (browser)",
+      "pacote": "@mercadopago/sdk-js",
+      "url": "https://github.com/mercadopago/sdk-js"
+    },
+    {
+      "linguagem": "React",
+      "pacote": "@mercadopago/sdk-react",
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/sdks-library/landing"
+    },
+    {
+      "linguagem": "iOS (Swift)",
+      "pacote": "sdk-ios",
+      "url": "https://github.com/mercadopago/sdk-ios"
+    },
+    {
+      "linguagem": "Android",
+      "pacote": "sdk-android",
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/sdks-library/landing"
+    }
+  ],
+  "comercial": {
+    "modelo_acesso": "aberto",
+    "custo_api": "Não há mensalidade nem cobrança pelo uso da API. O custo é a taxa por transação (varia por meio de pagamento e por prazo de recebimento escolhido) — a tabela oficial fica em mercadopago.com.br/developers/pt/support/37740 e em mercadopago.com.br/custos-de-receber. Valores não transcritos aqui por serem voláteis e negociáveis por contrato.",
+    "exige_homologacao": false,
+    "tempo_medio_aprovacao": "Credenciais de teste na hora. Credenciais de produção exigem preencher ramo de atividade e site da empresa e aceitar os termos — a liberação é imediata no painel, sem prazo de análise publicado.",
+    "volatil": true
+  },
+  "conformidade": {
+    "trafega_dado_pessoal": true,
+    "dado_sensivel": false,
+    "base_legal_tipica": "Execução de contrato (art. 7º, V da LGPD) para processar o pagamento e cumprimento de obrigação legal/regulatória (art. 7º, II) para prevenção à lavagem de dinheiro e retenção fiscal. Trafegam CPF/CNPJ, nome, e-mail, telefone, endereço e dados de cartão (estes últimos tokenizados). Em pagamentos por Pix os dados do pagador não são devolvidos na resposta, por exigência do Banco Central.",
+    "exige_certificado_digital": false,
+    "regulador": "Banco Central do Brasil (instituição de pagamento)",
+    "residencia_dados": null,
+    "termos_uso_url": "https://www.mercadopago.com.br/developers/pt/docs/resources/legal/terms-and-conditions",
+    "permite_uso_em_produto_terceiro": "sim"
+  },
+  "esforco_integracao": {
+    "complexidade": "media",
+    "horas_estimadas_mvp": 48,
+    "principais_armadilhas": [
+      "A mesma base URL serve teste e produção — só o prefixo do Access Token (TEST- x APP_USR-) muda o ambiente. Um token trocado em deploy manda cobrança real sem nenhum aviso.",
+      "Existem duas APIs vivas para o mesmo problema: a Orders API (recomendada para integrações novas de Checkout Transparente) e a Payments API (que continua funcionando, mas só recebe correções de segurança e estabilidade). Escolher a errada custa retrabalho.",
+      "X-Idempotency-Key é obrigatório em POST /v1/payments. Retry sem a mesma chave duplica o pagamento.",
+      "GET /v1/payments/search só enxerga os últimos 12 meses e o intervalo de busca precisa ser menor que 365 dias (erro 9062). Extração histórica maior exige os relatórios de liberação de dinheiro.",
+      "offset e limit de /v1/payments/search não aparecem na tabela de query params da referência, mas existem (são visíveis no objeto paging e nos exemplos de SDK). Sem informar, vem limit=30.",
+      "O token de cartão é de uso único e vive poucos minutos; reaproveitar dá erro 2062.",
+      "Webhooks não têm API de cadastro: a URL é registrada no painel ou passada em notification_url a cada pagamento/preferência (o valor por pagamento tem precedência sobre o do painel).",
+      "Relatórios gerados por contas de teste vêm vazios — o ambiente de teste não popula os dados financeiros.",
+      "A geração de relatório é assíncrona: POST devolve 202 sem corpo; é preciso consultar a task ou listar os relatórios até o arquivo aparecer.",
+      "O refresh_token do OAuth é de uso único: se a aplicação não persistir o novo valor devolvido, perde o acesso do vendedor.",
+      "Em pagamentos Pix os dados do pagador não voltam na resposta (regra do Bacen) — a conciliação precisa apoiar-se em external_reference."
+    ]
+  },
+  "casos_uso_negocio": [
+    {
+      "titulo": "Conciliação diária de recebimentos em planilha",
+      "dor_resolvida": "O financeiro baixa relatórios do painel à mão e cruza com o ERP em planilha, com atraso de dias.",
+      "endpoints_envolvidos": [
+        "mercado-pago.cobranca.listar",
+        "mercado-pago.relatorio.listar.liberacao",
+        "mercado-pago.relatorio.baixar_arquivo.liberacao"
+      ],
+      "valor_percebido": "Extrato de vendas aprovadas, taxas, valor líquido e data de liberação atualizado todo dia sem digitação."
+    },
+    {
+      "titulo": "Cobrança por Pix e boleto direto do sistema de gestão",
+      "dor_resolvida": "Emissão manual de Pix e boleto no painel, um a um, com repasse do QR code por WhatsApp.",
+      "endpoints_envolvidos": [
+        "mercado-pago.cobranca.criar.order",
+        "mercado-pago.cobranca.criar",
+        "mercado-pago.cobranca.obter"
+      ],
+      "valor_percebido": "Cobrança emitida no mesmo minuto da venda, com baixa automática por webhook."
+    },
+    {
+      "titulo": "Checkout pronto para e-commerce próprio (Checkout Pro)",
+      "dor_resolvida": "Implementar e certificar um checkout com cartão, Pix e boleto do zero.",
+      "endpoints_envolvidos": [
+        "mercado-pago.cobranca.criar.preferencia",
+        "mercado-pago.pedido.obter",
+        "mercado-pago.cobranca.obter"
+      ],
+      "valor_percebido": "Página de pagamento hospedada pelo Mercado Pago em poucas horas, sem escopo de PCI no próprio servidor."
+    },
+    {
+      "titulo": "Mensalidade recorrente de SaaS ou clube de assinatura",
+      "dor_resolvida": "Controle manual de mensalidades, cobranças atrasadas e cancelamentos.",
+      "endpoints_envolvidos": [
+        "mercado-pago.plano.criar",
+        "mercado-pago.assinatura.criar",
+        "mercado-pago.assinatura.listar",
+        "mercado-pago.assinatura.listar.faturas"
+      ],
+      "valor_percebido": "Cobrança recorrente automática com histórico de faturas e MRR consultável."
+    },
+    {
+      "titulo": "Marketplace com split e cobrança em nome do vendedor",
+      "dor_resolvida": "Repasse manual a sellers e falta de trilha de quem recebeu o quê.",
+      "endpoints_envolvidos": [
+        "mercado-pago.autenticacao.autenticar",
+        "mercado-pago.cobranca.criar",
+        "mercado-pago.cobranca.listar"
+      ],
+      "valor_percebido": "Vendedor autoriza a plataforma por OAuth; a comissão sai por application_fee na própria transação."
+    },
+    {
+      "titulo": "One-click com cartão salvo",
+      "dor_resolvida": "Cliente redigita o cartão a cada compra, derrubando a conversão.",
+      "endpoints_envolvidos": [
+        "mercado-pago.cliente.criar",
+        "mercado-pago.cartao.criar",
+        "mercado-pago.cartao.listar"
+      ],
+      "valor_percebido": "Cartão fica no cofre do Mercado Pago (o servidor da loja nunca guarda o PAN) e a recompra é um clique."
+    },
+    {
+      "titulo": "Painel de inadimplência e estorno em BI",
+      "dor_resolvida": "Não se sabe quanto foi estornado, contestado ou está pendente sem abrir o painel.",
+      "endpoints_envolvidos": [
+        "mercado-pago.cobranca.listar",
+        "mercado-pago.cobranca.listar.reembolsos",
+        "mercado-pago.contestacao.listar"
+      ],
+      "valor_percebido": "Power BI com aprovados, recusados, estornados e chargebacks por período e meio de pagamento."
+    }
+  ],
+  "indice_integrabilidade": {
+    "score": 82,
+    "componentes": {
+      "documentacao": {
+        "peso": 20,
+        "pontos": 16,
+        "justificativa": "Referência completa em português com parâmetros, enums, exemplos de request/response e tabela de erros por endpoint, versão Markdown de cada página para LLM, MCP Server oficial, CLI e biblioteca de prompts. Perde pontos por não publicar OpenAPI, por marcar como OBRIGATÓRIO filtros que são claramente opcionais nas buscas, por omitir offset/limit da tabela de query params de /v1/payments/search, por não publicar rate limit e por manter blocos duplicados do mesmo endpoint em seções diferentes (Checkout Pro, Checkout Transparente, Assinaturas) com conteúdo às vezes divergente."
+      },
+      "sandbox": {
+        "peso": 15,
+        "pontos": 12,
+        "justificativa": "Credenciais de teste liberadas na hora, até 15 contas de teste por aplicação criadas automaticamente, cartões de teste públicos e gatilhos de status por nome do titular (APRO, OTHE, FUND...). Perde pontos porque não há URL de sandbox separada (o ambiente depende do prefixo do token), porque credenciais de teste só existem para Checkout Transparente e Bricks e porque relatórios financeiros de contas de teste vêm vazios."
+      },
+      "autenticacao": {
+        "peso": 15,
+        "pontos": 13,
+        "justificativa": "OAuth 2.0 completo (authorization_code com PKCE opcional, refresh_token e client_credentials), escopos read/write/offline_access, Bearer no header, Public Key separada para o frontend e rotação de credenciais no painel. Perde pontos porque o caminho padrão de conta única é um Access Token estático de validade longa e porque o refresh_token é de uso único, o que quebra integrações que não persistem o valor novo."
+      },
+      "webhooks": {
+        "peso": 15,
+        "pontos": 12,
+        "justificativa": "13 tópicos de evento, assinatura HMAC-SHA256 no header x-signature com manifesto documentado e validador nos SDKs oficiais, reentrega a cada 15 minutos com intervalo crescente e dashboard de notificações com o JSON de cada evento. Perde pontos porque não existe endpoint de API para cadastrar/listar webhooks (só painel ou notification_url por transação), porque o número máximo de tentativas e a retenção não são publicados e porque notificações de QR Code não podem ser validadas por assinatura."
+      },
+      "limites_paginacao": {
+        "peso": 10,
+        "pontos": 6,
+        "justificativa": "Paginação offset/limit consistente com envelope paging{total,limit,offset} nas buscas, e nos relatórios os limites estão publicados (limit até 500, offset até 10000). Perde pontos porque o rate limit não é publicado em lugar nenhum, porque offset/limit de /v1/payments/search não constam da tabela de parâmetros e porque a busca de pagamentos só cobre os últimos 12 meses com intervalo máximo de 365 dias."
+      },
+      "sdks_comunidade": {
+        "peso": 10,
+        "pontos": 10,
+        "justificativa": "11 bibliotecas oficiais (PHP, Java, Node.js, Ruby, .NET, Python, Go no servidor; MercadoPago.js e React no navegador; iOS e Android no mobile), com repositórios públicos, geração de snippet por linguagem dentro da própria referência, MCP Server, CLI e comunidade oficial no Discord."
+      },
+      "acesso_sem_barreira": {
+        "peso": 10,
+        "pontos": 9,
+        "justificativa": "Cadastro self-service e gratuito, sem contrato prévio, sem programa de parceiro obrigatório e sem cobrança pela API. Perde 1 ponto porque as credenciais de produção exigem preencher ramo de atividade e site e aceitar os termos antes de serem liberadas."
+      },
+      "versionamento": {
+        "peso": 5,
+        "pontos": 4,
+        "justificativa": "Versão fixa no path (/v1) com estabilidade histórica boa e changelog público. Perde pontos porque não há política formal de depreciação nem calendário de sunset publicado, e porque a Payments API foi colocada em modo de manutenção (só correções) sem data de encerramento anunciada."
+      }
+    }
+  },
+  "qualidade_doc": {
+    "nota": 8,
+    "observacoes": "Entre as melhores do mercado brasileiro em cobertura e em recursos para IA (página .md por endpoint, MCP Server, biblioteca de prompts). Os defeitos são de rigor: flags de obrigatoriedade erradas nas buscas, parâmetros de paginação omitidos, ausência de OpenAPI e de rate limit publicado, e o mesmo endpoint repetido em várias seções de produto — o que obriga a conferir qual versão da página está mais atual."
+  },
+  "monitoramento": {
+    "changelog_url": "https://www.mercadopago.com.br/developers/pt/changelog",
+    "canal_breaking_changes": "Changelog oficial + seção Notícias (mercadopago.com.br/developers/pt/news) + status.mercadopago.com. Não há lista de e-mail de breaking changes documentada.",
+    "frequencia_revisao_sugerida": "mensal"
+  },
+  "lacunas": [
+    {
+      "campo": "limites.rate_limit",
+      "descricao": "O Mercado Pago não publica o número de requisições permitidas por minuto/hora em nenhuma página da referência ou dos guias. A existência do limite está confirmada (429 too_many_requests e 429 usage_quota_exceeded na Orders API, com header Retry-After; 429 local_rate_limited no /oauth/token), mas o valor, a janela e o escopo (por Client ID? por conta?) não são documentados. A Payments API antiga sequer documenta 429.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "endpoints.*.execucao.paginacao.tamanho_max",
+      "descricao": "O limite máximo de 'limit' em /v1/payments/search, /v1/orders/search, /checkout/preferences/search, /preapproval/search e /merchant_orders/search não é publicado. Só os relatórios documentam limit<=500 e offset<=10000. Registrado como null onde não confirmado; o default observado nos exemplos é 30.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "endpoints.*.parametros.obrigatorio",
+      "descricao": "A referência de /v1/payments/search marca sort, criteria, external_reference, range, begin_date, end_date, collector.id e payer.id como OBRIGATÓRIO, o que é incompatível entre si e com os próprios exemplos de SDK (que fazem buscas sem esses filtros). Foram registrados como opcionais, com observação. Não foi possível confirmar quais são realmente obrigatórios sem credencial.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "webhooks.politica_reentrega",
+      "descricao": "O número máximo de tentativas de reentrega e o prazo de retenção do evento não são publicados — só que o reenvio é a cada 15 minutos e que o intervalo aumenta depois da terceira tentativa.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "api.spec_oficial_url",
+      "descricao": "Não há OpenAPI/Swagger oficial publicado. O openapi.yaml deste catálogo foi reconstruído a partir da referência HTML/Markdown, endpoint a endpoint.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "limites.tamanho_max_payload",
+      "descricao": "Tamanho máximo de corpo de requisição não documentado.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "execucao_auth.credenciais_necessarias",
+      "descricao": "Para o cenário marketplace (OAuth em nome de terceiros) o cofre precisa de client_id, client_secret e refresh_token além do access_token. O bloco execucao_auth descreve o cenário padrão (conta própria, Bearer com Access Token) porque é o que o executor de leitura usa; o fluxo OAuth está documentado no endpoint mercado-pago.autenticacao.autenticar.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "endpoints_secundarios",
+      "descricao": "A API tem mais de 190 operações públicas. Foram detalhadas as centrais de pagamentos, Pix/boleto, estornos, preferências, clientes/cartões, assinaturas e relatórios. Point, QR Code presencial, reclamações/mediação e endereços de cliente ficaram catalogados sem detalhamento.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "endpoints.mercado-pago.cobranca.listar.reembolsos",
+      "descricao": "A página de referência de 'Obter lista de reembolsos' não expõe a versão Markdown/LLM e o HTML não carregou o conteúdo nas tentativas. Método e path vêm do índice oficial da referência; o formato de resposta foi deduzido do endpoint irmão de reembolso individual. Endpoint marcado com confianca 'inferido'.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "endpoints.mercado-pago.assinatura.baixar_arquivo.exportacao",
+      "descricao": "GET /preapproval/export devolve um CSV, mas a referência não publica as colunas do arquivo nem exemplo de resposta. Endpoint marcado com confianca 'inferido'; confirmar o cabeçalho na primeira execução.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "endpoints.mercado-pago.cliente.listar.execucao.paginacao",
+      "descricao": "GET /v1/customers/search responde com envelope paging/results, mas a referência documenta apenas o parâmetro 'email' — não há offset nem limit documentados. A paginação foi registrada como 'nenhuma' por falta de confirmação.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "conformidade.residencia_dados",
+      "descricao": "A documentação pública não informa em que país ficam armazenados os dados processados pela API.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "comercial.custo_api",
+      "descricao": "As taxas por transação não foram transcritas: variam por meio de pagamento, por prazo de recebimento escolhido pelo lojista e por negociação comercial. Consultar a tabela oficial na data do orçamento.",
+      "impacto": "baixo"
+    }
+  ],
+  "fontes": [
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/reference",
+      "titulo": "Referência de API — índice completo",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/reference/authentication/oauth/_oauth_token/post",
+      "titulo": "OAuth — Criar e atualizar token",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/your-integrations/credentials",
+      "titulo": "Credenciais (produção e teste)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/your-integrations/test/accounts",
+      "titulo": "Contas de teste",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/your-integrations/test/cards",
+      "titulo": "Cartões de teste",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/your-integrations/notifications/webhooks",
+      "titulo": "Webhooks e validação de x-signature",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/checkout-api-payments/overview",
+      "titulo": "Checkout Transparente — Payments API (aviso de manutenção)",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/checkout-api-orders/integration-model",
+      "titulo": "Orders API — modelo de integração e diferenças para a Payments API",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/search-payments/get",
+      "titulo": "Buscar em pagamentos",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/reference/reports/overview",
+      "titulo": "Relatórios — endpoints de liberações e de dinheiro em conta",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/reports/released-money/introduction",
+      "titulo": "Relatório de liberações — o que é e limitações em conta de teste",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/docs/sdks-library/landing",
+      "titulo": "Bibliotecas SDK oficiais",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/overview",
+      "titulo": "Assinaturas — planos, assinaturas e faturas",
+      "data_consulta": "2026-09-17"
+    },
+    {
+      "url": "https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro-preferences/overview",
+      "titulo": "Checkout Pro — Preferences API",
+      "data_consulta": "2026-09-17"
+    }
+  ]
+}
