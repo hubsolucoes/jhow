@@ -1,0 +1,3390 @@
+{
+  "sistema": "plugnotas",
+  "tools": [
+    {
+      "name": "plugnotas__tabela_auxiliar__listar__cidades",
+      "title": "Consultar todos os municípios atendidos e metadados",
+      "description": "PlugNotas (GET /nfse/cidades). Devolve a lista inteira dos municípios em que o PlugNotas consegue emitir NFS-e, cada um com o padrão do fornecedor da prefeitura (ABRASF, DSF, INFISC, sistemas próprios) e com as particularidades que mudam a integração: se exige certificado digital, se exige login e senha do portal, se aceita cancelamento por webservice, tamanho máximo da discriminação do serviço e fuso horário. Quando usar: Use antes de prometer emissão de NFS-e para um cliente novo, e para montar no seu produto uma tela de 'municípios atendidos'. É a lista completa; para um município só, prefira a consulta por código IBGE, que é bem mais barata. Pré-requisitos: Token x-api-key válido. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__tabela_auxiliar__obter__cidade",
+      "title": "Consultar disponibilidade do município e metadados",
+      "description": "PlugNotas (GET /nfse/cidades/{codigoIbge}). Informa se um município específico já está homologado para NFS-e no PlugNotas e devolve os metadados dele: padrão da prefeitura, exigência de certificado e de credenciais do portal, suporte a cancelamento e substituição, limites de texto e disponibilidade no Ambiente Nacional. Quando usar: É o primeiro passo de qualquer integração de NFS-e: rode esta consulta com o código IBGE do prestador antes de montar o payload, porque é daqui que sai a resposta para 'preciso de certificado?' e 'dá para cancelar por API?'. Município ainda não homologado responde HTTP 400 com o nome da cidade. Pré-requisitos: Código IBGE do município (7 dígitos) do prestador ou do local da prestação. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "codigoIbge": {
+            "type": "string",
+            "pattern": "^[0-9]{7}$",
+            "description": "[path] Código IBGE do município, com 7 dígitos."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "codigoIbge"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__endereco__obter__cep",
+      "title": "Consultar endereço através do CEP",
+      "description": "PlugNotas (GET /cep/{cep}). Traduz um CEP em logradouro, complemento, bairro, município, UF e código IBGE do município. É uma conveniência para preencher o endereço do tomador ou do destinatário já no formato que o PlugNotas espera, inclusive com o código IBGE que a nota exige. Quando usar: Use no cadastro de clientes e antes de montar a nota, para não tomar rejeição por município ou CEP inconsistente. A documentação avisa que por trás há uma API de terceiros, então não conte com disponibilidade garantida nem faça disso um caminho crítico. Pré-requisitos: Token x-api-key válido (esta rota exige o cabeçalho: sem ele a API devolve 401, verificado em 2026-09-17). Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cep": {
+            "type": "string",
+            "pattern": "^[0-9]{8}$",
+            "description": "[path] CEP com 8 dígitos, sem máscara."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cep"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__pessoa__obter__cnpj",
+      "title": "Consultar dados do CNPJ",
+      "description": "PlugNotas (GET /cnpj/{cnpj}). Consulta o cadastro de um CNPJ na Receita Federal e devolve razão social, nome fantasia, situação cadastral, natureza jurídica, capital social, endereço completo, telefone, e-mail, CNAEs e a lista de sócios. Se o CNPJ foi atualizado há menos de 30 dias, a resposta vem do cache do PlugNotas (campo cached). Quando usar: Serve para preencher e conferir o cadastro do emitente ou do destinatário antes de emitir. Cuidado: a resposta traz nomes de sócios, que são dado pessoal — só consulte com base legal e não guarde o que não vai usar. Outra armadilha: rejeição da Receita não vira erro HTTP, vem com status 200 e uma mensagem no corpo. Pré-requisitos: Token x-api-key válido. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "pattern": "^[0-9]{14}$",
+            "description": "[path] CNPJ com 14 dígitos, sem máscara."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__tabela_auxiliar__obter__versao_calculadora",
+      "title": "Consultar versão da calculadora de tributos",
+      "description": "PlugNotas (GET /calculadora/versao). Devolve a versão da calculadora de tributos que o PlugNotas está usando e a versão publicada pela SEFAZ, tanto da aplicação quanto da base de dados. Serve para descobrir se o cálculo do ambiente está defasado em relação ao que o fisco publicou. Quando usar: Consulte ao investigar divergência de imposto calculado, especialmente durante a Reforma Tributária, quando as tabelas mudam com frequência. Se versaoDbLocal estiver atrás de versaoDbRemota, a diferença de cálculo pode ser justamente essa. Pré-requisitos: Token x-api-key válido. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__empresa__listar__certificado",
+      "title": "Consultar certificados",
+      "description": "PlugNotas (GET /certificado). Lista todos os certificados digitais cadastrados na organização, com identificador interno, nome do titular (o campo nome traz o distinguished name do certificado ICP-Brasil), hash, CNPJ, e-mail de aviso e data de vencimento. Quando usar: É o relatório de vencimento de certificados de uma software house: rode periodicamente e avise o cliente antes de o certificado expirar, porque certificado vencido derruba a emissão de todos os documentos daquele CNPJ. Pré-requisitos: Token x-api-key de produção. No Sandbox esta rota devolve dados fictícios fixos. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__empresa__obter__certificado",
+      "title": "Consultar um certificado específico",
+      "description": "PlugNotas (GET /certificado/{idCertificadoOrCpfCnpj}). Devolve os dados de um certificado já cadastrado, buscando pelo identificador interno ou pelo CPF/CNPJ do titular. Traz os mesmos campos da listagem, sem o arquivo e sem a senha. Quando usar: Use quando já tem o CNPJ do cliente e quer saber, na hora, se existe certificado cadastrado e quando ele vence — por exemplo, na tela de diagnóstico do seu suporte. Pré-requisitos: Certificado já cadastrado na organização. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idCertificadoOrCpfCnpj": {
+            "type": "string",
+            "description": "[path] Identificador do certificado devolvido no cadastro, ou o CPF/CNPJ do titular."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idCertificadoOrCpfCnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__empresa__criar__certificado",
+      "title": "Cadastro de certificado",
+      "description": "PlugNotas (POST /certificado). Envia o arquivo do certificado digital A1 (.pfx/.p12) e a senha, em multipart/form-data, e devolve o identificador que será usado no cadastro da empresa. Um mesmo identificador pode ser reaproveitado por várias empresas quando matriz e filiais compartilham o certificado. Quando usar: É o primeiro passo do onboarding de um emitente novo. Guarde o id devolvido: ele vai no campo certificado do cadastro de empresa. Não é leitura e o assistente não executa: envie você mesmo, porque a operação trafega a senha do certificado. Pré-requisitos: Certificado digital A1 (arquivo .pfx/.p12) e a senha.; Content-Type multipart/form-data. NÃO EXECUTAR: operação de escrita. Cadastra material criptográfico na conta do cliente e trafega a senha do certificado. Escrita sensível: o assistente explica e entrega o código, mas quem executa é o cliente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "arquivo": {
+            "type": "string",
+            "format": "binary",
+            "description": "[body] Arquivo do certificado A1 em formato PFX/P12, enviado como parte de multipart/form-data."
+          },
+          "senha": {
+            "type": "string",
+            "description": "[body] Senha do certificado. Segredo: nunca registre em log nem em planilha."
+          },
+          "email": {
+            "type": "string",
+            "description": "[body] E-mail que receberá avisos de vencimento do certificado."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "arquivo",
+          "senha"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__empresa__substituir__certificado",
+      "title": "Alterar certificado",
+      "description": "PlugNotas (PUT /certificado/{idCertificado}). Substitui o arquivo de um certificado já cadastrado, mantendo o vínculo com todas as empresas que o usavam. A resposta traz o id de um novo registro de certificado criado internamente. Quando usar: É a rota da renovação anual: com certificado compartilhado entre matriz e filiais, troca-se o arquivo em um lugar só, sem editar empresa por empresa. Operação de escrita sensível — o assistente não executa. Pré-requisitos: Certificado já cadastrado (idCertificado).; Arquivo novo e senha. NÃO EXECUTAR: operação de escrita. Troca o certificado usado por todas as empresas vinculadas; um arquivo errado interrompe a emissão de vários CNPJs de uma vez.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idCertificado": {
+            "type": "string",
+            "description": "[path] Identificador do certificado que será substituído."
+          },
+          "arquivo": {
+            "type": "string",
+            "format": "binary",
+            "description": "[body] Novo arquivo do certificado A1, em multipart/form-data."
+          },
+          "senha": {
+            "type": "string",
+            "description": "[body] Senha do novo certificado."
+          },
+          "email": {
+            "type": "string",
+            "description": "[body] E-mail para avisos de vencimento."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idCertificado",
+          "arquivo",
+          "senha"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__empresa__excluir__certificado",
+      "title": "Deletar um certificado",
+      "description": "PlugNotas (DELETE /certificado/{idCertificado}). Remove um certificado digital cadastrado na organização. Quando usar: Use só em limpeza de cadastro, depois de confirmar que nenhuma empresa ativa aponta para esse certificado. Excluir um certificado em uso derruba a emissão. O assistente não executa exclusões. Pré-requisitos: Conferir antes, em GET /empresa, quais CNPJs referenciam esse certificado. NÃO EXECUTAR: operação de escrita. Exclusão definitiva de credencial: pode parar a emissão de todas as empresas que usavam esse certificado.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idCertificado": {
+            "type": "string",
+            "description": "[path] Identificador do certificado a excluir."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idCertificado"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__empresa__listar",
+      "title": "Consultar empresas",
+      "description": "PlugNotas (GET /empresa). Lista as empresas emitentes vinculadas à organização, com o cadastro completo de cada uma: dados fiscais, endereço, certificado vinculado, regime tributário e os blocos de configuração por documento (nfse, nfe, nfce, mdfe, nfcom), incluindo a flag de produção, numeração de séries e configuração de e-mail. Pagina por hashProximaPagina, com até 150 registros por página. Quando usar: É o inventário da carteira de uma software house: quais CNPJs estão cadastrados, quais documentos estão ativos em cada um, quem já está em produção e quem ainda está em homologação. Excelente base para planilha de gestão. Atenção: no Sandbox esta rota não existe e responde 'Não implementado no ambiente do Sandbox'. Pré-requisitos: Token x-api-key de produção.; Rota indisponível no Sandbox. Somente leitura: pode ser executada com a credencial do cliente. Paginação: cursor.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "hashProximaPagina": {
+            "type": "string",
+            "description": "[query] Cursor devolvido pela página anterior; omita na primeira chamada."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__empresa__obter",
+      "title": "Consultar empresa",
+      "description": "PlugNotas (GET /empresa/{cnpj}). Devolve o cadastro completo de um emitente vinculado à organização: dados fiscais, endereço, certificado, regime tributário e todos os blocos de configuração por documento, incluindo séries, numeração, envio automático de e-mail e a configuração de notas destinadas (nfe.config.dfe). Quando usar: Use para diagnosticar por que uma emissão está falhando: é aqui que se vê se o documento está ativo, se o ambiente é produção ou homologação, qual certificado está vinculado e se o DF-e está ligado. Também é o jeito de ler o cadastro antes de um PATCH. Pré-requisitos: Empresa já cadastrada na organização.; Rota de produção; no Sandbox o cadastro é mock. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "description": "[path] CNPJ da empresa emitente, sem máscara."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__empresa__criar",
+      "title": "Cadastrar empresa",
+      "description": "PlugNotas (POST /empresa). Cadastra um emitente/prestador na organização, com dados fiscais, endereço, certificado vinculado e a ativação de cada documento (nfse, nfe, nfce, mdfe, nfcom) com sua configuração. As validações são dinâmicas: dependendo do documento e do município, passam a ser obrigatórios inscrição municipal, inscrição estadual, certificado digital ou as credenciais de acesso à prefeitura. Quando usar: É o onboarding de um cliente novo da software house, feito por API em vez de tela. Rode antes GET /nfse/cidades/{codigoIbge} para saber o que aquele município exige. Escrita: o assistente entrega o código, quem executa é o cliente. Pré-requisitos: Certificado já cadastrado, quando o município ou o documento exigir.; Metadados do município consultados em GET /nfse/cidades/{codigoIbge}. NÃO EXECUTAR: operação de escrita. Cria cadastro fiscal e ativa licença de documento, com impacto contratual e de cobrança.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cpfCnpj": {
+            "type": "string",
+            "description": "[body] CPF ou CNPJ do emitente, sem máscara."
+          },
+          "razaoSocial": {
+            "type": "string",
+            "description": "[body] Razão social do emitente."
+          },
+          "nomeFantasia": {
+            "type": "string",
+            "description": "[body] Nome fantasia."
+          },
+          "inscricaoMunicipal": {
+            "type": "string",
+            "description": "[body] Inscrição municipal; obrigatória em boa parte dos municípios de NFS-e."
+          },
+          "inscricaoEstadual": {
+            "type": "string",
+            "description": "[body] Inscrição estadual; obrigatória para NF-e/NFC-e."
+          },
+          "certificado": {
+            "type": "string",
+            "description": "[body] Identificador do certificado digital devolvido por POST /certificado."
+          },
+          "simplesNacional": {
+            "type": "boolean",
+            "description": "[body] Indica se o emitente é optante pelo Simples Nacional."
+          },
+          "regimeTributario": {
+            "type": "integer",
+            "description": "[body] Código do regime tributário do emitente."
+          },
+          "regimeTributarioEspecial": {
+            "type": "integer",
+            "description": "[body] Código do regime tributário especial usado na NFS-e."
+          },
+          "incentivoFiscal": {
+            "type": "boolean",
+            "description": "[body] Indica incentivo fiscal."
+          },
+          "incentivadorCultural": {
+            "type": "boolean",
+            "description": "[body] Indica incentivador cultural."
+          },
+          "email": {
+            "type": "string",
+            "description": "[body] E-mail do emitente."
+          },
+          "endereco": {
+            "type": "object",
+            "description": "[body] Endereço do emitente. Campos obrigatórios: bairro, cep, codigoCidade (IBGE), estado, logradouro, numero e tipoLogradouro; opcionais: complemento, tipoBairro, descricaoCidade, codigoPais, descricaoPais."
+          },
+          "telefone": {
+            "type": "object",
+            "description": "[body] Telefone do emitente: {ddd, numero}."
+          },
+          "nfse": {
+            "type": "object",
+            "description": "[body] Licença e configuração de NFS-e: {ativo, tipoContrato, config:{producao, nfseNacional, rps, prefeitura, email, ...}}."
+          },
+          "nfe": {
+            "type": "object",
+            "description": "[body] Licença e configuração de NF-e: {ativo, tipoContrato, config:{producao, dfe, numeracao, numeracaoAutomatica, tipoEmissao, ...}}."
+          },
+          "nfce": {
+            "type": "object",
+            "description": "[body] Licença e configuração de NFC-e: {ativo, tipoContrato, config:{producao, sefaz, impressao, numeracao, ...}}."
+          },
+          "grupoEmpresaId": {
+            "type": "string",
+            "description": "[body] Identificador do grupo de empresas ao qual o emitente será vinculado."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cpfCnpj",
+          "razaoSocial",
+          "simplesNacional",
+          "regimeTributario",
+          "regimeTributarioEspecial",
+          "email",
+          "endereco",
+          "nfse",
+          "nfe",
+          "nfce"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__empresa__atualizar",
+      "title": "Alterar empresa",
+      "description": "PlugNotas (PATCH /empresa/{cnpj}). Altera o cadastro de um emitente. Aceita desde um campo isolado até o cadastro inteiro, desde que o campo venha na mesma hierarquia usada no cadastro. É por aqui que se liga a consulta de notas destinadas (nfe.config.dfe.ativo), se vira a chave de produção ({documento}.config.producao), se inativa uma licença ({documento}.ativo = false) e se desvincula a empresa de um grupo (grupoEmpresaId com string vazia). Quando usar: Use na virada de homologação para produção, ao ligar o DF-e, ao trocar o certificado de um CNPJ específico ou ao ajustar numeração de série. Escrita com efeito fiscal imediato: o assistente não executa. Pré-requisitos: Empresa já cadastrada.; Ler o cadastro atual antes, para acertar a hierarquia do campo. NÃO EXECUTAR: operação de escrita. Altera configuração fiscal em produção: virar a flag producao ou inativar um documento muda o comportamento de todas as emissões seguintes.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "description": "[path] CNPJ da empresa a alterar."
+          },
+          "certificado": {
+            "type": "string",
+            "description": "[body] Novo identificador de certificado."
+          },
+          "inscricaoMunicipal": {
+            "type": "string",
+            "description": "[body] Inscrição municipal."
+          },
+          "inscricaoEstadual": {
+            "type": "string",
+            "description": "[body] Inscrição estadual."
+          },
+          "email": {
+            "type": "string",
+            "description": "[body] E-mail do emitente."
+          },
+          "endereco": {
+            "type": "object",
+            "description": "[body] Endereço completo; quando enviado, os campos obrigatórios do endereço voltam a ser exigidos."
+          },
+          "nfse": {
+            "type": "object",
+            "description": "[body] Bloco de NFS-e, por exemplo {\"config\": {\"producao\": true}} ou {\"ativo\": false}."
+          },
+          "nfe": {
+            "type": "object",
+            "description": "[body] Bloco de NF-e, por exemplo {\"config\": {\"dfe\": {\"ativo\": true}}}."
+          },
+          "nfce": {
+            "type": "object",
+            "description": "[body] Bloco de NFC-e."
+          },
+          "mdfe": {
+            "type": "object",
+            "description": "[body] Bloco de MDF-e."
+          },
+          "nfcom": {
+            "type": "object",
+            "description": "[body] Bloco de NFCom."
+          },
+          "grupoEmpresaId": {
+            "type": "string",
+            "description": "[body] Identificador do grupo de empresas; string vazia desvincula."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__webhook__obter__organizacao",
+      "title": "Consultar webhook",
+      "description": "PlugNotas (GET /webhook). Devolve a configuração de webhook da organização: URL de destino, método HTTP, cabeçalhos fixos, query string e a opção de retorno completo para NFS-e. Quando usar: Use para conferir, em suporte ou auditoria, para onde as notificações estão indo e com quais cabeçalhos. Se a organização nunca configurou webhook, a API responde 400 dizendo isso. Pré-requisitos: Webhook de organização já cadastrado. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__webhook__assinar_webhook__organizacao",
+      "title": "Cadastrar webhook",
+      "description": "PlugNotas (POST /webhook). Cadastra o endpoint que receberá as notificações de todas as empresas da organização. Cada documento que chega a uma situação final (CONCLUIDO, REJEITADO, CANCELADO, DENEGADO) gera uma chamada individual — um lote de 50 notas vira 50 notificações. Documentos em PROCESSANDO não disparam nada. Em caso de falha, o PlugNotas repete por cerca de 6 horas até receber um 2xx. Quando usar: É o jeito recomendado de acompanhar emissão em escala, no lugar de ficar consultando resumo. Software house com um único backend usa este nível; quem precisa de um endpoint por cliente usa o webhook por empresa. Pré-requisitos: Endpoint público, com HTTPS, respondendo 2xx rapidamente.; Liberar os IPs de origem 54.144.48.129 e 3.210.19.145 se houver firewall. NÃO EXECUTAR: operação de escrita. Cria configuração persistente que redireciona todas as notificações fiscais da organização.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "[body] Endereço público que receberá as notificações."
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "POST",
+              "PUT",
+              "PATCH"
+            ],
+            "default": "POST",
+            "description": "[body] Método HTTP usado na notificação."
+          },
+          "headers": {
+            "type": "object",
+            "description": "[body] Cabeçalhos fixos enviados na notificação; é o único mecanismo de autenticação disponível (não há assinatura HMAC). Ex.: {\"Authorization\": \"Basic ...\"}."
+          },
+          "queryString": {
+            "type": "object",
+            "description": "[body] Parâmetros de query string anexados à URL da notificação."
+          },
+          "nfse": {
+            "type": "object",
+            "description": "[body] Opções específicas de NFS-e na notificação: {\"retornoCompleto\": true} envia o documento inteiro em vez do resumo."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "url"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__webhook__atualizar__organizacao",
+      "title": "Alterar webhook",
+      "description": "PlugNotas (PUT /webhook). Altera a configuração de webhook da organização. Só os documentos processados depois da alteração usam a configuração nova. Quando usar: Prefira este PUT ao par excluir/cadastrar quando for trocar de endpoint: apagar o webhook deixa uma janela sem notificação nenhuma. Pré-requisitos: Webhook de organização já cadastrado. NÃO EXECUTAR: operação de escrita. Altera configuração persistente de notificações da organização inteira.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "[body] Endereço público que receberá as notificações."
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "POST",
+              "PUT",
+              "PATCH"
+            ],
+            "default": "POST",
+            "description": "[body] Método HTTP usado na notificação."
+          },
+          "headers": {
+            "type": "object",
+            "description": "[body] Cabeçalhos fixos enviados na notificação; é o único mecanismo de autenticação disponível (não há assinatura HMAC). Ex.: {\"Authorization\": \"Basic ...\"}."
+          },
+          "queryString": {
+            "type": "object",
+            "description": "[body] Parâmetros de query string anexados à URL da notificação."
+          },
+          "nfse": {
+            "type": "object",
+            "description": "[body] Opções específicas de NFS-e na notificação: {\"retornoCompleto\": true} envia o documento inteiro em vez do resumo."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "url"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__webhook__excluir__organizacao",
+      "title": "Remover webhook",
+      "description": "PlugNotas (DELETE /webhook). Remove a configuração de webhook da organização. A partir daí nenhuma notificação é enviada até que um novo endpoint seja cadastrado. Quando usar: Use apenas em desativação real da integração. Para troca de endereço, a própria documentação recomenda o PUT, para não perder notificações no intervalo. Pré-requisitos: Ter um plano de acompanhamento por consulta enquanto não houver webhook. NÃO EXECUTAR: operação de escrita. Desliga todas as notificações da organização; documentos processados no intervalo não são reenviados depois.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__webhook__enviar__teste_organizacao",
+      "title": "Testar webhook",
+      "description": "PlugNotas (POST /webhook/verify). Dispara uma notificação de exemplo para o endpoint configurado na organização. A resposta desta chamada é exatamente o corpo e o status devolvidos pelo seu endpoint, o que torna a rota um teste de ponta a ponta. Quando usar: Use logo depois de cadastrar ou alterar o webhook, e sempre que o cliente disser que parou de receber notificação: se o teste volta com erro do lado dele, o problema não é do PlugNotas. É escrita porque dispara uma chamada para um sistema de terceiro. Pré-requisitos: Webhook já cadastrado na organização. NÃO EXECUTAR: operação de escrita. Provoca uma requisição real ao endpoint do cliente, que pode acionar regras de negócio do lado dele.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__webhook__obter__empresa",
+      "title": "Consultar webhook da empresa",
+      "description": "PlugNotas (GET /empresa/{cnpj}/webhook). Devolve a configuração de webhook específica de um CNPJ: URL, método, cabeçalhos fixos, query string e opção de retorno completo de NFS-e. Quando usar: Use quando cada cliente da software house tem o próprio endpoint e você precisa conferir para onde vão as notificações daquele CNPJ. Pré-requisitos: Empresa cadastrada e com webhook próprio. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "description": "[path] CNPJ da empresa emitente."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__webhook__assinar_webhook__empresa",
+      "title": "Cadastrar webhook da empresa",
+      "description": "PlugNotas (POST /empresa/{cnpj}/webhook). Cadastra um endpoint de notificação exclusivo para um CNPJ, sobrepondo o webhook da organização para aquela empresa. Vale a mesma mecânica: uma notificação por documento, só em situação final, com reenvio por cerca de 6 horas até receber 2xx. Quando usar: É o modelo para quem revende e quer entregar as notificações direto no sistema de cada cliente, sem passar pelo seu backend. Se você centraliza tudo em um backend só, prefira o webhook da organização. Pré-requisitos: Empresa cadastrada.; Endpoint público do cliente respondendo 2xx. NÃO EXECUTAR: operação de escrita. Cria configuração persistente de notificação para um CNPJ.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "description": "[path] CNPJ da empresa emitente."
+          },
+          "url": {
+            "type": "string",
+            "description": "[body] Endereço público que receberá as notificações."
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "POST",
+              "PUT",
+              "PATCH"
+            ],
+            "default": "POST",
+            "description": "[body] Método HTTP usado na notificação."
+          },
+          "headers": {
+            "type": "object",
+            "description": "[body] Cabeçalhos fixos enviados na notificação; é o único mecanismo de autenticação disponível (não há assinatura HMAC). Ex.: {\"Authorization\": \"Basic ...\"}."
+          },
+          "queryString": {
+            "type": "object",
+            "description": "[body] Parâmetros de query string anexados à URL da notificação."
+          },
+          "nfse": {
+            "type": "object",
+            "description": "[body] Opções específicas de NFS-e na notificação: {\"retornoCompleto\": true} envia o documento inteiro em vez do resumo."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cnpj",
+          "url"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__webhook__atualizar__empresa",
+      "title": "Alterar webhook da empresa",
+      "description": "PlugNotas (PUT /empresa/{cnpj}/webhook). Altera a configuração de webhook de um CNPJ. A configuração nova só vale para documentos processados depois da alteração. Quando usar: Use na troca de endpoint de um cliente específico, para não abrir janela sem notificação como aconteceria se você apagasse e recriasse. Pré-requisitos: Webhook da empresa já cadastrado. NÃO EXECUTAR: operação de escrita. Altera configuração persistente de notificação de um CNPJ.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "description": "[path] CNPJ da empresa emitente."
+          },
+          "url": {
+            "type": "string",
+            "description": "[body] Endereço público que receberá as notificações."
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "POST",
+              "PUT",
+              "PATCH"
+            ],
+            "default": "POST",
+            "description": "[body] Método HTTP usado na notificação."
+          },
+          "headers": {
+            "type": "object",
+            "description": "[body] Cabeçalhos fixos enviados na notificação; é o único mecanismo de autenticação disponível (não há assinatura HMAC). Ex.: {\"Authorization\": \"Basic ...\"}."
+          },
+          "queryString": {
+            "type": "object",
+            "description": "[body] Parâmetros de query string anexados à URL da notificação."
+          },
+          "nfse": {
+            "type": "object",
+            "description": "[body] Opções específicas de NFS-e na notificação: {\"retornoCompleto\": true} envia o documento inteiro em vez do resumo."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cnpj",
+          "url"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__webhook__excluir__empresa",
+      "title": "Remover webhook da empresa",
+      "description": "PlugNotas (DELETE /empresa/{cnpj}/webhook). Remove o webhook específico de um CNPJ. Sem ele, a empresa deixa de receber notificação naquele endereço até um novo cadastro. Quando usar: Use ao descomissionar um cliente ou ao migrar aquele CNPJ para o webhook da organização. Para simples troca de URL, prefira o PUT. Pré-requisitos: Confirmar se existe webhook de organização cobrindo a empresa. NÃO EXECUTAR: operação de escrita. Desliga as notificações daquele CNPJ; nada é reenviado depois.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "description": "[path] CNPJ da empresa emitente."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__webhook__enviar__teste_empresa",
+      "title": "Testar webhook da empresa",
+      "description": "PlugNotas (POST /empresa/{cnpj}/webhook/verify). Dispara uma notificação de exemplo para o endpoint configurado naquele CNPJ e devolve, como resposta, o corpo e o status que o endpoint do cliente retornou. Quando usar: É a ferramenta de diagnóstico do suporte: mostra na hora se o endereço do cliente está no ar, se aceita o método configurado e se valida o cabeçalho corretamente. Pré-requisitos: Webhook da empresa cadastrado. NÃO EXECUTAR: operação de escrita. Provoca uma requisição real ao endpoint do cliente, que pode acionar regras de negócio do lado dele.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "description": "[path] CNPJ da empresa emitente."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__cliente__criar__tomador",
+      "title": "Cadastrar tomador",
+      "description": "PlugNotas (POST /nfse/tomador). Cadastra um tomador de serviço (o cliente do prestador) com CPF/CNPJ, razão social, endereço completo, inscrições e telefone. O cadastro é opcional: existe para simplificar a emissão, permitindo enviar só {\"tomador\": {\"id\": \"...\"}} no JSON da nota em vez de repetir o bloco inteiro. Quando usar: Vale a pena quando o mesmo tomador se repete muito (contratos mensais, carteira fixa). Se cada nota é para um cliente diferente, mande os dados direto no payload da NFS-e e pule este cadastro. Pré-requisitos: Endereço completo com código IBGE do município. NÃO EXECUTAR: operação de escrita. Cria cadastro persistente de dado pessoal de terceiro na conta do cliente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cpfCnpj": {
+            "type": "string",
+            "description": "[body] CPF ou CNPJ do tomador, sem máscara."
+          },
+          "razaoSocial": {
+            "type": "string",
+            "description": "[body] Razão social ou nome do tomador."
+          },
+          "nomeFantasia": {
+            "type": "string",
+            "description": "[body] Nome fantasia."
+          },
+          "endereco": {
+            "type": "object",
+            "description": "[body] Endereço do tomador. Obrigatórios: bairro, cep, codigoCidade, estado, logradouro, numero e tipoLogradouro."
+          },
+          "email": {
+            "type": "string",
+            "description": "[body] E-mail para envio do PDF e do XML."
+          },
+          "telefone": {
+            "type": "object",
+            "description": "[body] Telefone: {ddd, numero}. O campo numero é obrigatório quando o objeto é enviado."
+          },
+          "inscricaoMunicipal": {
+            "type": "string",
+            "description": "[body] Inscrição municipal do tomador."
+          },
+          "inscricaoEstadual": {
+            "type": "string",
+            "description": "[body] Inscrição estadual do tomador."
+          },
+          "inscricaoSuframa": {
+            "type": "string",
+            "description": "[body] Inscrição Suframa."
+          },
+          "indicadorInscricaoEstadual": {
+            "type": "integer",
+            "description": "[body] Indicador de contribuinte de ICMS."
+          },
+          "orgaoPublico": {
+            "type": "boolean",
+            "description": "[body] Indica se o tomador é órgão público."
+          },
+          "codigoEstrangeiro": {
+            "type": "string",
+            "description": "[body] Documento do tomador estrangeiro."
+          },
+          "naoNif": {
+            "type": "string",
+            "description": "[body] Indicador de tomador estrangeiro sem NIF."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cpfCnpj",
+          "endereco"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__cliente__obter__tomador",
+      "title": "Consultar tomador",
+      "description": "PlugNotas (GET /nfse/tomador/{cpfCnpj}). Devolve o cadastro de um tomador de NFS-e pelo CPF ou CNPJ: razão social, endereço, inscrições, e-mail e telefone. Quando usar: Use para conferir se o tomador já está cadastrado antes de emitir (evita o 409 do cadastro duplicado) e para exportar a carteira de tomadores que o cliente mantém no PlugNotas. Pré-requisitos: Tomador já cadastrado (o cadastro é opcional na emissão). Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cpfCnpj": {
+            "type": "string",
+            "description": "[path] CPF ou CNPJ do tomador, sem máscara."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cpfCnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__produto__criar__servico",
+      "title": "Cadastrar serviço",
+      "description": "PlugNotas (POST /nfse/servico). Cadastra um serviço reutilizável para NFS-e: código do item da lista de serviços, discriminação, CNAE, código de tributação, código de serviço nacional, unidade e o bloco de ISS (alíquota, tipo de tributação, exigibilidade, retenção, situação tributária). Devolve um id que pode ser usado no JSON da nota como {\"servico\": {\"id\": \"...\"}}. Quando usar: Vale para quem fatura sempre os mesmos serviços: centraliza alíquota e discriminação em um lugar só. Não é obrigatório — tudo pode ir direto no payload da nota. Pré-requisitos: Código do item de serviço aceito pelo município do prestador. NÃO EXECUTAR: operação de escrita. Cria cadastro fiscal reutilizável que passa a valer para as próximas emissões.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "description": "[body] Código do serviço na lista do município (item da LC 116)."
+          },
+          "discriminacao": {
+            "type": "string",
+            "description": "[body] Descrição do serviço que sai na nota; respeite o tamanho máximo do município (campo detalhesEmissao.tamanhoMaxDescricao)."
+          },
+          "codigoTributacao": {
+            "type": "string",
+            "description": "[body] Código de tributação do município."
+          },
+          "codigoContribuinte": {
+            "type": "string",
+            "description": "[body] Código do serviço no cadastro do contribuinte na prefeitura."
+          },
+          "codigoServicoNacional": {
+            "type": "string",
+            "description": "[body] Código de tributação nacional da NFS-e Nacional."
+          },
+          "codigoNbs": {
+            "type": "string",
+            "description": "[body] Código NBS."
+          },
+          "cnae": {
+            "type": "string",
+            "description": "[body] CNAE do serviço."
+          },
+          "codigoCidadeIncidencia": {
+            "type": "string",
+            "description": "[body] Código IBGE do município de incidência do ISS."
+          },
+          "unidade": {
+            "type": "string",
+            "description": "[body] Unidade de medida."
+          },
+          "quantidade": {
+            "type": "number",
+            "description": "[body] Quantidade padrão."
+          },
+          "iss": {
+            "type": "object",
+            "description": "[body] Bloco do ISS: aliquota (obrigatória), tipoTributacao, tipoRetencao, exigibilidade, retido, valor, valorRetido, situacaoTributaria, processoSuspensao."
+          },
+          "obra": {
+            "type": "object",
+            "description": "[body] Dados de obra (ART, CEI, endereço), quando o serviço for de construção civil."
+          },
+          "idIntegracao": {
+            "type": "string",
+            "description": "[body] Identificador do serviço no seu sistema."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "codigo",
+          "discriminacao",
+          "iss"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__produto__obter__servico",
+      "title": "Consultar serviço",
+      "description": "PlugNotas (GET /nfse/servico/{idServico}). Devolve o cadastro de um serviço de NFS-e pelo identificador: código do item, discriminação, CNAE, códigos de tributação e o bloco completo de ISS. Quando usar: Use para conferir a alíquota e a discriminação que estão sendo aplicadas antes de emitir, e para exportar a tabela de serviços que o cliente mantém no PlugNotas. Pré-requisitos: Serviço já cadastrado. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idServico": {
+            "type": "string",
+            "description": "[path] Identificador do serviço devolvido no cadastro."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idServico"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__emitir__nfse",
+      "title": "Emitir nota de serviço",
+      "description": "PlugNotas (POST /nfse). Envia uma ou mais NFS-e para a prefeitura (ou para o Ambiente Nacional, quando a empresa está com nfseNacional ligado). O corpo é um array de documentos; cada um traz prestador, tomador, serviço, RPS e cidade de prestação. A API valida o schema e algumas regras de negócio na hora e, passando, devolve um id por nota mais um protocolo do lote, com a mensagem de que as notas estão em processamento. A autorização em si é assíncrona. Quando usar: É a rota central de quem fatura serviço. Um HTTP 200 aqui não quer dizer nota autorizada: significa que o PlugNotas aceitou o JSON. A situação real vem do webhook ou da consulta de resumo. Escrita com efeito fiscal e cobrança: o assistente explica e gera o código, mas quem executa é o cliente. Pré-requisitos: Empresa cadastrada com NFS-e ativa.; Certificado digital cadastrado, quando o município exigir.; Município homologado (confira em GET /nfse/cidades/{codigoIbge}).; idIntegracao único por nota. NÃO EXECUTAR: operação de escrita. Emite documento fiscal com efeito legal e consome franquia contratada. Nunca executado pelo assistente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idIntegracao": {
+            "type": "string",
+            "description": "[body] Identificador único da nota no seu sistema; é a proteção contra duplicidade (reenvio do mesmo valor devolve 409 em vez de emitir outra nota)."
+          },
+          "prestador": {
+            "type": "object",
+            "description": "[body] Emitente do serviço. Obrigatório o cpfCnpj de uma empresa já cadastrada; os demais dados vêm do cadastro quando omitidos."
+          },
+          "tomador": {
+            "type": "object",
+            "description": "[body] Tomador do serviço: cpfCnpj, razaoSocial, endereco, email, inscrições. Pode ser substituído por {\"id\": \"...\"} de um tomador cadastrado. No schema oficial só prestador e servico são obrigatórios, mas a maioria das prefeituras exige o tomador."
+          },
+          "servico": {
+            "type": "array",
+            "description": "[body] Itens de serviço. Obrigatórios em cada item: codigo, discriminacao, iss e valor. Opcionais úteis: cnae, codigoTributacao, codigoServicoNacional, codigoCidadeIncidencia, deducao e ibscbs. Pode usar {\"id\": \"...\"} de serviço cadastrado."
+          },
+          "rps": {
+            "type": "object",
+            "description": "[body] Dados do RPS: dataEmissao e competencia são obrigatórios quando o objeto é enviado; serie e numero só quando a numeração automática está desligada."
+          },
+          "cidadePrestacao": {
+            "type": "object",
+            "description": "[body] Município onde o serviço foi prestado: codigo (IBGE) e descricao obrigatórios quando enviado; sem ele vale a cidade do prestador. Exterior usa 9999999."
+          },
+          "enviarEmail": {
+            "type": "boolean",
+            "default": false,
+            "description": "[body] Envia PDF e XML por e-mail ao tomador."
+          },
+          "idNotaSubstituida": {
+            "type": "string",
+            "description": "[body] Identificador da nota que está sendo substituída, nos municípios que suportam substituição."
+          },
+          "informacoesComplementares": {
+            "type": "object",
+            "description": "[body] Observações e informações complementares impressas na nota."
+          },
+          "intermediario": {
+            "type": "object",
+            "description": "[body] Intermediário do serviço, quando houver."
+          },
+          "camposPrefeitura": {
+            "type": "object",
+            "description": "[body] Campos exigidos apenas por determinadas prefeituras, fora do padrão comum."
+          },
+          "parcelas": {
+            "type": "array",
+            "description": "[body] Parcelamento do serviço, nos municípios que aceitam."
+          },
+          "naturezaTributacao": {
+            "type": "string",
+            "description": "[body] Natureza da tributação do serviço, quando o município exige."
+          },
+          "modoEnvio": {
+            "type": "string",
+            "description": "[body] Modo de envio à prefeitura, quando o município oferece mais de um."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "prestador",
+          "servico"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__obter__nfse",
+      "title": "Consultar nota (retorno completo)",
+      "description": "PlugNotas (GET /nfse/{idNotaOrProtocol}). Devolve o documento completo da NFS-e como o PlugNotas o guarda: prestador, tomador, serviço com impostos, RPS/DPS, cidade de prestação e os dados de retorno da prefeitura. Buscando por id vem um documento; buscando por protocolo vem o array com todas as notas daquele lote. Quando usar: Use quando precisar do conteúdo inteiro da nota — por exemplo, para reimprimir num layout próprio ou conferir o que foi enviado. Para acompanhar status, prefira a consulta de resumo, que é bem mais leve. Pré-requisitos: Nota já enviada (id ou protocolo em mãos). Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaOrProtocol": {
+            "type": "string",
+            "description": "[path] Identificador da nota devolvido na emissão, ou o protocolo do lote."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaOrProtocol"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__nfse",
+      "title": "Consultar resumo da nota",
+      "description": "PlugNotas (GET /nfse/consultar/{idNotaOrProtocol}). Devolve o resumo de uma NFS-e já enviada, por id ou por protocolo do lote: situação, número da NFS-e atribuído pela prefeitura, número e série do RPS, valor, prestador, tomador, código de verificação, mensagem de retorno e as URLs de PDF e XML. Quando usar: É a consulta de acompanhamento padrão, e a alternativa ao webhook. Duas armadilhas de nome: numero é o número do RPS que o PlugNotas mandou para a prefeitura, e numeroNfse é o número que a prefeitura devolveu — que varia de formato por município e deve ser tratado como texto. Pré-requisitos: Nota já enviada. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaOrProtocol": {
+            "type": "string",
+            "description": "[path] Identificador da nota devolvido na emissão, ou o protocolo do lote."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaOrProtocol"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__listar__nfse_periodo",
+      "title": "Consultar notas de serviço por período",
+      "description": "PlugNotas (GET /nfse/consultar/periodo). Lista as NFS-e recebidas pelo PlugNotas de um CPF/CNPJ em um intervalo de datas, em qualquer situação. Devolve 25 registros por página, em ordem decrescente, com o cursor da página seguinte no campo hashProximaPagina. A data do filtro é a de recebimento pelo PlugNotas, que pode ser diferente da emissão e da autorização. Quando usar: É a rota que alimenta planilha e painel: 'quantas notas de serviço saíram em agosto, quais foram rejeitadas, qual o total faturado'. Limites que mudam o planejamento: janela máxima de 31 dias e cache de 300 segundos — para tempo real, use a consulta por id. Pré-requisitos: CNPJ do prestador cadastrado na organização.; Fatiar períodos maiores que 31 dias em várias chamadas. Somente leitura: pode ser executada com a credencial do cliente. Paginação: cursor.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cpfCnpj": {
+            "type": "string",
+            "description": "[query] CPF ou CNPJ do prestador a consultar."
+          },
+          "dataInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Início do período, no formato AAAA-MM-DD."
+          },
+          "dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Fim do período, no formato AAAA-MM-DD. O intervalo não pode passar de 31 dias."
+          },
+          "hashProximaPagina": {
+            "type": "string",
+            "description": "[query] Cursor devolvido na página anterior; omita na primeira chamada."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cpfCnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__baixar_arquivo__pdf_nfse",
+      "title": "Baixar PDF da NFS-e",
+      "description": "PlugNotas (GET /nfse/pdf/{idNota}). Faz o download do PDF da NFS-e pelo identificador. Só funciona para notas em situação CONCLUIDO ou CANCELADO. Se o arquivo ainda está sendo gerado, a API responde HTTP 202 com uma mensagem em JSON, em vez do binário. Quando usar: Use para arquivar o documento ou anexar ao e-mail do seu sistema. Trate sempre o 202: em município cujo PDF vem por link da prefeitura, a geração pode demorar alguns minutos depois da autorização. Pré-requisitos: Nota em situação CONCLUIDO ou CANCELADO. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota devolvido na emissão."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__baixar_arquivo__xml_nfse",
+      "title": "Baixar XML da NFS-e",
+      "description": "PlugNotas (GET /nfse/xml/{idNota}). Faz o download do XML da NFS-e. Só está disponível para notas em situação CONCLUIDO ou CANCELADO. O XML é o que a própria prefeitura devolveu, então pode ser diferente do documento exibido no portal municipal. Quando usar: É o arquivo que a contabilidade precisa guardar. Como o conteúdo varia por padrão de prefeitura (ABRASF, DSF, INFISC e outros), não escreva um parser único: identifique o padrão pelo campo padrao do município antes. Pré-requisitos: Nota em situação CONCLUIDO ou CANCELADO. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota devolvido na emissão."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__cancelar__nfse",
+      "title": "Solicitar cancelamento da NFS-e",
+      "description": "PlugNotas (POST /nfse/cancelar/{idNota}). Abre uma solicitação de cancelamento de NFS-e junto à prefeitura. Só vale para nota em situação CONCLUIDO. A resposta traz um protocolo de cancelamento que deve ser consultado depois; quando o cancelamento é homologado, a situação da nota vira CANCELADO e o webhook é disparado. Algumas prefeituras exigem código e motivo no corpo; no Ambiente Nacional os códigos aceitos são 1 (erro na emissão), 2 (serviço não prestado) e 9 (outros), com 9 como padrão. Quando usar: Use dentro do prazo que a prefeitura permite. Nem todo município aceita cancelamento por webservice — o campo cancelamento em GET /nfse/cidades/{codigoIbge} diz se dá. Escrita destrutiva: o assistente nunca executa. Pré-requisitos: Nota em situação CONCLUIDO.; Município com cancelamento por webservice (campo cancelamento em /nfse/cidades). NÃO EXECUTAR: operação de escrita. Cancela documento fiscal com efeito legal e prazo definido pela prefeitura. Irreversível.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota a cancelar."
+          },
+          "codigo": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2",
+              "9"
+            ],
+            "description": "[body] Código do motivo de cancelamento exigido por algumas prefeituras e pelo Ambiente Nacional (1, 2 ou 9)."
+          },
+          "motivo": {
+            "type": "string",
+            "description": "[body] Descrição do motivo do cancelamento."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__cancelamento_nfse",
+      "title": "Consultar a solicitação de cancelamento da NFS-e",
+      "description": "PlugNotas (GET /nfse/cancelar/status/{cancellationProtocol}). Informa em que pé está uma solicitação de cancelamento, pelo protocolo devolvido no pedido. O campo status vale CONCLUIDO quando a prefeitura homologou e REJEITADO quando recusou — e se refere à solicitação, não à nota. Enquanto o processamento não termina, a API responde 201 com uma mensagem de 'em processamento'. Quando usar: Use logo depois de pedir o cancelamento, em polling curto, ou como confirmação quando o webhook não chegou. Se o município não aceita cancelamento por webservice, a resposta diz isso explicitamente com o nome do padrão. Pré-requisitos: Protocolo de cancelamento em mãos. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cancellationProtocol": {
+            "type": "string",
+            "description": "[path] Protocolo devolvido no pedido de cancelamento."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cancellationProtocol"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__enviar__email_nfse",
+      "title": "Enviar e-mail da NFS-e",
+      "description": "PlugNotas (POST /nfse/email/{idNota}). Dispara (ou redispara) o e-mail com PDF e XML da NFS-e. Com reenvio em true, manda para todos os destinatários que já estavam no JSON da nota mais os endereços informados no array destinatarios. Quando usar: Serve para o botão 'reenviar nota por e-mail' do seu sistema e para mandar a nota a um contato novo. Se o cadastro da empresa tiver {documento}.config.email.ativo igual a true, o envio já acontece automaticamente na autorização e esta rota vira exceção. Pré-requisitos: Nota já processada e com PDF/XML disponíveis. NÃO EXECUTAR: operação de escrita. Envia comunicação para terceiros em nome do cliente; executar por engano manda e-mail para o cliente final.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota."
+          },
+          "reenvio": {
+            "type": "boolean",
+            "default": false,
+            "description": "[body] Quando true, reenvia para os destinatários originais da nota além dos informados aqui."
+          },
+          "destinatarios": {
+            "type": "array",
+            "description": "[body] Lista de e-mails adicionais que devem receber PDF e XML."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__listar__nfsen_periodo",
+      "title": "Consultar notas do Ambiente Nacional por CNPJ e período",
+      "description": "PlugNotas (GET /nfse/nacional/{cpfCnpj}/consultar/periodo). Lista as NFS-e do Ambiente Nacional que o PlugNotas obteve pela Distribuição DF-e para um CPF/CNPJ e um período. Retorna 25 registros por página, com cursor em hashProximaPagina. Só aparecem aqui as notas recebidas pela consulta DF-e: notas emitidas pelo próprio PlugNotas não entram nesta rota. Quando usar: É o caminho para descobrir notas de serviço emitidas contra o seu CNPJ ou por você em outro sistema, dentro do padrão nacional. Atenção comercial: a documentação avisa que as notas sincronizadas por aqui são armazenadas e contabilizadas como emissões, ou seja, consomem franquia. Pré-requisitos: Empresa cadastrada com NFS-e Nacional e consulta DF-e habilitadas.; Ciência de que cada nota sincronizada conta na franquia. Somente leitura: pode ser executada com a credencial do cliente. Paginação: cursor.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cpfCnpj": {
+            "type": "string",
+            "description": "[path] CPF ou CNPJ do autor do documento."
+          },
+          "dataInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Início do período, no formato AAAA-MM-DD."
+          },
+          "dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Fim do período, no formato AAAA-MM-DD."
+          },
+          "ator": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "description": "[query] Papel do CPF/CNPJ informado: 1 prestador, 2 tomador, 3 intermediário."
+          },
+          "hashProximaPagina": {
+            "type": "string",
+            "description": "[query] Cursor devolvido na página anterior."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cpfCnpj",
+          "dataInicial",
+          "dataFinal"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__manifestar__nfsen",
+      "title": "Solicitar envio ou consulta de eventos da NFS-e Nacional",
+      "description": "PlugNotas (POST /nfse/eventos/{idNota}). Registra um evento no Ambiente Nacional da NFS-e para uma nota, ou pede a consulta dos eventos dela. O campo tipo aceita manifestacao e consulta; modelo, codigo e motivo completam o evento (por exemplo, confirmação do prestador ou rejeição do tomador). Só funciona para nota em situação CONCLUIDO, e a conclusão chega por webhook. Quando usar: É a manifestação do lado de serviços: confirmar ou rejeitar uma NFS-e Nacional recebida. A resposta devolve só um protocolo; o resultado se consulta depois. Escrita com efeito fiscal: o assistente não executa. Pré-requisitos: Nota em situação CONCLUIDO.; Empresa habilitada no Ambiente Nacional da NFS-e. NÃO EXECUTAR: operação de escrita. Registra evento fiscal no Ambiente Nacional em nome do cliente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota no PlugNotas."
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "manifestacao",
+              "consulta"
+            ],
+            "description": "[body] Tipo da solicitação: manifestacao ou consulta."
+          },
+          "modelo": {
+            "type": "string",
+            "description": "[body] Modelo do evento no Ambiente Nacional (por exemplo e202201)."
+          },
+          "codigo": {
+            "type": "string",
+            "description": "[body] Código do evento."
+          },
+          "motivo": {
+            "type": "string",
+            "description": "[body] Motivo/justificativa do evento."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota",
+          "tipo"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__listar__eventos_nfsen",
+      "title": "Consultar eventos da NFS-e Nacional",
+      "description": "PlugNotas (GET /nfse/eventos/{idNota}). Lista os eventos vinculados a uma NFS-e do Ambiente Nacional: identificador do evento, protocolo, modelo, tipo, descrição, código, data, CPF/CNPJ do autor, NSU e situação (PROCESSANDO, REJEITADO ou CONCLUIDO). Sem o filtro tipoEvento vêm todos. Quando usar: Use para auditar o que já foi manifestado sobre a nota e para confirmar se o evento que você enviou foi aceito. É também a fonte para uma planilha de acompanhamento de manifestações. Pré-requisitos: Nota do Ambiente Nacional já processada. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota no PlugNotas."
+          },
+          "tipoEvento": {
+            "type": "string",
+            "enum": [
+              "manifestacao",
+              "consulta"
+            ],
+            "description": "[query] Filtra por tipo de evento (manifestacao ou consulta); sem ele retorna todos."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__baixar_arquivo__xml_evento_nfsen",
+      "title": "Baixar XML do evento da NFS-e Nacional",
+      "description": "PlugNotas (GET /nfse/eventos/{idNota}/{protocolEvent}/xml). Faz o download do XML de um evento específico da NFS-e Nacional, identificado pela nota e pelo protocolo do evento. Se o arquivo ainda está em geração, volta HTTP 202 com JSON. Quando usar: Use para guardar a prova do evento junto ao XML da nota, como a contabilidade costuma exigir. Pré-requisitos: Evento já concluído. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota no PlugNotas."
+          },
+          "protocolEvent": {
+            "type": "string",
+            "description": "[path] Protocolo do evento devolvido na solicitação."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota",
+          "protocolEvent"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__relatorio__listar__nfse",
+      "title": "Relatório de emissão de NFS-e",
+      "description": "PlugNotas (GET /nfse/relatorio). Devolve a contagem de NFS-e por CNPJ e por situação (CONCLUIDO, REJEITADO, CANCELADO, DENEGADO, PROCESSANDO) para todas as empresas da organização, dentro de um período de no máximo 31 dias. Pagina por page/perPage, com até 100 itens por página, e o último elemento do array traz o rodapé com page, perPage, totalPages e totalItems. Quando usar: É o relatório gerencial pronto: quantas notas cada cliente emitiu no mês e quantas foram rejeitadas. Cabe direto numa planilha e responde a pergunta de faturamento e de qualidade de emissão sem varrer documento por documento. Pré-requisitos: Token da organização.; Período de no máximo 31 dias. Somente leitura: pode ser executada com a credencial do cliente. Paginação: page.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[query] Início do período, no formato AAAA-MM-DDTHH:mm:ss. Precisa vir junto com 'to'."
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[query] Fim do período, no formato AAAA-MM-DDTHH:mm:ss. O intervalo não pode passar de 31 dias."
+          },
+          "page": {
+            "type": "integer",
+            "default": 1,
+            "description": "[query] Número da página."
+          },
+          "perPage": {
+            "type": "integer",
+            "default": 100,
+            "maximum": 100,
+            "description": "[query] Itens por página; o máximo é 100 e valores maiores são reduzidos automaticamente."
+          },
+          "grupoEmpresaId": {
+            "type": "string",
+            "description": "[query] Filtra pelas empresas de um grupo específico."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__relatorio__listar__nfe",
+      "title": "Relatório de emissão de NF-e",
+      "description": "PlugNotas (GET /nfe/relatorio). Devolve a contagem de NF-e por CNPJ e por situação (CONCLUIDO, REJEITADO, CANCELADO, DENEGADO, PROCESSANDO) para todas as empresas da organização, dentro de um período de no máximo 31 dias. Pagina por page/perPage, com até 100 itens por página, e o último elemento do array traz o rodapé com page, perPage, totalPages e totalItems. Quando usar: É o relatório gerencial pronto: quantas notas cada cliente emitiu no mês e quantas foram rejeitadas. Cabe direto numa planilha e responde a pergunta de faturamento e de qualidade de emissão sem varrer documento por documento. Pré-requisitos: Token da organização.; Período de no máximo 31 dias. Somente leitura: pode ser executada com a credencial do cliente. Paginação: page.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[query] Início do período, no formato AAAA-MM-DDTHH:mm:ss. Precisa vir junto com 'to'."
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[query] Fim do período, no formato AAAA-MM-DDTHH:mm:ss. O intervalo não pode passar de 31 dias."
+          },
+          "page": {
+            "type": "integer",
+            "default": 1,
+            "description": "[query] Número da página."
+          },
+          "perPage": {
+            "type": "integer",
+            "default": 100,
+            "maximum": 100,
+            "description": "[query] Itens por página; o máximo é 100 e valores maiores são reduzidos automaticamente."
+          },
+          "grupoEmpresaId": {
+            "type": "string",
+            "description": "[query] Filtra pelas empresas de um grupo específico."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__relatorio__listar__nfce",
+      "title": "Relatório de emissão de NFC-e",
+      "description": "PlugNotas (GET /nfce/relatorio). Devolve a contagem de NFC-e por CNPJ e por situação (CONCLUIDO, REJEITADO, CANCELADO, DENEGADO, PROCESSANDO) para todas as empresas da organização, dentro de um período de no máximo 31 dias. Pagina por page/perPage, com até 100 itens por página, e o último elemento do array traz o rodapé com page, perPage, totalPages e totalItems. Quando usar: É o relatório gerencial pronto: quantas notas cada cliente emitiu no mês e quantas foram rejeitadas. Cabe direto numa planilha e responde a pergunta de faturamento e de qualidade de emissão sem varrer documento por documento. Pré-requisitos: Token da organização.; Período de no máximo 31 dias. Somente leitura: pode ser executada com a credencial do cliente. Paginação: page.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[query] Início do período, no formato AAAA-MM-DDTHH:mm:ss. Precisa vir junto com 'to'."
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[query] Fim do período, no formato AAAA-MM-DDTHH:mm:ss. O intervalo não pode passar de 31 dias."
+          },
+          "page": {
+            "type": "integer",
+            "default": 1,
+            "description": "[query] Número da página."
+          },
+          "perPage": {
+            "type": "integer",
+            "default": 100,
+            "maximum": 100,
+            "description": "[query] Itens por página; o máximo é 100 e valores maiores são reduzidos automaticamente."
+          },
+          "grupoEmpresaId": {
+            "type": "string",
+            "description": "[query] Filtra pelas empresas de um grupo específico."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__relatorio__listar__mdfe",
+      "title": "Relatório de emissão de MDF-e",
+      "description": "PlugNotas (GET /mdfe/relatorio). Devolve a contagem de MDF-e por CNPJ e por situação (CONCLUIDO, REJEITADO, CANCELADO, DENEGADO, PROCESSANDO) para todas as empresas da organização, dentro de um período de no máximo 31 dias. Pagina por page/perPage, com até 100 itens por página, e o último elemento do array traz o rodapé com page, perPage, totalPages e totalItems. Quando usar: É o relatório gerencial pronto: quantas notas cada cliente emitiu no mês e quantas foram rejeitadas. Cabe direto numa planilha e responde a pergunta de faturamento e de qualidade de emissão sem varrer documento por documento. Pré-requisitos: Token da organização.; Período de no máximo 31 dias. Somente leitura: pode ser executada com a credencial do cliente. Paginação: page.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[query] Início do período, no formato AAAA-MM-DDTHH:mm:ss. Precisa vir junto com 'to'."
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[query] Fim do período, no formato AAAA-MM-DDTHH:mm:ss. O intervalo não pode passar de 31 dias."
+          },
+          "page": {
+            "type": "integer",
+            "default": 1,
+            "description": "[query] Número da página."
+          },
+          "perPage": {
+            "type": "integer",
+            "default": 100,
+            "maximum": 100,
+            "description": "[query] Itens por página; o máximo é 100 e valores maiores são reduzidos automaticamente."
+          },
+          "grupoEmpresaId": {
+            "type": "string",
+            "description": "[query] Filtra pelas empresas de um grupo específico."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__relatorio__listar__nfcom",
+      "title": "Relatório de emissão de NFCom",
+      "description": "PlugNotas (GET /nfcom/relatorio). Devolve a contagem de NFCom por CNPJ e por situação (CONCLUIDO, REJEITADO, CANCELADO, DENEGADO, PROCESSANDO) para todas as empresas da organização, dentro de um período de no máximo 31 dias. Pagina por page/perPage, com até 100 itens por página, e o último elemento do array traz o rodapé com page, perPage, totalPages e totalItems. Quando usar: É o relatório gerencial pronto: quantas notas cada cliente emitiu no mês e quantas foram rejeitadas. Cabe direto numa planilha e responde a pergunta de faturamento e de qualidade de emissão sem varrer documento por documento. Pré-requisitos: Token da organização.; Período de no máximo 31 dias. Somente leitura: pode ser executada com a credencial do cliente. Paginação: page.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[query] Início do período, no formato AAAA-MM-DDTHH:mm:ss. Precisa vir junto com 'to'."
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[query] Fim do período, no formato AAAA-MM-DDTHH:mm:ss. O intervalo não pode passar de 31 dias."
+          },
+          "page": {
+            "type": "integer",
+            "default": 1,
+            "description": "[query] Número da página."
+          },
+          "perPage": {
+            "type": "integer",
+            "default": 100,
+            "maximum": 100,
+            "description": "[query] Itens por página; o máximo é 100 e valores maiores são reduzidos automaticamente."
+          },
+          "grupoEmpresaId": {
+            "type": "string",
+            "description": "[query] Filtra pelas empresas de um grupo específico."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__relatorio__obter__organizacao",
+      "title": "Relatório de consumo da organização",
+      "description": "PlugNotas (GET /relatorio/{ano}/{mes}). Devolve o consumo mensal consolidado da organização: quantidade de empresas e, para cada tipo de documento (nfe, destinadas, nfce, nfse, mdfe, nfcom), o total do mês e a quebra por situação. Quando usar: É o número que interessa a quem paga a conta: quanto foi emitido no mês inteiro, por tipo de documento, em um único GET. Combine com os relatórios por documento quando precisar abrir por CNPJ. Pré-requisitos: Token da organização. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ano": {
+            "type": "string",
+            "pattern": "^[0-9]{4}$",
+            "description": "[path] Ano de referência, com 4 dígitos."
+          },
+          "mes": {
+            "type": "string",
+            "description": "[path] Mês de referência (1 a 12)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "ano",
+          "mes"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__emitir__nfe",
+      "title": "Emitir nota de produto",
+      "description": "PlugNotas (POST /nfe). Envia uma ou mais NF-e para a SEFAZ. O corpo é um array de documentos com emitente, destinatário, itens (com NCM, CFOP e o bloco completo de tributos), pagamento, transporte e totais. A API valida o schema e as regras de negócio e, passando, devolve um id por nota e um protocolo de lote com a mensagem de processamento. A autorização é assíncrona. Quando usar: É a emissão de nota de produto. Atenção: HTTP 200 não é autorização — é aceite do JSON. A situação real aparece no resumo ou no webhook, e rejeição da SEFAZ chega como status REJEITADO com cStat, não como erro HTTP. Escrita fiscal: o assistente entrega o código, quem executa é o cliente. Pré-requisitos: Empresa cadastrada com NF-e ativa e certificado A1 vinculado.; Dados fiscais corretos: NCM, CFOP, CST/CSOSN e alíquotas vêm do seu sistema, a API não calcula por você.; idIntegracao único por nota. NÃO EXECUTAR: operação de escrita. Emite documento fiscal com efeito legal perante a SEFAZ e consome franquia contratada.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idIntegracao": {
+            "type": "string",
+            "description": "[body] Identificador único da nota no seu sistema; protege contra duplicidade (mesmo valor devolve 409)."
+          },
+          "emitente": {
+            "type": "object",
+            "description": "[body] Emitente da nota; o cpfCnpj precisa ser de empresa cadastrada com NF-e ativa."
+          },
+          "destinatario": {
+            "type": "object",
+            "description": "[body] Destinatário: cpfCnpj, razaoSocial, inscrições, endereço e indicador de IE."
+          },
+          "itens": {
+            "type": "array",
+            "description": "[body] Itens da nota. Obrigatórios em cada item: descricao, ncm, cfop, tributos e valorUnitario. Outros campos comuns: codigo, cest, unidade, quantidade, valor, valorTotal e, na Reforma Tributária, tributos.ibscbs e tributos.is."
+          },
+          "pagamentos": {
+            "type": "array",
+            "description": "[body] Formas de pagamento (grupo YA). Em cada item, meio e valor são obrigatórios; o enum de meio vai de 01 a 99 (01 dinheiro, 03 cartão de crédito, 15 boleto, 17 e 20 Pix, 90 sem pagamento, 99 outros). Opcionais: aVista, data, cartao, descricaoMeio, cnpjTransacional, ufTransacional."
+          },
+          "total": {
+            "type": "object",
+            "description": "[body] Totalizadores da nota (grupo W01). Quando omitido, o PlugNotas soma a partir dos itens."
+          },
+          "natureza": {
+            "type": "string",
+            "description": "[body] Natureza da operação."
+          },
+          "numero": {
+            "type": "string",
+            "description": "[body] Número da nota; dispensável quando a numeração automática está ligada no cadastro da empresa."
+          },
+          "serie": {
+            "type": "number",
+            "description": "[body] Série da nota."
+          },
+          "dataEmissao": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[body] Data e hora de emissão; sem fuso a API assume -03:00."
+          },
+          "dataSaidaEntrada": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[body] Data e hora de saída ou entrada da mercadoria."
+          },
+          "finalidade": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6"
+            ],
+            "description": "[body] Finalidade da emissão."
+          },
+          "saida": {
+            "type": "boolean",
+            "description": "[body] Indica operação de saída (true) ou entrada (false)."
+          },
+          "presencial": {
+            "type": "string",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "5",
+              "9"
+            ],
+            "description": "[body] Indicador de presença do comprador."
+          },
+          "tipoImpressao": {
+            "type": "string",
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3"
+            ],
+            "description": "[body] Formato de impressão do DANFE."
+          },
+          "tipoEmissao": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2",
+              "5",
+              "6",
+              "7"
+            ],
+            "description": "[body] Forma de emissão (normal ou contingências)."
+          },
+          "codigoIdentificacaoDestino": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2",
+              "3"
+            ],
+            "description": "[body] Identificação do destino da operação (interna, interestadual, exterior)."
+          },
+          "transporte": {
+            "type": "object",
+            "description": "[body] Grupo de transporte (X01); modalidadeFrete é obrigatório quando o objeto é enviado. Aceita transportador, veiculo, reboque, volumes e retencaoICMS."
+          },
+          "informacoesComplementares": {
+            "type": "string",
+            "description": "[body] Informações complementares de interesse do contribuinte, impressas no DANFE."
+          },
+          "observacoes": {
+            "type": "array",
+            "description": "[body] Observações adicionais da nota."
+          },
+          "enviaremail": {
+            "type": "boolean",
+            "description": "[body] Envia PDF e XML por e-mail depois da autorização. Atenção ao nome: é tudo minúsculo, diferente do enviarEmail usado na NFS-e."
+          },
+          "notaReferenciada": {
+            "type": "object",
+            "description": "[body] Documentos referenciados (nfe, nfePapel, cupomFiscal, produtorRural)."
+          },
+          "intermediadorTransacao": {
+            "type": "object",
+            "description": "[body] Dados do intermediador em vendas por marketplace."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "emitente",
+          "destinatario",
+          "itens",
+          "pagamentos"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__nfe",
+      "title": "Consultar resumo da NF-e",
+      "description": "PlugNotas (GET /nfe/{idNotaOrChaveOrProtocol}/resumo). Devolve o resumo de uma NF-e por identificador do PlugNotas, chave de acesso ou protocolo de lote: situação, cStat da SEFAZ, número, série, chave, protocolo de autorização, valor, emitente, destinatário, mensagem e as URLs de PDF e XML. Se a nota foi cancelada, traz também data, protocolo e XML do cancelamento. Quando usar: É a consulta de acompanhamento depois da emissão e o jeito mais rápido de saber por que uma nota foi rejeitada (campos cStat e mensagem). Aceita chave de acesso, o que é útil quando o id se perdeu. Pré-requisitos: Nota já enviada. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaOrChaveOrProtocol": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas, chave de acesso de 44 dígitos ou protocolo do lote."
+          },
+          "producao": {
+            "type": "boolean",
+            "description": "[query] Restringe a consulta a um ambiente: true só produção, false só homologação; omitido consulta os dois."
+          },
+          "calculadoraSefaz": {
+            "type": "boolean",
+            "description": "[query] Inclui na resposta a versão da calculadora de tributos usada na autorização."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaOrChaveOrProtocol"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__listar__nfe_periodo",
+      "title": "Consultar NF-e por período",
+      "description": "PlugNotas (GET /nfe/consulta/periodo). Lista as NF-e recebidas pelo PlugNotas de um CPF/CNPJ em um intervalo, em qualquer situação. São 25 registros por página, em ordem decrescente, com o cursor em hashProximaPagina. A data do filtro é a de recebimento pelo PlugNotas, que pode diferir da emissão e da autorização. Quando usar: É a base de qualquer painel de faturamento: notas do mês, valor total, quantas foram canceladas. Lembre dos limites: janela de 31 dias e ausência de total na resposta. Pré-requisitos: CNPJ emitente cadastrado.; Fatiar períodos maiores que 31 dias. Somente leitura: pode ser executada com a credencial do cliente. Paginação: cursor.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cpfCnpj": {
+            "type": "string",
+            "description": "[query] CPF ou CNPJ do emitente a consultar."
+          },
+          "dataInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Início do período, no formato AAAA-MM-DD."
+          },
+          "dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Fim do período, no formato AAAA-MM-DD; intervalo máximo de 31 dias."
+          },
+          "hashProximaPagina": {
+            "type": "string",
+            "description": "[query] Cursor da página seguinte."
+          },
+          "producao": {
+            "type": "boolean",
+            "description": "[query] Restringe o ambiente: true só produção, false só homologação."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cpfCnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__baixar_arquivo__pdf_nfe",
+      "title": "Baixar PDF da NF-e (DANFE)",
+      "description": "PlugNotas (GET /nfe/{idNotaorChave}/pdf). Faz o download do DANFE em PDF por identificador ou chave de acesso. Sem parâmetro extra, vem o modelo usado na emissão original; com modeloImpressao, vem o modelo pedido, desde que já tenha sido gerado (retrato, paisagem ou simplificado). Quando usar: Use para anexar o DANFE ao pedido, ao e-mail ou ao portal do cliente. Se responder HTTP 202, o PDF daquele modelo ainda está sendo gerado: peça a reimpressão e volte depois. Pré-requisitos: Nota autorizada. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaorChave": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas ou chave de acesso de 44 dígitos."
+          },
+          "modeloImpressao": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2",
+              "3"
+            ],
+            "description": "[query] Modelo de impressão: 1 retrato, 2 paisagem, 3 simplificado."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaorChave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__baixar_arquivo__xml_nfe",
+      "title": "Baixar XML da NF-e",
+      "description": "PlugNotas (GET /nfe/{idNotaorChave}/xml). Faz o download do XML de destinatário da NF-e, por identificador ou chave. O parâmetro tipo escolhe entre o XML de autorização e o de cancelamento; sem ele, uma nota cancelada devolve os dois XMLs separados por quebra de linha. Nota destinada cancelada antes da manifestação pode vir só com o XML resumido. Quando usar: É o arquivo que a contabilidade guarda pelos cinco anos de prazo legal. Cuidado ao fazer parser: sem o parâmetro tipo, a resposta de uma nota cancelada tem dois documentos XML concatenados. Pré-requisitos: Nota autorizada ou cancelada. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaorChave": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas ou chave de acesso."
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "autorizacao",
+              "cancelamento"
+            ],
+            "description": "[query] Qual XML retornar: autorizacao ou cancelamento."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaorChave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__cancelar__nfe",
+      "title": "Solicitar cancelamento da NF-e",
+      "description": "PlugNotas (POST /nfe/{idNota}/cancelamento). Abre a solicitação de cancelamento junto à SEFAZ de origem, com justificativa. É assíncrona: a resposta só confirma que o pedido entrou. Depois de autorizado o cancelamento, o PDF e o XML de destinatário são gerados de novo. Quando usar: Use dentro do prazo da UF (varia por estado; consulte a legislação). Escrita destrutiva com efeito fiscal: o assistente nunca executa, só entrega o código. Pré-requisitos: Nota autorizada e dentro do prazo de cancelamento da UF.; Justificativa com pelo menos 15 caracteres. NÃO EXECUTAR: operação de escrita. Cancela documento fiscal autorizado perante a SEFAZ. Irreversível e com prazo legal.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota no PlugNotas."
+          },
+          "justificativa": {
+            "type": "string",
+            "description": "[body] Justificativa do cancelamento; a SEFAZ exige no mínimo 15 caracteres."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__cancelamento_nfe",
+      "title": "Consultar a solicitação de cancelamento da NF-e",
+      "description": "PlugNotas (GET /nfe/{idNota}/cancelamento/status). Informa o resultado do pedido de cancelamento: status CONCLUIDO ou REJEITADO, cStat da SEFAZ, resposta textual, data, protocolo do evento, justificativa enviada e a URL do XML de cancelamento. Enquanto o evento está em curso, a API responde 400 com a mensagem de processamento. Quando usar: Use no polling depois de pedir o cancelamento, ou como confirmação quando o webhook não chegou. Não confunda: o status aqui é do evento de cancelamento, não da nota. Pré-requisitos: Cancelamento já solicitado. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota no PlugNotas."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__baixar_arquivo__xml_cancelamento_nfe",
+      "title": "Baixar XML de cancelamento da NF-e",
+      "description": "PlugNotas (GET /nfe/{idNotaorChave}/cancelamento/xml). Faz o download apenas do XML do evento de cancelamento da NF-e, por identificador ou chave. Quando usar: Use quando o arquivo de cancelamento precisa ser guardado separado do XML de autorização — o que costuma ser a exigência da escrituração. Pré-requisitos: Cancelamento já homologado pela SEFAZ. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaorChave": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas ou chave de acesso."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaorChave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__corrigir__nfe",
+      "title": "Solicitar carta de correção (CC-e)",
+      "description": "PlugNotas (POST /nfe/{idNota}/cce). Envia uma Carta de Correção Eletrônica para a NF-e. O corpo tem o texto da correção. A rota é assíncrona e o resultado se consulta pelo status da CC-e, que devolve também o número de sequência do evento e as URLs de PDF e XML. Quando usar: Serve para corrigir dados que a legislação permite ajustar sem cancelar a nota (não vale para valor, CNPJ do destinatário nem data de emissão). Escrita com efeito fiscal: o assistente não executa. Pré-requisitos: Nota autorizada.; Texto de correção dentro das regras da legislação. NÃO EXECUTAR: operação de escrita. Registra evento fiscal na SEFAZ, vinculado permanentemente à nota.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota no PlugNotas."
+          },
+          "correcao": {
+            "type": "string",
+            "description": "[body] Texto da correção; a SEFAZ exige entre 15 e 1000 caracteres."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota",
+          "correcao"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__cce_nfe",
+      "title": "Consultar a solicitação de correção da NF-e",
+      "description": "PlugNotas (GET /nfe/{idNotaorChaveorProtocol}/cce/status). Devolve o resultado da carta de correção: texto enviado, número de sequência, situação, resposta e cStat da SEFAZ, protocolo e as URLs de PDF e XML da CC-e. Com listaCce igual a true, devolve todas as CC-e da nota em vez da última. Quando usar: Use para confirmar se a correção foi aceita e para montar o histórico de correções de uma nota, que é o que a auditoria costuma pedir. Pré-requisitos: CC-e já enviada. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaorChaveorProtocol": {
+            "type": "string",
+            "description": "[path] Identificador, chave de acesso ou protocolo gerado no pedido de CC-e."
+          },
+          "listaCce": {
+            "type": "boolean",
+            "description": "[query] Quando true, retorna a lista de todas as CC-e da nota."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaorChaveorProtocol"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__inutilizar__nfe",
+      "title": "Solicitar inutilização de numeração de NF-e",
+      "description": "PlugNotas (POST /nfe/inutilizacao). Pede à SEFAZ a inutilização de uma faixa de numeração de NF-e que não foi e não será usada, informando CNPJ, série, ano, faixa (inicial e final) e justificativa. É assíncrona e devolve um protocolo para consulta. Quando usar: Use quando houve salto de numeração (falha de sistema, nota descartada antes do envio) e o fisco exige justificar o buraco. Escrita destrutiva: a faixa inutilizada não volta a ser usada nunca mais. O assistente não executa. Pré-requisitos: Faixa realmente não utilizada.; Empresa com NF-e ativa. NÃO EXECUTAR: operação de escrita. Inutiliza definitivamente uma faixa de numeração fiscal perante a SEFAZ; não há como desfazer.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cpfCnpj": {
+            "type": "string",
+            "description": "[body] CNPJ do emitente."
+          },
+          "serie": {
+            "type": "number",
+            "description": "[body] Série da numeração a inutilizar."
+          },
+          "numeracao": {
+            "type": "object",
+            "description": "[body] Faixa a inutilizar: {inicial, final}. O número inicial não pode ser maior que o final."
+          },
+          "ano": {
+            "type": "number",
+            "description": "[body] Ano da numeração."
+          },
+          "justificativa": {
+            "type": "string",
+            "description": "[body] Justificativa da inutilização; a SEFAZ exige no mínimo 15 caracteres."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cpfCnpj",
+          "serie",
+          "numeracao"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__inutilizacao_nfe",
+      "title": "Consultar a solicitação de inutilização de NF-e",
+      "description": "PlugNotas (GET /nfe/inutilizacao/{protocol}/status). Devolve o resultado do pedido de inutilização pelo protocolo: faixa, série, ano, justificativa, CNPJ, situação e o retorno da SEFAZ com cStat, mensagem e protocolo oficial. Enquanto processa, responde HTTP 202. Quando usar: Use para comprovar ao fisco que a faixa foi inutilizada. cStat 102 é o código de inutilização homologada. Pré-requisitos: Inutilização já solicitada. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "description": "[path] Protocolo devolvido no pedido de inutilização."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "protocol"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__listar__eventos_nfe",
+      "title": "Consultar os eventos da NF-e",
+      "description": "PlugNotas (GET /nfe/{idNotaorChaveorProtocol}/evento). Lista os eventos vinculados a uma NF-e, agrupados por tipo no objeto data: carta de correção, insucesso na entrega, conciliação financeira e os eventos da Reforma Tributária. Cada item traz data, situação, número de sequência, resposta e cStat da SEFAZ, protocolo do PlugNotas, protocolo da SEFAZ e a URL do XML. Os filtros codigo, status e protocolo restringem o retorno. Quando usar: É o extrato de tudo que aconteceu com a nota depois da autorização. Serve para auditoria e para descobrir se um evento da Reforma Tributária foi aceito. Sem filtro, vêm todos os eventos. Pré-requisitos: Nota em situação CONCLUIDO. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaorChaveorProtocol": {
+            "type": "string",
+            "description": "[path] Identificador, chave de acesso ou protocolo do evento."
+          },
+          "codigo": {
+            "type": "string",
+            "description": "[query] Código do evento a filtrar (por exemplo 110750 para conciliação financeira, 112110 a 212120 para os eventos da Reforma Tributária)."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CONCLUIDO",
+              "REJEITADO",
+              "CANCELADO"
+            ],
+            "description": "[query] Situação do evento: CONCLUIDO, REJEITADO ou CANCELADO. Exige o parâmetro codigo."
+          },
+          "protocolo": {
+            "type": "string",
+            "description": "[query] Protocolo do envio do evento; quando informado, tem prioridade sobre codigo."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaorChaveorProtocol"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__enviar__email_nfe",
+      "title": "Enviar e-mail da NF-e",
+      "description": "PlugNotas (POST /nfe/{idNota}/email). Dispara (ou redispara) o e-mail com PDF e XML da NF-e. Com reenvio em true, manda para os destinatários já presentes no JSON da nota além dos informados no array destinatarios. Quando usar: Serve para o botão de reenvio no seu sistema e para incluir um contato novo. Se a empresa estiver com nfe.config.email.ativo, o envio já é automático na autorização. Pré-requisitos: Nota autorizada com PDF e XML disponíveis. NÃO EXECUTAR: operação de escrita. Envia comunicação para terceiros em nome do cliente.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota no PlugNotas."
+          },
+          "reenvio": {
+            "type": "boolean",
+            "default": false,
+            "description": "[body] Quando true, reenvia também para os destinatários originais."
+          },
+          "destinatarios": {
+            "type": "array",
+            "description": "[body] E-mails adicionais que devem receber PDF e XML."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__listar__nfe_destinada",
+      "title": "Consultar notas destinadas (DF-e)",
+      "description": "PlugNotas (GET /nfe/destinada). Lista as NF-e emitidas contra o CNPJ da empresa que o PlugNotas já importou da SEFAZ, com o documento completo (emitente, itens, tributos, transporte) e não apenas um resumo. São 25 registros por página, com cursor em hashProximaPagina. Dá para filtrar por manifestação conclusiva, por situação, por período e por XML completo ou resumido. Quando usar: É a base da escrituração de entrada: descobrir o que foi emitido contra a empresa sem entrar no portal da SEFAZ. Pré-requisito: ligar nfe.config.dfe.ativo no cadastro da empresa e aguardar o ciclo de sincronização (a documentação cita cerca de 1h20 depois da virada para produção, repetindo nesse intervalo). Pré-requisitos: Certificado digital da empresa cadastrado.; nfe.config.dfe.ativo igual a true no cadastro da empresa.; Aguardar o ciclo de sincronização do PlugNotas com a SEFAZ. Somente leitura: pode ser executada com a credencial do cliente. Paginação: cursor.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cpfCnpj": {
+            "type": "string",
+            "description": "[query] CPF ou CNPJ da empresa com a consulta de DF-e habilitada."
+          },
+          "manifestada": {
+            "type": "boolean",
+            "description": "[query] true traz só as notas já manifestadas conclusivamente; false, só as pendentes."
+          },
+          "status": {
+            "type": "string",
+            "description": "[query] Filtra por situação: CONCLUIDO, CANCELADO ou DENEGADO; aceita mais de um valor."
+          },
+          "dataInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Início do período, no formato AAAA-MM-DD."
+          },
+          "dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Fim do período, no formato AAAA-MM-DD."
+          },
+          "resume": {
+            "type": "boolean",
+            "description": "[query] false traz só notas com XML completo; true, só as de XML resumido."
+          },
+          "producao": {
+            "type": "boolean",
+            "description": "[query] Restringe o ambiente da consulta."
+          },
+          "hashProximaPagina": {
+            "type": "string",
+            "description": "[query] Cursor da página seguinte."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cpfCnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__criar__sincronizacao_destinada",
+      "title": "Consultar destinadas pela chave (sincronização)",
+      "description": "PlugNotas (POST /nfe/sincronizarDestinada/{cnpj}). Pede ao PlugNotas que busque na SEFAZ NF-e destinadas específicas, informando um array de chaves de acesso. É assíncrona: devolve um protocolo que depois se consulta para saber se terminou. Há limite de 18 envios da mesma chave por hora. Quando usar: Serve para trazer uma nota que foi sincronizada em outra plataforma ou que você recebeu por e-mail e quer importar. Escrita: cria registro no PlugNotas e consome franquia, então o assistente não executa. Pré-requisitos: Empresa com certificado e DF-e habilitado.; Chaves de acesso válidas (44 dígitos). NÃO EXECUTAR: operação de escrita. Importa documentos para a conta do cliente e a documentação avisa que documentos importados são contabilizados na fatura.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "description": "[path] CNPJ da empresa destinatária."
+          },
+          "chave": {
+            "type": "array",
+            "description": "[body] Lista de chaves de acesso de 44 dígitos a sincronizar; até 18 itens."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cnpj",
+          "chave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__sincronizacao_dfe",
+      "title": "Consultar a sincronização de destinadas",
+      "description": "PlugNotas (GET /nfe/sincronizarDestinada/{cnpj}/{chaveOrProtocol}). Informa a situação de um pedido de sincronização de notas destinadas, buscando pelo protocolo ou diretamente pela chave de acesso. Quando concluído, devolve o documento importado. Quando usar: Use no polling depois do pedido de sincronização, ou para checar se uma chave específica já foi importada, sem precisar varrer a listagem inteira. Pré-requisitos: Sincronização já solicitada. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cnpj": {
+            "type": "string",
+            "description": "[path] CNPJ da empresa destinatária."
+          },
+          "chaveOrProtocol": {
+            "type": "string",
+            "description": "[path] Chave de acesso de 44 dígitos ou protocolo devolvido na sincronização."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cnpj",
+          "chaveOrProtocol"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__manifestar__nfe_destinada",
+      "title": "Manifestar nota destinada",
+      "description": "PlugNotas (POST /nfe/{idNotaorChave}/manifestacao). Registra a manifestação conclusiva do destinatário sobre uma NF-e recebida. As operações são CONFIRMACAODAOPERACAO (confirma a operação e o recebimento), DESCONHECIMENTODAOPERACAO (o destinatário não reconhece a operação) e OPERACAONAOREALIZADA (recusa do recebimento, com justificativa). É assíncrona e o resultado se consulta depois. Quando usar: É obrigatória em várias situações previstas na legislação e é o que libera o XML completo de notas que chegaram resumidas. Escrita com efeito fiscal declaratório: o assistente nunca executa. Pré-requisitos: Nota destinada já importada.; Empresa com certificado e DF-e habilitado. NÃO EXECUTAR: operação de escrita. Registra declaração do destinatário perante a SEFAZ, com efeito legal e sem volta.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaorChave": {
+            "type": "string",
+            "description": "[path] Identificador da nota no PlugNotas ou chave de acesso."
+          },
+          "operacao": {
+            "type": "string",
+            "enum": [
+              "CONFIRMACAODAOPERACAO",
+              "DESCONHECIMENTODAOPERACAO",
+              "OPERACAONAOREALIZADA"
+            ],
+            "description": "[body] Tipo de manifestação."
+          },
+          "justificativa": {
+            "type": "string",
+            "description": "[body] Justificativa; exigida em OPERACAONAOREALIZADA."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaorChave",
+          "operacao"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__manifestacao_nfe",
+      "title": "Consultar situação da manifestação do destinatário",
+      "description": "PlugNotas (GET /nfe/{idNotaorChave}/manifestacao/status). Devolve o resultado da última manifestação registrada para a nota: data, operação manifestada, situação (CONCLUIDO ou REJEITADO) e a resposta da SEFAZ. Quando usar: Use logo depois de manifestar, para confirmar se o evento foi aceito, e em auditoria, para provar que a empresa cumpriu a obrigação. Pré-requisitos: Manifestação já enviada. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaorChave": {
+            "type": "string",
+            "description": "[path] Identificador da nota no PlugNotas ou chave de acesso."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaorChave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__emitir__nfce",
+      "title": "Emitir nota do consumidor",
+      "description": "PlugNotas (POST /nfce). Envia uma ou mais NFC-e para a SEFAZ. O corpo segue a mesma estrutura da NF-e, com os enums restritos ao modelo 65: finalidade sempre 1, tipoEmissao 1 e tipoImpressao 4 ou 5 (DANFE NFC-e normal ou eletrônico). Devolve id por nota e protocolo de lote; a autorização é assíncrona. Quando usar: É a nota do varejo e do PDV. Quem precisa emitir offline quando a SEFAZ cai usa o produto de contingência (Neverstop), que roda como agente local e não faz parte desta API na nuvem. Escrita fiscal: o assistente não executa. Pré-requisitos: Empresa cadastrada com NFC-e ativa, certificado A1 e CSC/Token da SEFAZ configurados.; idIntegracao único por venda. NÃO EXECUTAR: operação de escrita. Emite documento fiscal com efeito legal perante a SEFAZ e consome franquia contratada.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idIntegracao": {
+            "type": "string",
+            "description": "[body] Identificador único da venda no seu sistema; protege contra duplicidade."
+          },
+          "emitente": {
+            "type": "object",
+            "description": "[body] Emitente da nota; precisa ser empresa cadastrada com NFC-e ativa e CSC configurado."
+          },
+          "destinatario": {
+            "type": "object",
+            "description": "[body] Consumidor; pode ser omitido em venda sem identificação, conforme a regra da UF."
+          },
+          "itens": {
+            "type": "array",
+            "description": "[body] Itens da venda. Obrigatórios em cada item: descricao, ncm, cfop, tributos e valorUnitario. Outros campos comuns: codigo, unidade, quantidade, valor, valorDesconto."
+          },
+          "pagamentos": {
+            "type": "array",
+            "description": "[body] Formas de pagamento da venda, obrigatórias na NFC-e. Em cada item, meio (enum de 01 a 99) e valor são obrigatórios."
+          },
+          "total": {
+            "type": "object",
+            "description": "[body] Totalizadores da venda; quando omitido, o PlugNotas soma a partir dos itens."
+          },
+          "consumidorFinal": {
+            "type": "boolean",
+            "description": "[body] Indica operação com consumidor final."
+          },
+          "valorTroco": {
+            "type": "number",
+            "description": "[body] Valor do troco entregue ao consumidor."
+          },
+          "natureza": {
+            "type": "string",
+            "description": "[body] Natureza da operação."
+          },
+          "serie": {
+            "type": "number",
+            "description": "[body] Série da NFC-e."
+          },
+          "numero": {
+            "type": "string",
+            "description": "[body] Número da NFC-e; dispensável com numeração automática."
+          },
+          "dataEmissao": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[body] Data e hora de emissão; sem fuso a API assume -03:00."
+          },
+          "presencial": {
+            "type": "string",
+            "enum": [
+              "1",
+              "4",
+              "5"
+            ],
+            "description": "[body] Indicador de presença; na NFC-e os valores aceitos são 1, 4 e 5."
+          },
+          "tipoImpressao": {
+            "type": "string",
+            "enum": [
+              "4",
+              "5"
+            ],
+            "description": "[body] Formato do DANFE NFC-e."
+          },
+          "informacoesComplementares": {
+            "type": "string",
+            "description": "[body] Informações complementares impressas no DANFE NFC-e."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "emitente",
+          "itens",
+          "pagamentos"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__nfce",
+      "title": "Consultar resumo da NFC-e",
+      "description": "PlugNotas (GET /nfce/{idNotaOrChaveOrProtocol}/resumo). Devolve o resumo de uma NFC-e por identificador, chave de acesso ou protocolo de lote: situação, cStat da SEFAZ, número, série, chave, protocolo, valor, emitente, destinatário, mensagem e URLs de PDF e XML. Quando usar: É a confirmação de que o cupom foi autorizado. No PDV, prefira o webhook para não travar a fila do caixa esperando resposta. Pré-requisitos: Nota já enviada. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaOrChaveOrProtocol": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas, chave de acesso ou protocolo do lote."
+          },
+          "producao": {
+            "type": "boolean",
+            "description": "[query] Restringe o ambiente da consulta."
+          },
+          "calculadoraSefaz": {
+            "type": "boolean",
+            "description": "[query] Inclui a versão da calculadora de tributos usada na autorização."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaOrChaveOrProtocol"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__listar__nfce_periodo",
+      "title": "Consultar NFC-e por período",
+      "description": "PlugNotas (GET /nfce/consulta/periodo). Lista os documentos de NFC-e recebidos pelo PlugNotas de um CPF/CNPJ em um intervalo, em qualquer situação. Retorna 25 registros por página, em ordem decrescente, com o cursor da página seguinte em hashProximaPagina. A data do filtro é a de recebimento pelo PlugNotas, que pode diferir da emissão e da autorização. Quando usar: É a rota para consolidar o movimento do período em planilha ou painel, e para localizar um documento quando você não tem o id nem o idIntegracao. Limites que importam: janela de 31 dias e ausência de total de registros na resposta. Pré-requisitos: CNPJ emitente cadastrado.; Fatiar períodos maiores que 31 dias. Somente leitura: pode ser executada com a credencial do cliente. Paginação: cursor.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cpfCnpj": {
+            "type": "string",
+            "description": "[query] CPF ou CNPJ do emitente a consultar."
+          },
+          "dataInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Início do período, no formato AAAA-MM-DD."
+          },
+          "dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Fim do período, no formato AAAA-MM-DD; intervalo máximo de 31 dias."
+          },
+          "hashProximaPagina": {
+            "type": "string",
+            "description": "[query] Cursor da página seguinte."
+          },
+          "producao": {
+            "type": "boolean",
+            "description": "[query] Restringe o ambiente: true só produção, false só homologação."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cpfCnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__baixar_arquivo__pdf_nfce",
+      "title": "Baixar PDF do NFC-e",
+      "description": "PlugNotas (GET /nfce/{idNota}/pdf). Faz o download do PDF do NFC-e. Se o arquivo ainda estiver sendo gerado, a API responde HTTP 202 com uma mensagem em JSON em vez do binário. Quando usar: Use para arquivar o documento e para anexá-lo ao processo do seu sistema. Sempre trate o HTTP 202 como 'ainda não pronto', e não como falha. Pré-requisitos: Documento em situação final (CONCLUIDO, CANCELADO ou ENCERRADO, conforme o caso). Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota devolvido na emissão."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__baixar_arquivo__xml_nfce",
+      "title": "Baixar XML do NFC-e",
+      "description": "PlugNotas (GET /nfce/{idNotaorChave}/xml). Faz o download do XML do NFC-e. Se o arquivo ainda estiver sendo gerado, a API responde HTTP 202 com uma mensagem em JSON em vez do binário. Quando usar: Use para arquivar o documento e para anexá-lo ao processo do seu sistema. Sempre trate o HTTP 202 como 'ainda não pronto', e não como falha. Pré-requisitos: Documento em situação final (CONCLUIDO, CANCELADO ou ENCERRADO, conforme o caso). Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaorChave": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas ou chave de acesso."
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "autorizacao",
+              "cancelamento"
+            ],
+            "description": "[query] Qual XML retornar: autorizacao ou cancelamento."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaorChave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__cancelar__nfce",
+      "title": "Solicitar cancelamento da NFC-e",
+      "description": "PlugNotas (POST /nfce/{idNota}/cancelamento). Abre a solicitação de cancelamento da NFC-e junto à SEFAZ, com justificativa. É assíncrona e, depois de autorizada, o PDF e o XML de destinatário são gerados de novo. Quando usar: Repare no prazo: para NFC-e sem substituição o limite costuma ser de 30 minutos após a autorização, bem mais curto do que o da NF-e. Escrita destrutiva: o assistente nunca executa. Pré-requisitos: Nota autorizada e dentro do prazo da UF (geralmente 30 minutos para NFC-e). NÃO EXECUTAR: operação de escrita. Cancela documento fiscal autorizado perante a SEFAZ, com prazo legal curto e sem volta.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota no PlugNotas."
+          },
+          "justificativa": {
+            "type": "string",
+            "description": "[body] Justificativa do cancelamento; mínimo de 15 caracteres."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__cancelamento_nfce",
+      "title": "Consultar a solicitação de cancelamento da NFC-e",
+      "description": "PlugNotas (GET /nfce/{idNota}/cancelamento/status). Devolve o resultado do pedido de cancelamento da NFC-e: status CONCLUIDO ou REJEITADO, cStat da SEFAZ, resposta textual, data, protocolo do evento, justificativa e a URL do XML de cancelamento. Quando usar: Use no polling depois de pedir o cancelamento. Como o prazo da NFC-e é curto, uma rejeição aqui normalmente significa que o tempo acabou e o caminho passa a ser a nota de devolução. Pré-requisitos: Cancelamento já solicitado. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador da nota no PlugNotas."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__inutilizar__nfce",
+      "title": "Solicitar inutilização de numeração de NFC-e",
+      "description": "PlugNotas (POST /nfce/inutilizacao). Pede à SEFAZ a inutilização de uma faixa de numeração de NFC-e não utilizada, informando CNPJ, série, ano, faixa (inicial e final) e justificativa. É assíncrona e devolve um protocolo. Quando usar: No varejo, salto de numeração acontece com queda de PDV e com cupom descartado antes do envio. Esta é a rota para regularizar. Escrita destrutiva e irreversível: o assistente não executa. Pré-requisitos: Faixa realmente não utilizada.; Empresa com NFC-e ativa. NÃO EXECUTAR: operação de escrita. Inutiliza definitivamente uma faixa de numeração fiscal perante a SEFAZ.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cpfCnpj": {
+            "type": "string",
+            "description": "[body] CNPJ do emitente."
+          },
+          "serie": {
+            "type": "number",
+            "description": "[body] Série da numeração a inutilizar."
+          },
+          "numeracao": {
+            "type": "object",
+            "description": "[body] Faixa a inutilizar: {inicial, final}."
+          },
+          "ano": {
+            "type": "number",
+            "description": "[body] Ano da numeração."
+          },
+          "justificativa": {
+            "type": "string",
+            "description": "[body] Justificativa; mínimo de 15 caracteres."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cpfCnpj",
+          "serie",
+          "numeracao"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__inutilizacao_nfce",
+      "title": "Consultar a solicitação de inutilização de NFC-e",
+      "description": "PlugNotas (GET /nfce/inutilizacao/{protocol}/status). Devolve o resultado do pedido de inutilização de NFC-e pelo protocolo: faixa, série, ano, justificativa, CNPJ, situação e o retorno da SEFAZ com cStat, mensagem e protocolo oficial. Enquanto processa, responde HTTP 202. Quando usar: Use para comprovar a regularização do salto de numeração. cStat 102 indica inutilização homologada. Pré-requisitos: Inutilização já solicitada. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "description": "[path] Protocolo devolvido no pedido de inutilização."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "protocol"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__emitir__nfcom",
+      "title": "Emitir NFCom (modelo 62)",
+      "description": "PlugNotas (POST /nfcom). Envia a Nota Fiscal Fatura de Serviço de Comunicação Eletrônica (modelo 62) para a SEFAZ. O corpo tem três campos obrigatórios no primeiro nível: idIntegracao, emitente e informacoesNFCom. Dentro de informacoesNFCom são obrigatórios versao, identificacaoNFCom (código da UF, tipo de ambiente, modelo, série, número e data), destinatario, assinante e detalheProdutoServico; total, grupoFatura e informacoesAdicionais completam o documento. É assíncrona e devolve um id por documento mais o protocolo do lote. Quando usar: É o documento das operadoras de telecomunicação e provedores de internet, que substituiu os modelos 21 e 22. Se o seu cliente é ISP ou operadora, é aqui que a fatura mensal vira documento fiscal. Escrita: o assistente não executa. Pré-requisitos: Empresa cadastrada com NFCom ativa e certificado A1.; idIntegracao único por documento. NÃO EXECUTAR: operação de escrita. Emite documento fiscal com efeito legal perante a SEFAZ e consome franquia contratada.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idIntegracao": {
+            "type": "string",
+            "description": "[body] Identificador único do documento no seu sistema."
+          },
+          "emitente": {
+            "type": "object",
+            "description": "[body] Emitente: cpfCnpj (obrigatório), ieUFDestino, inscricaoEmitenteSuframa."
+          },
+          "informacoesNFCom": {
+            "type": "object",
+            "description": "[body] Bloco principal do documento. Obrigatórios: versao, identificacaoNFCom (codUF, tipoAmbiente, codMod, serie, numero, dataEmissao), destinatario, assinante e detalheProdutoServico. Opcionais: total, grupoFatura, grupoSubstituicao, grupoVinculacaoPagamento, informacoesAdicionais e responsavelTecnico."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idIntegracao",
+          "emitente",
+          "informacoesNFCom"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__nfcom",
+      "title": "Consultar resumo da NFCom",
+      "description": "PlugNotas (GET /nfcom/{idNotaOrChaveOrProtocol}/resumo). Devolve o resumo da NFCom por identificador, chave de acesso ou protocolo: situação, cStat, número, série, chave, protocolo de autorização, valor, emitente, destinatário, mensagem e URLs de PDF e XML. Quando usar: É o acompanhamento da fatura de comunicação depois do envio. Como a emissão é mensal e em massa, combine com o webhook para não ficar consultando documento por documento. Pré-requisitos: Documento já enviado. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaOrChaveOrProtocol": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas, chave de acesso ou protocolo do lote."
+          },
+          "producao": {
+            "type": "boolean",
+            "description": "[query] Restringe o ambiente da consulta."
+          },
+          "calculadoraSefaz": {
+            "type": "boolean",
+            "description": "[query] Inclui a versão da calculadora de tributos."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaOrChaveOrProtocol"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__listar__nfcom_periodo",
+      "title": "Consultar NFCom por período",
+      "description": "PlugNotas (GET /nfcom/consulta/periodo). Lista os documentos de NFCom recebidos pelo PlugNotas de um CPF/CNPJ em um intervalo, em qualquer situação. Retorna 25 registros por página, em ordem decrescente, com o cursor da página seguinte em hashProximaPagina. A data do filtro é a de recebimento pelo PlugNotas, que pode diferir da emissão e da autorização. Quando usar: É a rota para consolidar o movimento do período em planilha ou painel, e para localizar um documento quando você não tem o id nem o idIntegracao. Limites que importam: janela de 31 dias e ausência de total de registros na resposta. Pré-requisitos: CNPJ emitente cadastrado.; Fatiar períodos maiores que 31 dias. Somente leitura: pode ser executada com a credencial do cliente. Paginação: cursor.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cpfCnpj": {
+            "type": "string",
+            "description": "[query] CPF ou CNPJ do emitente a consultar."
+          },
+          "dataInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Início do período, no formato AAAA-MM-DD."
+          },
+          "dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Fim do período, no formato AAAA-MM-DD; intervalo máximo de 31 dias."
+          },
+          "hashProximaPagina": {
+            "type": "string",
+            "description": "[query] Cursor da página seguinte."
+          },
+          "producao": {
+            "type": "boolean",
+            "description": "[query] Restringe o ambiente: true só produção, false só homologação."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cpfCnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__baixar_arquivo__pdf_nfcom",
+      "title": "Baixar PDF do NFCom",
+      "description": "PlugNotas (GET /nfcom/{idNota}/pdf). Faz o download do PDF do NFCom. Se o arquivo ainda estiver sendo gerado, a API responde HTTP 202 com uma mensagem em JSON em vez do binário. Quando usar: Use para arquivar o documento e para anexá-lo ao processo do seu sistema. Sempre trate o HTTP 202 como 'ainda não pronto', e não como falha. Pré-requisitos: Documento em situação final (CONCLUIDO, CANCELADO ou ENCERRADO, conforme o caso). Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador do documento devolvido na emissão."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__baixar_arquivo__xml_nfcom",
+      "title": "Baixar XML do NFCom",
+      "description": "PlugNotas (GET /nfcom/{idNota}/xml). Faz o download do XML do NFCom. Se o arquivo ainda estiver sendo gerado, a API responde HTTP 202 com uma mensagem em JSON em vez do binário. Quando usar: Use para arquivar o documento e para anexá-lo ao processo do seu sistema. Sempre trate o HTTP 202 como 'ainda não pronto', e não como falha. Pré-requisitos: Documento em situação final (CONCLUIDO, CANCELADO ou ENCERRADO, conforme o caso). Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNota": {
+            "type": "string",
+            "description": "[path] Identificador do documento devolvido na emissão."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNota"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__cancelar__nfcom",
+      "title": "Solicitar cancelamento da NFCom",
+      "description": "PlugNotas (POST /nfcom/{idOrChave}/cancelamento). Abre a solicitação de cancelamento da NFCom junto à SEFAZ, com justificativa. É assíncrona; depois de autorizada, o PDF é gerado de novo. Quando usar: Use dentro do prazo previsto para o modelo 62. Escrita destrutiva com efeito fiscal: o assistente não executa. Pré-requisitos: Documento autorizado e dentro do prazo. NÃO EXECUTAR: operação de escrita. Cancela documento fiscal autorizado perante a SEFAZ.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idOrChave": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas ou chave de acesso da NFCom."
+          },
+          "justificativa": {
+            "type": "string",
+            "description": "[body] Justificativa do cancelamento; mínimo de 15 caracteres."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idOrChave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__cancelamento_nfcom",
+      "title": "Consultar a solicitação de cancelamento da NFCom",
+      "description": "PlugNotas (GET /nfcom/{idOrChave}/cancelamento/status). Devolve o resultado do pedido de cancelamento da NFCom: justificativa enviada, resposta da SEFAZ e a URL do XML do evento de cancelamento. Quando usar: Use para confirmar o cancelamento antes de refazer a fatura do assinante. Pré-requisitos: Cancelamento já solicitado. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idOrChave": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas ou chave de acesso da NFCom."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idOrChave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__emitir__mdfe",
+      "title": "Emitir manifesto eletrônico (MDF-e)",
+      "description": "PlugNotas (POST /mdfe). Envia o Manifesto Eletrônico de Documentos Fiscais para a SEFAZ. O corpo traz emitente, tipo de emitente, modalidade de transporte (1 rodoviário, 2 aéreo, 3 aquaviário, 4 ferroviário), municípios de carregamento e de descarregamento com as chaves dos documentos vinculados, e os totalizadores da carga. É assíncrono e devolve um id por manifesto mais o protocolo do lote. Quando usar: É o documento que ampara a viagem quando há mais de um documento fiscal no veículo. Atenção ao ciclo de vida: além de cancelar, o MDF-e precisa ser encerrado ao fim do trajeto, senão a SEFAZ bloqueia a emissão do próximo. Escrita: o assistente não executa. Pré-requisitos: Empresa cadastrada com MDF-e ativo e certificado A1.; Documentos fiscais (NF-e/CT-e) já autorizados, para vincular pelas chaves.; Obrigatórios no corpo, pelo schema oficial: emitente, tipoEmitente, modalidadeDeTransporte, carregamento, descarregamento e total. NÃO EXECUTAR: operação de escrita. Emite documento fiscal de transporte com efeito legal e consome franquia contratada.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idIntegracao": {
+            "type": "string",
+            "description": "[body] Identificador único do manifesto no seu sistema."
+          },
+          "emitente": {
+            "type": "object",
+            "description": "[body] Emitente do manifesto; o cpfCnpj precisa ser de empresa cadastrada com MDF-e ativo."
+          },
+          "tipoEmitente": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2",
+              "3"
+            ],
+            "description": "[body] Tipo do emitente: 1 prestador de serviço de transporte, 2 transportador de carga própria, 3 prestador de serviço de transporte que emite CT-e Globalizado."
+          },
+          "modalidadeDeTransporte": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2",
+              "3",
+              "4"
+            ],
+            "description": "[body] Modalidade do transporte: 1 rodoviário, 2 aéreo, 3 aquaviário, 4 ferroviário."
+          },
+          "carregamento": {
+            "type": "object",
+            "description": "[body] Municípios de carregamento: {estado, municipios[{codigo, nome}]}."
+          },
+          "descarregamento": {
+            "type": "object",
+            "description": "[body] Municípios de descarregamento: {estado, municipios[{codigo, nome, nfes[], ctes[]}]}, com as chaves dos documentos vinculados."
+          },
+          "total": {
+            "type": "object",
+            "description": "[body] Totalizadores da carga: quantidadeNFe, quantidadeCTe, quantidadeMDFe, valorTotalDaCarga, pesoDaCarga e unidadeDeMedidadeDoPeso."
+          },
+          "modalRodoviario": {
+            "type": "object",
+            "description": "[body] Dados do modal rodoviário: agenciaReguladora (RNTRC e contratantes), veiculoComTracao (placa, proprietário, tara, capacidade, condutores, tipoRodado, tipoCarroceria) e reboques. Não aparece na lista de propriedades do schema publicado, só nos exemplos oficiais da rota. Campo documentado apenas por exemplo; confirmar o leiaute completo com o fornecedor."
+          },
+          "percursos": {
+            "type": "array",
+            "description": "[body] UFs de percurso entre a origem e o destino: [{estado}]."
+          },
+          "produtoPredominante": {
+            "type": "object",
+            "description": "[body] Produto predominante da carga: tipoCarga, descricao, codigoEAN, codigoNCM e localizações de carregamento e descarregamento."
+          },
+          "segurosDaCarga": {
+            "type": "array",
+            "description": "[body] Seguros da carga: responsável, seguradora, número da apólice e averbações."
+          },
+          "tipoTransportador": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2",
+              "3"
+            ],
+            "description": "[body] Tipo do transportador: 1 ETC, 2 TAC, 3 CTC."
+          },
+          "lacres": {
+            "type": "array",
+            "description": "[body] Lacres do veículo ou do contêiner."
+          },
+          "serie": {
+            "type": "string",
+            "description": "[body] Série do manifesto."
+          },
+          "numero": {
+            "type": "string",
+            "description": "[body] Número do manifesto; dispensável com numeração automática."
+          },
+          "dataEmissao": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[body] Data e hora de emissão."
+          },
+          "previsaoDeInicioDaViagem": {
+            "type": "string",
+            "format": "date-time",
+            "description": "[body] Data e hora previstas para o início da viagem."
+          },
+          "tipoEmissao": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2",
+              "3"
+            ],
+            "description": "[body] Forma de emissão (normal ou contingência)."
+          },
+          "enviarEmail": {
+            "type": "boolean",
+            "description": "[body] Envia o DAMDFE e o XML por e-mail depois da autorização."
+          },
+          "versaoModal": {
+            "type": "string",
+            "description": "[body] Versão do leiaute do modal."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "emitente",
+          "tipoEmitente",
+          "modalidadeDeTransporte",
+          "carregamento",
+          "descarregamento",
+          "total"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__mdfe",
+      "title": "Consultar resumo do MDF-e",
+      "description": "PlugNotas (GET /mdfe/{idNotaOrChaveOrProtocol}/resumo). Devolve o resumo do manifesto por identificador, chave ou protocolo: situação (incluindo ENCERRADO), cStat, número, série, chave, protocolo, datas de autorização, cancelamento e encerramento, mensagem e as URLs de PDF e XML, inclusive os XMLs de cancelamento e de encerramento. Quando usar: É a consulta que responde a pergunta operacional do transporte: este manifesto está autorizado, encerrado ou pendente? Manifesto autorizado e não encerrado impede a emissão do próximo para o mesmo veículo. Pré-requisitos: Manifesto já enviado. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idNotaOrChaveOrProtocol": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas, chave de acesso ou protocolo."
+          },
+          "producao": {
+            "type": "boolean",
+            "description": "[query] Restringe o ambiente da consulta."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idNotaOrChaveOrProtocol"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__listar__mdfe_periodo",
+      "title": "Consultar MDF-e por período",
+      "description": "PlugNotas (GET /mdfe/consulta/periodo). Lista os documentos de MDF-e recebidos pelo PlugNotas de um CPF/CNPJ em um intervalo, em qualquer situação. Retorna 25 registros por página, em ordem decrescente, com o cursor da página seguinte em hashProximaPagina. A data do filtro é a de recebimento pelo PlugNotas, que pode diferir da emissão e da autorização. Quando usar: É a rota para consolidar o movimento do período em planilha ou painel, e para localizar um documento quando você não tem o id nem o idIntegracao. Limites que importam: janela de 31 dias e ausência de total de registros na resposta. Pré-requisitos: CNPJ emitente cadastrado.; Fatiar períodos maiores que 31 dias. Somente leitura: pode ser executada com a credencial do cliente. Paginação: cursor.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "cpfCnpj": {
+            "type": "string",
+            "description": "[query] CPF ou CNPJ do emitente a consultar."
+          },
+          "dataInicial": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Início do período, no formato AAAA-MM-DD."
+          },
+          "dataFinal": {
+            "type": "string",
+            "format": "date",
+            "description": "[query] Fim do período, no formato AAAA-MM-DD; intervalo máximo de 31 dias."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CONCLUIDO",
+              "REJEITADO",
+              "ENCERRADO",
+              "CANCELADO",
+              "PROCESSANDO"
+            ],
+            "description": "[query] Filtra pela situação do documento."
+          },
+          "hashProximaPagina": {
+            "type": "string",
+            "description": "[query] Cursor da página seguinte."
+          },
+          "producao": {
+            "type": "boolean",
+            "description": "[query] Restringe o ambiente: true só produção, false só homologação."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "cpfCnpj"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__baixar_arquivo__pdf_mdfe",
+      "title": "Baixar PDF do MDF-e",
+      "description": "PlugNotas (GET /mdfe/{idOrChave}/pdf). Faz o download do PDF do MDF-e. Se o arquivo ainda estiver sendo gerado, a API responde HTTP 202 com uma mensagem em JSON em vez do binário. Quando usar: Use para arquivar o documento e para anexá-lo ao processo do seu sistema. Sempre trate o HTTP 202 como 'ainda não pronto', e não como falha. Pré-requisitos: Documento em situação final (CONCLUIDO, CANCELADO ou ENCERRADO, conforme o caso). Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idOrChave": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas ou chave de acesso do manifesto."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idOrChave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__baixar_arquivo__xml_mdfe",
+      "title": "Baixar XML do MDF-e",
+      "description": "PlugNotas (GET /mdfe/{idOrChave}/xml). Faz o download do XML do MDF-e. Se o arquivo ainda estiver sendo gerado, a API responde HTTP 202 com uma mensagem em JSON em vez do binário. Quando usar: Use para arquivar o documento e para anexá-lo ao processo do seu sistema. Sempre trate o HTTP 202 como 'ainda não pronto', e não como falha. Pré-requisitos: Documento em situação final (CONCLUIDO, CANCELADO ou ENCERRADO, conforme o caso). Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idOrChave": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas ou chave de acesso do manifesto."
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "autorizacao",
+              "cancelamento",
+              "encerramento"
+            ],
+            "description": "[query] Qual XML retornar: autorizacao, cancelamento ou encerramento."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idOrChave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__encerrar__mdfe",
+      "title": "Solicitar encerramento do manifesto",
+      "description": "PlugNotas (POST /mdfe/{idOrChave}/encerramento). Registra o evento de encerramento do MDF-e junto à SEFAZ, sinalizando que a viagem terminou. É assíncrono; depois de autorizado, o PDF é gerado de novo e a situação passa a ENCERRADO. Quando usar: É obrigatório ao fim do trajeto e frequentemente esquecido: manifesto em aberto bloqueia a emissão do próximo para o mesmo veículo. Escrita com efeito fiscal: o assistente não executa, mas pode ajudar a listar os manifestos pendentes de encerramento com a consulta por período filtrando status CONCLUIDO. Pré-requisitos: Manifesto autorizado (situação CONCLUIDO). NÃO EXECUTAR: operação de escrita. Registra evento fiscal que encerra formalmente o manifesto; não há como reabrir.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idOrChave": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas ou chave de acesso do manifesto."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idOrChave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__consultar_status__encerramento_mdfe",
+      "title": "Consultar a solicitação de encerramento do MDF-e",
+      "description": "PlugNotas (GET /mdfe/{idOrChave}/encerramento/status). Devolve o resultado do evento de encerramento: situação, cStat, resposta da SEFAZ, número de sequência, data, protocolo e a URL do XML de encerramento. Quando usar: Use para confirmar que o manifesto foi mesmo encerrado antes de liberar o veículo para a próxima viagem. Pré-requisitos: Encerramento já solicitado. Somente leitura: pode ser executada com a credencial do cliente. Paginação: nenhuma.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idOrChave": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas ou chave de acesso do manifesto."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idOrChave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "plugnotas__nota_fiscal__cancelar__mdfe",
+      "title": "Solicitar cancelamento do manifesto",
+      "description": "PlugNotas (POST /mdfe/{idOrChave}/cancelamento). Abre a solicitação de cancelamento do MDF-e junto à SEFAZ, com justificativa. É assíncrona; depois de autorizada, o PDF é gerado de novo. Quando usar: Só vale enquanto o manifesto não foi encerrado e a viagem não começou — depois disso o caminho é o encerramento, não o cancelamento. Escrita destrutiva: o assistente não executa. Pré-requisitos: Manifesto autorizado, ainda não encerrado e dentro do prazo. NÃO EXECUTAR: operação de escrita. Cancela documento fiscal de transporte autorizado perante a SEFAZ.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idOrChave": {
+            "type": "string",
+            "description": "[path] Identificador do PlugNotas ou chave de acesso do manifesto."
+          },
+          "justificativa": {
+            "type": "string",
+            "description": "[body] Justificativa do cancelamento; mínimo de 15 caracteres."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idOrChave"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

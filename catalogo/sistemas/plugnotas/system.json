@@ -379,6 +379,16 @@
       "impacto": "medio"
     },
     {
+      "campo": "MDF-e: bloco modalRodoviario",
+      "descricao": "O schema publicado de POST /mdfe não lista nenhuma propriedade de veículo, RNTRC ou condutor. Esses dados aparecem só no exemplo 'MODAL RODOVIÁRIO' da própria rota, sob a chave modalRodoviario (agenciaReguladora, veiculoComTracao, condutores, reboques). Os nomes registrados aqui vieram desse exemplo; o leiaute completo do modal, e os equivalentes aéreo, aquaviário e ferroviário, não estão no schema.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "inconsistência de nomes entre documentos",
+      "descricao": "O mesmo conceito muda de nome entre documentos: a NFS-e usa 'enviarEmail' e o MDF-e também, enquanto NF-e e NFC-e usam 'enviaremail' tudo em minúsculo; a NFS-e usa 'servico' e 'cidadePrestacao', a NF-e usa 'itens' e 'natureza', e a NFCom aninha quase tudo em 'informacoesNFCom'. Não há normalização entre os leiautes.",
+      "impacto": "baixo"
+    },
+    {
       "campo": "execucao.campo_total (listas por cursor)",
       "descricao": "As consultas por período e /nfe/destinada não devolvem total de registros, só hashProximaPagina. Por isso campo_total fica null nesses endpoints; só os relatórios trazem totalItems/totalPages.",
       "impacto": "baixo"

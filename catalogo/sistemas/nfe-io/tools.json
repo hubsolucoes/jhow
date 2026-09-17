@@ -1,0 +1,1634 @@
+{
+  "sistema": "nfe-io",
+  "tools": [
+    {
+      "name": "nfe-io__nota_fiscal__listar__nfse",
+      "title": "Listar as Notas Fiscais de Serviço (NFSE)",
+      "description": "Lista as NFS-e (notas fiscais de serviço) emitidas por uma empresa na NFE.io, com filtro por data de competência (issuedBegin/issuedEnd) ou por data de criação (createdBegin/createdEnd) e paginação por pageIndex/pageCount. Cada item traz o documento completo: tomador, valores, ISS, retenções federais e status. Use para relatório de faturamento de serviço, fechamento contábil e conciliação. NÃO use para localizar uma nota específica que você já identifica por id ou externalId — há endpoints diretos para isso. Pré-requisitos: Chave de Nota Fiscal e o company_id. Host: api.nfe.io (atenção: NÃO é api.nfse.io).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel)."
+          },
+          "pageCount": {
+            "type": "integer",
+            "description": "Quantidade de itens por página."
+          },
+          "pageIndex": {
+            "type": "integer",
+            "description": "Número da página, começando em 1."
+          },
+          "issuedBegin": {
+            "type": "string",
+            "description": "Início do intervalo de data de competência (emissão)."
+          },
+          "issuedEnd": {
+            "type": "string",
+            "description": "Fim do intervalo de data de competência (emissão)."
+          },
+          "createdBegin": {
+            "type": "string",
+            "description": "Início do intervalo de data de criação do registro na NFE.io."
+          },
+          "createdEnd": {
+            "type": "string",
+            "description": "Fim do intervalo de data de criação do registro na NFE.io."
+          },
+          "hasTotals": {
+            "type": "boolean",
+            "description": "Quando verdadeiro, a resposta traz os totais de resultados e de páginas."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__obter__nfse",
+      "title": "Obter os detalhes de uma Nota Fiscal de Serviço (NFSE)",
+      "description": "Consulta uma NFS-e específica pelo id que a NFE.io devolveu na emissão, em uma empresa identificada por company_id. É o endpoint de polling: como a emissão responde 202 (enfileirada) e não 200, só esta consulta (ou o webhook) confirma se a prefeitura autorizou. Leia flowStatus (Issued, IssueFailed, WaitingSend, ...) e flowMessage, que traz o motivo da rejeição. NÃO use para localizar a nota pelo identificador do seu sistema — para isso existe a rota /serviceinvoices/external/{id}. Host: api.nfe.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel)."
+          },
+          "id": {
+            "type": "string",
+            "description": "Identificador da NFS-e devolvido pela NFE.io no 202 da emissão."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id",
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__obter__nfse_externo",
+      "title": "Obter os detalhes de uma NFS-e pelo ID externo (externalId)",
+      "description": "Localiza uma NFS-e pelo externalId — o identificador do sistema de origem (número do pedido, da fatura, do contrato) enviado no momento da emissão — dispensando guardar o id gerado pela NFE.io. Use em conciliação ('esse pedido já virou nota?') e para recuperar uma emissão cuja resposta 202 se perdeu. NÃO use se o seu sistema não enviou externalId na emissão: nesse caso só a listagem por período resolve. Host: api.nfe.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel)."
+          },
+          "id": {
+            "type": "string",
+            "description": "Valor enviado no campo externalId no momento da emissão (o identificador do seu sistema)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id",
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__emitir__nfse",
+      "title": "Emitir uma Nota Fiscal de Serviço (NFSE)",
+      "description": "Emite (enfileira) uma NFS-e para a prefeitura do município da empresa. ESCRITA COM EFEITO FISCAL: cria documento com validade legal, consome nota do plano e só pode ser desfeita por cancelamento formal, com prazo próprio de cada município. Não execute automaticamente — explique o payload e entregue o código para o cliente rodar. Obrigatórios: cityServiceCode, description e servicesAmount; por padrão a NFE.io calcula os impostos pelo código de serviço, e informar issRate/issTaxAmount transfere o cálculo para você. Responde 202 (enfileirada), NÃO autorização. Envie sempre externalId para conseguir reconsultar sem duplicar. Host: api.nfe.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel)."
+          },
+          "cityServiceCode": {
+            "type": "string",
+            "description": "Código de serviço do município (lista da prefeitura). É por ele que a NFE.io calcula o ISS automaticamente."
+          },
+          "description": {
+            "type": "string",
+            "description": "Descrição do serviço prestado que sai no corpo da nota."
+          },
+          "servicesAmount": {
+            "type": "number",
+            "description": "Valor total dos serviços."
+          },
+          "borrower": {
+            "type": "object",
+            "description": "Tomador do serviço: type (LegalEntity ou NaturalPerson), name, federalTaxNumber, email e address com city.code do IBGE."
+          },
+          "externalId": {
+            "type": "string",
+            "description": "Identificador do documento no seu sistema; habilita a busca por /serviceinvoices/external/{id}."
+          },
+          "federalServiceCode": {
+            "type": "string",
+            "description": "Item da lista nacional (LC 116)."
+          },
+          "cnaeCode": {
+            "type": "string",
+            "description": "CNAE da atividade, exigido por alguns municípios."
+          },
+          "taxationType": {
+            "type": "string",
+            "description": "Natureza da tributação do ISS.",
+            "enum": [
+              "None",
+              "WithinCity",
+              "OutsideCity",
+              "Export",
+              "Free",
+              "Immune",
+              "SuspendedCourtDecision",
+              "SuspendedAdministrativeProcedure",
+              "OutsideCityFree",
+              "OutsideCityImmune",
+              "OutsideCitySuspended",
+              "OutsideCitySuspendedAdministrativeProcedure",
+              "ObjectiveImune"
+            ]
+          },
+          "issRate": {
+            "type": "number",
+            "description": "Alíquota de ISS. Informar desliga o cálculo automático."
+          },
+          "issAmountWithheld": {
+            "type": "number",
+            "description": "ISS retido pelo tomador."
+          },
+          "retentionType": {
+            "type": "string",
+            "description": "Quem retém o ISS.",
+            "enum": [
+              "NotWithheld",
+              "WithheldByBuyer",
+              "WithheldByIntermediary"
+            ]
+          },
+          "issuedOn": {
+            "type": "string",
+            "description": "Data de competência."
+          },
+          "rpsNumber": {
+            "type": "integer",
+            "description": "Número do RPS, quando você controla a numeração."
+          },
+          "additionalInformation": {
+            "type": "string",
+            "description": "Observações que saem na nota."
+          },
+          "ibsCbs": {
+            "type": "object",
+            "description": "Grupo da Reforma Tributária (IBS/CBS) para municípios no Ambiente Nacional."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id",
+          "cityServiceCode",
+          "description",
+          "servicesAmount"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__cancelar__nfse",
+      "title": "Cancelar uma Nota Fiscal de Serviços (NFSE)",
+      "description": "Cancela uma NFS-e já autorizada, pedindo o cancelamento à prefeitura. ESCRITA DESTRUTIVA E IRREVERSÍVEL, com prazo definido por cada município (muitos só aceitam dentro do mês de competência). Não execute: explique e entregue o código. É assíncrono como a emissão — acompanhe flowStatus até Cancelled ou CancelFailed, e leia flowMessage em caso de falha. Só faz sentido em nota com flowStatus Issued. Host: api.nfe.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel)."
+          },
+          "id": {
+            "type": "string",
+            "description": "Identificador da NFS-e na NFE.io."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id",
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__baixar_arquivo__nfse_pdf",
+      "title": "Download do PDF da Nota Fiscal de Serviço (NFSE)",
+      "description": "Baixa o PDF de uma NFS-e autorizada pelo id da nota na NFE.io. Devolve conteúdo binário (application/pdf), não JSON — em uma planilha, o útil é a lista de links, não o arquivo. Só funciona com a nota já autorizada (flowStatus Issued); antes disso responde 404. Use quando o cliente pede a nota em PDF para anexar a e-mail ou ao arquivo contábil. Para o arquivo fiscal propriamente dito, prefira o XML. Host: api.nfe.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel)."
+          },
+          "id": {
+            "type": "string",
+            "description": "Identificador da NFS-e na NFE.io."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id",
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__baixar_arquivo__nfse_xml",
+      "title": "Download do XML da Nota Fiscal de Serviço (NFSE)",
+      "description": "Baixa o XML autorizado de uma NFS-e — o arquivo que a empresa precisa guardar pelo prazo legal e entregar ao contador. Devolve XML binário, não JSON. Só existe com a nota autorizada (flowStatus Issued); antes disso responde 404. Combine com a listagem por competência para montar o pacote de XMLs do mês. Para o evento de cancelamento há rota própria (/cancellation-xml). Host: api.nfe.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel)."
+          },
+          "id": {
+            "type": "string",
+            "description": "Identificador da NFS-e na NFE.io."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id",
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__enviar__nfse_email",
+      "title": "Enviar email para o Tomador com a Nota Fiscal de Serviço (NFSE)",
+      "description": "Dispara o envio do e-mail da NFE.io ao tomador com a NFS-e anexada, usando o endereço gravado em borrower.email. ESCRITA: envia comunicação real a um terceiro em nome do cliente, então não execute — explique e entregue o código. Depende de a nota estar autorizada e de ter e-mail de tomador na emissão. Para auditar o que foi enviado, use a API de notificações de NFS-e (/v1/companies/{company_id}/notifications). Host: api.nfe.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel)."
+          },
+          "id": {
+            "type": "string",
+            "description": "Identificador da NFS-e na NFE.io."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id",
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__listar__nfe",
+      "title": "Listar as Notas Fiscais Eletrônicas (NFE)",
+      "description": "Lista as NF-e (modelo 55) emitidas por uma empresa na NFE.io, com paginação por cursor (startingAfter + limit, resposta com hasMore) e busca opcional no parâmetro q em sintaxe Elasticsearch query string. O parâmetro environment (Production ou Test) é OBRIGATÓRIO — sem ele a chamada falha com 400. Use para relatório de faturamento de mercadoria, conciliação e auditoria de rejeição. NÃO confunda o host: NF-e está em api.nfse.io, enquanto NFS-e está em api.nfe.io. O limit padrão é 10, então suba-o para evitar dezenas de chamadas.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (GET /v2/companies)."
+          },
+          "environment": {
+            "type": "string",
+            "description": "Ambiente das notas a listar. OBRIGATÓRIO nesta rota.",
+            "enum": [
+              "None",
+              "Production",
+              "Test"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Itens por página.",
+            "default": 10
+          },
+          "startingAfter": {
+            "type": "string",
+            "description": "Cursor: id da última nota da página anterior."
+          },
+          "endingBefore": {
+            "type": "string",
+            "description": "Cursor para paginar para trás."
+          },
+          "q": {
+            "type": "string",
+            "description": "Busca no estilo Elasticsearch query string, por exemplo buyer.name:'EMPRESA LTDA' ou number:[100 TO 200]."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId",
+          "environment"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__obter__nfe",
+      "title": "Consultar por ID uma Nota Fiscal Eletrônica (NFE)",
+      "description": "Consulta uma NF-e específica pelo invoiceId dentro de uma empresa (companyId). É o endpoint de polling após a emissão, que responde 202 e não confirma autorização. Traz authorization.accessKey (chave de 44 dígitos), authorization.message (texto da SEFAZ) e o grupo lastEvents.events[], que é o histórico de tentativas e o único lugar onde se lê o motivo de uma rejeição. Use para descobrir por que uma nota não saiu e para obter a chave de acesso. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (GET /v2/companies)."
+          },
+          "invoiceId": {
+            "type": "string",
+            "description": "Identificador da NF-e na NFE.io, devolvido no 202 da emissão."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId",
+          "invoiceId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__emitir__nfe",
+      "title": "Emitir uma Nota Fiscal Eletrônica (NFE)",
+      "description": "Emite (enfileira) uma NF-e modelo 55 na SEFAZ da UF da empresa. ESCRITA COM EFEITO FISCAL: consome numeração da série, gera obrigação tributária e só se desfaz por cancelamento (prazo curto, geralmente 24 h) ou inutilização. Não execute — explique o payload e entregue o código. Obrigatórios: items, payment e buyer. Diferente da NFS-e, a NFE.io não infere tributação: NCM, CFOP, CST/CSOSN e bases precisam vir corretos. Responde 202 (enfileirada); a autorização só se confirma no GET da nota ou no webhook. Exige certificado A1 mesmo em homologação. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (GET /v2/companies)."
+          },
+          "items": {
+            "type": "array",
+            "description": "Itens da nota: code, description, ncm, cfop, unit, quantity, unitAmount, totalAmount e o grupo de tributos por item."
+          },
+          "payment": {
+            "type": "array",
+            "description": "Formas de pagamento (paymentDetail e payBack); obrigatório desde a NT do grupo de pagamento."
+          },
+          "buyer": {
+            "type": "object",
+            "description": "Destinatário: name, federalTaxNumber, stateTaxNumber, stateTaxNumberIndicator, email e address."
+          },
+          "operationNature": {
+            "type": "string",
+            "description": "Natureza da operação que aparece no DANFE."
+          },
+          "operationType": {
+            "type": "string",
+            "description": "Sentido da operação.",
+            "enum": [
+              "Outgoing",
+              "Incoming"
+            ]
+          },
+          "destination": {
+            "type": "string",
+            "description": "Destino da operação.",
+            "enum": [
+              "None",
+              "Internal_Operation",
+              "Interstate_Operation",
+              "International_Operation"
+            ]
+          },
+          "purposeType": {
+            "type": "string",
+            "description": "Finalidade da nota.",
+            "enum": [
+              "None",
+              "Normal",
+              "Complement",
+              "Adjustment",
+              "Devolution",
+              "CreditInvoice",
+              "DebitInvoice"
+            ]
+          },
+          "consumerType": {
+            "type": "string",
+            "description": "Indicador de consumidor final.",
+            "enum": [
+              "FinalConsumer",
+              "Normal"
+            ]
+          },
+          "presenceType": {
+            "type": "string",
+            "description": "Indicador de presença do comprador.",
+            "enum": [
+              "None",
+              "Presence",
+              "Internet",
+              "Telephone",
+              "Delivery",
+              "OthersNonPresenceOperation"
+            ]
+          },
+          "issuedOn": {
+            "type": "string",
+            "description": "Data e hora de emissão (dhEmi). Sem o campo, a plataforma assume operationOn ou a data do processamento."
+          },
+          "operationOn": {
+            "type": "string",
+            "description": "Data e hora de saída ou entrada (dhSaiEnt)."
+          },
+          "serie": {
+            "type": "integer",
+            "description": "Série da nota."
+          },
+          "number": {
+            "type": "integer",
+            "description": "Número da nota, quando você controla a numeração."
+          },
+          "totals": {
+            "type": "object",
+            "description": "Totais de icms, issqn e withheldTaxes."
+          },
+          "transport": {
+            "type": "object",
+            "description": "Dados de transporte, volumes e veículo."
+          },
+          "billing": {
+            "type": "object",
+            "description": "Fatura e duplicatas."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId",
+          "items",
+          "payment",
+          "buyer"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__cancelar__nfe",
+      "title": "Cancelar uma Nota Fiscal Eletrônica (NFE)",
+      "description": "Cancela uma NF-e autorizada, registrando o evento de cancelamento na SEFAZ. ESCRITA DESTRUTIVA E IRREVERSÍVEL, com prazo legal curto (24 horas na maioria das UFs). Não execute — explique e entregue o código. Depois do prazo o cancelamento é recusado e o caminho correto passa a ser nota de devolução. Para corrigir dados que não alteram valores nem destinatário, prefira a Carta de Correção (PUT .../correctionletter). Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (GET /v2/companies)."
+          },
+          "invoiceId": {
+            "type": "string",
+            "description": "Identificador da NF-e na NFE.io."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId",
+          "invoiceId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__listar__eventos_nfe",
+      "title": "Consultar eventos por ID de uma Nota Fiscal Eletrônica (NFE)",
+      "description": "Lista os eventos de uma NF-e específica: autorização, cancelamento, Carta de Correção, manifestação do destinatário e eventos de autoridade da Reforma Tributária. Cada evento traz tipo, status, mensagem da SEFAZ e data. Use em auditoria fiscal e para diagnosticar por que uma nota foi rejeitada — a mensagem do órgão costuma apontar o campo problemático. Requer companyId e invoiceId. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (GET /v2/companies)."
+          },
+          "invoiceId": {
+            "type": "string",
+            "description": "Identificador da NF-e na NFE.io."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId",
+          "invoiceId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__baixar_arquivo__nfe_xml",
+      "title": "Consultar XML da Nota Fiscal Eletrônica (NFE)",
+      "description": "Baixa o XML autorizado de uma NF-e (o procNFe com o protocolo da SEFAZ) pelo invoiceId. Devolve conteúdo XML binário, não JSON. Só existe com a nota autorizada; para nota rejeitada há rota própria (/xml/rejection) e para contingência EPEC há /xml-epec. Use em fechamento contábil, envio ao destinatário e importação em ERP. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (GET /v2/companies)."
+          },
+          "invoiceId": {
+            "type": "string",
+            "description": "Identificador da NF-e na NFE.io."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId",
+          "invoiceId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__baixar_arquivo__nfe_pdf",
+      "title": "Consultar PDF do DANFE da Nota Fiscal Eletrônica (NFE)",
+      "description": "Baixa o DANFE (PDF) de uma NF-e autorizada pelo invoiceId. Devolve conteúdo binário application/pdf. É o documento auxiliar que acompanha a mercadoria e o que o cliente normalmente chama de 'a nota' — mas NÃO substitui o XML para guarda fiscal. Só existe com a nota autorizada; antes disso responde 404. Há rota irmã para o PDF da Carta de Correção. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (GET /v2/companies)."
+          },
+          "invoiceId": {
+            "type": "string",
+            "description": "Identificador da NF-e na NFE.io."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId",
+          "invoiceId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__corrigir__nfe",
+      "title": "Enviar uma carta de correção para Nota Fiscal Eletrônica (CC-e)",
+      "description": "Registra uma Carta de Correção Eletrônica (CC-e) para uma NF-e autorizada. ESCRITA: gera evento fiscal definitivo na SEFAZ, que não pode ser apagado. Não execute — explique e entregue o código. A CC-e só corrige informações que NÃO alteram valores, destinatário nem data de emissão (tipicamente descrição, natureza da operação, transporte e dados complementares); para o resto, o caminho é cancelamento dentro do prazo ou nota de devolução. Cada nova CC-e substitui a anterior e é numerada em sequência. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (GET /v2/companies)."
+          },
+          "invoiceId": {
+            "type": "string",
+            "description": "Identificador da NF-e na NFE.io."
+          },
+          "correction": {
+            "type": "string",
+            "description": "Texto da correção. A legislação exige um mínimo de caracteres e proíbe corrigir valor, destinatário e data."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId",
+          "invoiceId",
+          "correction"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__listar__nfce",
+      "title": "Listar as Notas Fiscais de Consumidor Eletrônicas (NFCE)",
+      "description": "Lista as NFC-e (modelo 65, cupom fiscal eletrônico) emitidas por uma empresa, com paginação por cursor (startingAfter + limit, resposta com hasMore) e busca opcional em q. Ao contrário da NF-e, aqui o parâmetro environment é OPCIONAL — informe-o mesmo assim para não misturar cupom de teste com cupom real. Use para relatório de vendas de varejo, fechamento de caixa e conciliação com o PDV. Atenção ao volume: o limit padrão é 10. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (GET /v2/companies)."
+          },
+          "environment": {
+            "type": "string",
+            "description": "Ambiente das notas. Aqui é OPCIONAL (diferente da NF-e, onde é obrigatório).",
+            "enum": [
+              "None",
+              "Production",
+              "Test"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Itens por página.",
+            "default": 10
+          },
+          "startingAfter": {
+            "type": "string",
+            "description": "Cursor: id da última nota da página anterior."
+          },
+          "endingBefore": {
+            "type": "string",
+            "description": "Cursor para paginar para trás."
+          },
+          "q": {
+            "type": "string",
+            "description": "Busca no estilo Elasticsearch query string."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__emitir__nfce",
+      "title": "Emitir uma Nota Fiscal de Consumidor Eletrônica (NFCE)",
+      "description": "Emite uma NFC-e (modelo 65, cupom fiscal eletrônico) na SEFAZ da UF. ESCRITA COM EFEITO FISCAL: consome numeração e gera obrigação tributária, com janela de cancelamento muito curta (30 minutos em várias UFs). Não execute — explique e entregue o código. Obrigatórios: items, payment e buyer (o consumidor pode vir só com CPF ou ser não identificado). Exige CSC configurado na Inscrição Estadual e certificado A1 mesmo em homologação. Para empresa com mais de uma IE, há a variante POST /v2/companies/{companyId}/statetaxes/{statetaxId}/consumerinvoices. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (GET /v2/companies)."
+          },
+          "items": {
+            "type": "array",
+            "description": "Itens vendidos, com code, description, ncm, cfop, unit, quantity, unitAmount e totalAmount."
+          },
+          "payment": {
+            "type": "array",
+            "description": "Formas de pagamento do cupom; em NFC-e é o grupo mais fiscalizado."
+          },
+          "buyer": {
+            "type": "object",
+            "description": "Consumidor. Em NFC-e costuma vir só com federalTaxNumber (CPF na nota) ou vazio para consumidor não identificado."
+          },
+          "presenceType": {
+            "type": "string",
+            "description": "Indicador de presença.",
+            "enum": [
+              "None",
+              "Presence",
+              "Internet",
+              "Telephone",
+              "Delivery",
+              "OthersNonPresenceOperation"
+            ]
+          },
+          "printType": {
+            "type": "string",
+            "description": "Formato do documento auxiliar.",
+            "enum": [
+              "None",
+              "NFeNormalPortrait",
+              "NFeNormalLandscape",
+              "NFeSimplified",
+              "DANFE_NFC_E",
+              "DANFE_NFC_E_MSG_ELETRONICA"
+            ]
+          },
+          "serie": {
+            "type": "integer",
+            "description": "Série do cupom."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId",
+          "items",
+          "payment",
+          "buyer"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__baixar_arquivo__nfce_pdf",
+      "title": "Consultar PDF do DANFE da NFC-e (DANFE-NFC-e)",
+      "description": "Baixa o DANFE-NFC-e em PDF — o cupom com o QR Code que permite ao consumidor consultar a nota no portal da SEFAZ. Devolve binário application/pdf. Só existe com o cupom autorizado (status Issued ou IssuedContingency). Use para reimpressão, envio ao consumidor e conferência de caixa. O QR Code depende do CSC cadastrado na Inscrição Estadual. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa emissora na NFE.io (GET /v2/companies)."
+          },
+          "invoiceId": {
+            "type": "string",
+            "description": "Identificador da NFC-e na NFE.io."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId",
+          "invoiceId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__empresa__listar",
+      "title": "Consultar todas as Empresas da Conta",
+      "description": "Lista as empresas emissoras cadastradas na conta NFE.io, com id (o company_id usado em quase todas as outras rotas), CNPJ, razão social, regime tributário, endereço, status e os resumos de inscrições estaduais e municipais. Use como PRIMEIRA chamada de qualquer integração, para descobrir o company_id, e para montar painel multiempresa. Paginação por cursor (startingAfter + limit, padrão 10). Host: api.nfse.io — a rota equivalente em api.nfe.io/v1/companies está em descontinuação.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "description": "Itens por página.",
+            "default": 10
+          },
+          "startingAfter": {
+            "type": "string",
+            "description": "Cursor: id da última empresa da página anterior."
+          },
+          "endingBefore": {
+            "type": "string",
+            "description": "Cursor para paginar para trás."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__empresa__obter",
+      "title": "Consultar uma Empresa pelo ID",
+      "description": "Consulta o cadastro completo de uma empresa emissora pelo company_id: razão social, CNPJ, regime tributário, endereço com código IBGE, status e as inscrições estaduais e municipais vinculadas. Use para conferir o cadastro antes de emitir, diagnosticar rejeição causada por dado do emitente e validar que um company_id guardado continua ativo. A resposta vem envelopada em {\"company\": {...}}. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa na NFE.io."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__empresa__criar",
+      "title": "Criar uma Empresa",
+      "description": "Cadastra uma nova empresa emissora na conta NFE.io. ESCRITA: cria um contribuinte que passa a contar para a cobrança e para os limites do plano. Não execute — explique e entregue o código. Obrigatórios: name, federalTaxNumber e address (com city.code do IBGE). É o primeiro dos três passos do onboarding fiscal; depois vêm o upload do certificado digital e o cadastro da inscrição municipal (NFS-e) ou estadual (NF-e/NFC-e). CNPJ duplicado devolve 409 — liste antes de criar. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Razão social da empresa."
+          },
+          "federalTaxNumber": {
+            "type": "string",
+            "description": "CNPJ da empresa."
+          },
+          "tradeName": {
+            "type": "string",
+            "description": "Nome fantasia."
+          },
+          "taxRegime": {
+            "type": "string",
+            "description": "Regime tributário do emitente."
+          },
+          "address": {
+            "type": "object",
+            "description": "Endereço com postalCode, street, number, district, state e city (code do IBGE e name)."
+          },
+          "email": {
+            "type": "string",
+            "description": "E-mail de contato da empresa."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "federalTaxNumber",
+          "address"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__empresa__listar__certificados",
+      "title": "Consultar Certificado habilitado para empresa",
+      "description": "Lista os certificados digitais ICP-Brasil vinculados a uma empresa na NFE.io, com thumbprint (impressão digital), titular, CNPJ do titular, validUntil e status. Use para MONITORAR VENCIMENTO: certificado A1 vale um ano e, ao vencer, a emissão para e a captura fiscal de documentos recebidos é desativada automaticamente pelo circuit breaker. É a leitura certa para um alerta de 30 dias antes. Requer company_id. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa na NFE.io."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__empresa__criar__certificado",
+      "title": "Upload de um Certificado",
+      "description": "Faz o upload do certificado digital A1 ICP-Brasil (.pfx) e sua senha para uma empresa na NFE.io, via multipart/form-data. ESCRITA COM MATERIAL CRIPTOGRÁFICO SENSÍVEL: o arquivo e a senha permitem assinar documentos fiscais em nome da empresa. Nunca execute, nunca peça a senha ao usuário no chat e nunca manipule o arquivo — oriente o cliente a subir pelo painel ou rodar o código no ambiente dele. O CNPJ do certificado precisa bater com o da empresa e A3 (token/cartão) não serve. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa na NFE.io."
+          },
+          "file": {
+            "type": "string",
+            "description": "Arquivo .pfx (PKCS#12) do certificado A1, enviado como multipart/form-data."
+          },
+          "password": {
+            "type": "string",
+            "description": "Senha do arquivo .pfx."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id",
+          "file",
+          "password"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__empresa__listar__inscricoes_municipais",
+      "title": "Listar as Inscrições Municipais",
+      "description": "Lista as inscrições municipais de uma empresa na NFE.io. É onde ficam os dados que decidem o comportamento da NFS-e: environment (Development = teste sem validade fiscal; Production = nota válida), fiscalStatus (se a NFE.io tem integração homologada com aquela prefeitura), issRate, série e número do RPS e regimes especiais. Use para diagnosticar 'por que a nota saiu como teste' e para checar cobertura do município antes de prometer prazo. Requer company_id. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa na NFE.io."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Itens por página.",
+            "default": 10
+          },
+          "startingAfter": {
+            "type": "string",
+            "description": "Cursor de paginação."
+          },
+          "endingBefore": {
+            "type": "string",
+            "description": "Cursor para paginar para trás."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__webhook__listar",
+      "title": "Listar os Webhooks",
+      "description": "Lista os webhooks cadastrados na conta NFE.io, com URL de destino (uri), filtros de evento assinados, contentType, insecureSsl e status. Use para auditar a integração: descobrir para onde a conta envia eventos, encontrar URL de teste esquecida em produção e conferir quais eventos estão realmente assinados. Requer apenas a Chave de Nota Fiscal — webhook é recurso da conta, não da empresa. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__webhook__assinar_webhook",
+      "title": "Criar um Webhook",
+      "description": "Cadastra um webhook na conta NFE.io: URL de destino, lista de eventos assinados (filters), secret de 32 a 64 caracteres para a assinatura HMAC-SHA1 e cabeçalhos fixos opcionais. ESCRITA: passa a enviar dados fiscais da conta para uma URL externa; URL errada é vazamento. Não execute — explique e entregue o código. A URL é validada no cadastro e precisa responder 200. Sempre defina o secret e valide X-Hub-Signature no seu endpoint. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "webHook.uri": {
+            "type": "string",
+            "description": "URL que receberá os POSTs. É validada no cadastro: precisa responder 200 a uma requisição de teste."
+          },
+          "webHook.filters": {
+            "type": "array",
+            "description": "Lista de tipos de evento assinados, obtida em GET /v2/webhooks/eventtypes."
+          },
+          "webHook.secret": {
+            "type": "string",
+            "description": "Segredo de 32 a 64 caracteres usado no HMAC-SHA1 enviado em X-Hub-Signature."
+          },
+          "webHook.contentType": {
+            "type": "string",
+            "description": "Formato do corpo.",
+            "default": "json"
+          },
+          "webHook.insecureSsl": {
+            "type": "boolean",
+            "description": "Aceitar certificado TLS inválido no destino.",
+            "default": false
+          },
+          "webHook.headers": {
+            "type": "object",
+            "description": "Cabeçalhos fixos que a NFE.io envia ao seu endpoint, por exemplo um Authorization do seu lado."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "webHook.uri",
+          "webHook.filters"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__webhook__excluir",
+      "title": "Excluir um Webhook existente",
+      "description": "Remove um webhook da conta NFE.io pelo webhook_id. ESCRITA DESTRUTIVA: a conta deixa de receber os eventos que aquele webhook assinava, e a integração do cliente pode passar a não saber que uma nota falhou. Não execute — explique e entregue o código. CUIDADO com o endpoint irmão DELETE /v2/webhooks, sem id, que apaga TODOS os webhooks da conta de uma vez. Liste antes para saber o que será perdido. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "webhook_id": {
+            "type": "string",
+            "description": "Identificador do webhook, obtido em GET /v2/webhooks."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "webhook_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__tabela_auxiliar__listar__tipos_evento",
+      "title": "Listar os Tipos de Eventos gerados pela plataforma",
+      "description": "Lista os tipos de evento de webhook que a plataforma NFE.io gera, para usar como filtro no cadastro de um webhook. Chame ANTES de criar ou atualizar um webhook: nome de evento errado devolve 400. Serve também de inventário do que dá para monitorar (emissão, cancelamento, inutilização, carta de correção, documentos recebidos). Há a rota equivalente GET /v1/eventTypes na API de NFS-e em api.nfe.io. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__pessoa__obter__cnpj",
+      "title": "Consulta de dados do CNPJ",
+      "description": "Consulta os dados cadastrais de um CNPJ na base da Receita Federal: razão social, nome fantasia, situação cadastral, data de abertura, porte, capital social, endereço com código IBGE, CNAEs, natureza jurídica e sócios. Use para sanear cadastro antes de emitir nota (evita rejeição por dado do destinatário), em onboarding e em enriquecimento de base. ATENÇÃO: host legalentity.api.nfe.io e CHAVE DE DADOS — a Chave de Nota Fiscal devolve 401 aqui. A v3 é a recomendada e aceita CNPJ alfanumérico; a v2 segue ativa como legada.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "federalTaxNumber": {
+            "type": "string",
+            "description": "CNPJ numérico ou alfanumérico. A v3 normaliza sozinha: aceita pontuação, converte minúsculas para maiúsculas e completa zeros à esquerda."
+          },
+          "updateAddress": {
+            "type": "boolean",
+            "description": "Atualiza o endereço com base nos Correios.",
+            "default": true
+          },
+          "updateCityCode": {
+            "type": "boolean",
+            "description": "Quando updateAddress=false, atualiza apenas o código do município.",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "federalTaxNumber"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__pessoa__consultar_status__cpf",
+      "title": "Consulta de Situação Cadastral do CPF na Receita Federal",
+      "description": "Consulta a situação cadastral de um CPF na Receita Federal. Exige CPF e data de nascimento como chave dupla — data errada é a causa mais comum de 404, não CPF inexistente. Use para validar cadastro de pessoa física antes de emitir NFS-e para tomador PF ou NFC-e com CPF na nota. TRATA DADO PESSOAL: a resposta traz nome e data de nascimento, então só consulte com base legal e não despeje o resultado em planilha aberta. Host naturalperson.api.nfe.io com a CHAVE DE DADOS. Há a variante irrestrita em /v1/naturalperson/serpro/status/...",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "federalTaxNumber": {
+            "type": "string",
+            "description": "CPF, somente dígitos."
+          },
+          "birthDate": {
+            "type": "string",
+            "description": "Data de nascimento do titular, usada junto com o CPF como chave da consulta."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "federalTaxNumber",
+          "birthDate"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__endereco__obter__cep",
+      "title": "Consulta de Endereço por CEP",
+      "description": "Consulta o endereço a partir de um CEP de 8 dígitos, cruzando a base DNE dos Correios com os municípios do IBGE. O diferencial é vir com city.code, o código IBGE do município, que é obrigatório em NF-e, NFC-e e NFS-e e é a causa silenciosa de muitas rejeições. Use para preencher e validar endereço de cliente, fornecedor e empresa emissora. Host address.api.nfe.io com a CHAVE DE DADOS. Para busca por logradouro ou termo livre, há GET /v2/addresses e GET /v2/addresses/{term}.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "postalCode": {
+            "type": "string",
+            "description": "CEP com 8 dígitos, sem máscara."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "postalCode"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__endereco__listar",
+      "title": "Pesquisa de Endereço por termo genérico",
+      "description": "Pesquisa endereços por termo livre (logradouro, bairro, cidade) e devolve os candidatos com CEP, município e código IBGE. Use quando o cliente tem o endereço mas não o CEP — típico de cadastro vindo de planilha antiga. Quanto mais específico o termo, menos candidatos. Faça URL-encoding do termo. Há também a variante por campos estruturados em GET /v2/addresses. Host address.api.nfe.io com a CHAVE DE DADOS.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "string",
+            "description": "Termo livre de pesquisa, por exemplo 'avenida paulista sao paulo'."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "term"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__obter__sefaz_chave",
+      "title": "Consulta de Nota Fiscal Eletrônica na SEFAZ por Chave de Acesso",
+      "description": "Consulta uma NF-e de QUALQUER emitente na SEFAZ pela chave de acesso de 44 dígitos e devolve o documento em JSON, com currentStatus (unknown, authorized, canceled), emitente, destinatário, itens e totais. Não exige ser o destinatário nem ter certificado. Use para auditar nota de fornecedor recebida em PDF. ATENÇÃO: host nfe.api.nfe.io com a CHAVE DE DADOS, e os erros aqui vêm como STRING, não no JSON {errors:[...]} do resto da plataforma. Variantes: …/{accessKey}.pdf, …/{accessKey}.xml e a modalidade irrestrita /v2/productinvoices/serpro/{accessKey}.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "accessKey": {
+            "type": "string",
+            "description": "Chave de acesso de 44 dígitos da NF-e."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "accessKey"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__listar__eventos_sefaz",
+      "title": "Consulta de Eventos da Nota Fiscal Eletrônica na SEFAZ por Chave de Acesso",
+      "description": "Lista os eventos registrados na SEFAZ para uma NF-e identificada pela chave de acesso de 44 dígitos: cancelamento, Carta de Correção, manifestação do destinatário e eventos de autoridade. Use junto com a consulta por chave — uma nota pode estar autorizada e ter uma CC-e que muda a interpretação, ou ter sido cancelada depois que o DANFE foi enviado. Host nfe.api.nfe.io com a CHAVE DE DADOS.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "accessKey": {
+            "type": "string",
+            "description": "Chave de acesso de 44 dígitos da NF-e."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "accessKey"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__empresa__criar__inbound_nfe",
+      "title": "Ativar busca automática de NF-e (Inbound)",
+      "description": "Ativa a captura automática de NF-e emitidas contra o CNPJ da empresa (distribuição de DF-e da SEFAZ). ESCRITA com efeito de COBRANÇA: o serviço é faturado por documento capturado, e um startFromNsu menor que o NSU atual recaptura e recobra todo o histórico. Não execute — explique e entregue o código. Exige certificado A1 válido: sem ele a plataforma desativa a captura automaticamente. GET no mesmo caminho devolve a configuração e DELETE desativa. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa na NFE.io."
+          },
+          "startFromDate": {
+            "type": "string",
+            "description": "Data de corte: documentos anteriores não são entregues."
+          },
+          "startFromNsu": {
+            "type": "integer",
+            "description": "NSU inicial. ATENÇÃO: um NSU menor que o atual recaptura documentos já processados e cada um é COBRADO DE NOVO."
+          },
+          "environmentSEFAZ": {
+            "type": "string",
+            "description": "Ambiente da SEFAZ usado na consulta.",
+            "enum": [
+              "Production",
+              "Homologation"
+            ]
+          },
+          "automaticManifesting": {
+            "type": "boolean",
+            "description": "Registrar automaticamente a ciência da operação nos documentos capturados."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__empresa__obter__inbound_nfe",
+      "title": "Obter configuração do serviço de distribuição NF-e",
+      "description": "Consulta a configuração atual da captura de NF-e recebidas de uma empresa: se está ativa, em qual ambiente da SEFAZ e desde que data. Use como PRIMEIRO passo do diagnóstico quando o cliente diz que parou de receber notas de fornecedor — a plataforma desativa a captura sozinha por circuit breaker quando o certificado vence ou o polling falha várias vezes seguidas. Combine com a listagem de certificados da empresa. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa na NFE.io."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__listar__inbound_nfe",
+      "title": "Listar NF-e capturadas com paginação OData",
+      "description": "Lista, com paginação OData, os metadados das NF-e capturadas contra o CNPJ da empresa (notas dos fornecedores) — chave de acesso, NSU, número, série, emissão, emitente, valor total e situação. O parâmetro $filter é OBRIGATÓRIO: use issuedOn ge/lt para relatório de período ou nsu gt <último processado> para sincronização incremental. Paginação por $top (máx 1000) e $skiptoken, seguindo @odata.nextLink. Exige a captura de NF-e ativa para a empresa. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa na NFE.io."
+          },
+          "$filter": {
+            "type": "string",
+            "description": "Filtro OData. OBRIGATÓRIO. Ex.: issuedOn ge 2026-08-01T00:00:00Z and issuedOn lt 2026-09-01T00:00:00Z"
+          },
+          "$top": {
+            "type": "integer",
+            "description": "Máximo de registros por página."
+          },
+          "$skiptoken": {
+            "type": "string",
+            "description": "Cursor de paginação; vem no fim da URL de @odata.nextLink."
+          },
+          "$orderby": {
+            "type": "string",
+            "description": "Ordenação, por exemplo issuedOn desc."
+          },
+          "$select": {
+            "type": "string",
+            "description": "Campos a retornar, por exemplo accessKey,issuedOn."
+          },
+          "$count": {
+            "type": "boolean",
+            "description": "Incluir a contagem total."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id",
+          "$filter"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__obter__inbound_nfe",
+      "title": "Obter metadados de uma NF-e capturada pela chave de acesso",
+      "description": "Consulta os metadados de uma NF-e recebida (capturada pela distribuição) a partir da chave de acesso de 44 dígitos: NSU, número, série, emissão, emitente, destinatário, valor, situação e os links temporários para XML e DANFE. Use após receber o webhook de captura ou ao investigar uma nota específica de fornecedor. Os links em links.xml e links.pdf EXPIRAM (cerca de 1 hora) — baixe e guarde. Exige captura ativa para a empresa. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa na NFE.io."
+          },
+          "access_key": {
+            "type": "string",
+            "description": "Chave de acesso de 44 dígitos do documento."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id",
+          "access_key"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__baixar_arquivo__inbound_xml",
+      "title": "Obter o XML de um documento recebido (NF-e ou CT-e) pela chave de acesso",
+      "description": "Obtém a URL temporária para baixar o XML autorizado de um documento capturado (NF-e ou CT-e) pela chave de acesso. IMPORTANTE: a resposta é JSON com um link, NÃO o arquivo — e o campo aparece como 'url' na spec oficial e como 'publicTemporaryUri' na página de endpoints, então aceite os dois. O link expira, baixe na hora. Use para montar o pacote de XMLs de entrada do mês e para importar no ERP. Exige captura ativa. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa na NFE.io."
+          },
+          "access_key": {
+            "type": "string",
+            "description": "Chave de acesso de 44 dígitos do documento."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id",
+          "access_key"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__manifestar__inbound_nfe",
+      "title": "Enviar evento de manifestação do destinatário",
+      "description": "Registra na SEFAZ a manifestação do destinatário sobre uma NF-e recebida — ciência da operação, confirmação, desconhecimento ou operação não realizada. ESCRITA FISCAL DEFINITIVA em nome do cliente, com consequência tributária: desconhecer operação verdadeira ou confirmar uma falsa tem efeito legal. Não execute — explique e entregue o código. A manifestação tem prazo, e a ciência é o que libera o XML completo de nota que chegou como resumo. HTTP 409 significa evento em voo para a mesma combinação: trate como idempotente, não reenvie. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Identificador da empresa na NFE.io."
+          },
+          "access_key": {
+            "type": "string",
+            "description": "Chave de acesso de 44 dígitos da NF-e."
+          },
+          "eventCode": {
+            "type": "string",
+            "description": "Código do evento de manifestação: ciência da operação, confirmação, desconhecimento ou operação não realizada."
+          },
+          "justification": {
+            "type": "string",
+            "description": "Justificativa, obrigatória em desconhecimento e operação não realizada."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "company_id",
+          "access_key",
+          "eventCode"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__listar__inbound_nfse",
+      "title": "Listar as NFS-e capturadas (NFS-e Inbound)",
+      "description": "Lista as NFS-e recebidas pela empresa (capturadas no Ambiente Nacional), com filtros por período de emissão, tipo, status, CNPJ de prestador ou tomador, faixa de NSU e estado do webhook. Use para relatório de serviços tomados e para achar o que falhou na entrega (webhookStatus=DefinitivelyFailed). Para SINCRONIZAR, filtre por nsuBegin e não apenas por pageIndex — páginas mudam de tamanho quando chegam documentos novos. Paginação pageIndex/pageCount (máx 100). Exige captura de NFS-e ativa e certificado A1. Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa na NFE.io."
+          },
+          "type": {
+            "type": "string",
+            "description": "Tipo de documento; use Nfse para trazer só notas."
+          },
+          "issuedBegin": {
+            "type": "string",
+            "description": "Início do período de emissão."
+          },
+          "issuedEnd": {
+            "type": "string",
+            "description": "Fim do período de emissão."
+          },
+          "nsuBegin": {
+            "type": "integer",
+            "description": "NSU inicial. É o filtro certo para sincronização incremental."
+          },
+          "pageIndex": {
+            "type": "integer",
+            "description": "Número da página, começando em 1."
+          },
+          "pageCount": {
+            "type": "integer",
+            "description": "Itens por página."
+          },
+          "hasTotals": {
+            "type": "boolean",
+            "description": "Traz os totais; mais lento porque faz contagem no banco."
+          },
+          "webhookStatus": {
+            "type": "string",
+            "description": "Filtra por estado da entrega do webhook, por exemplo DefinitivelyFailed."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nfe-io__nota_fiscal__obter__inbound_nfse",
+      "title": "Obter o detalhe de uma NFS-e capturada",
+      "description": "Consulta o detalhe de uma NFS-e capturada. O mesmo endpoint aceita o id interno OU a chave de acesso de 50 dígitos (o servidor detecta). Traz NSU, competência, prestador, tomador, valor, código de serviço, status de processamento, motivo de falha e estado da entrega do webhook. ATENÇÃO: os grupos de tributos, inclusive IBS/CBS, NÃO vêm neste detalhe — só no payload do webhook. É o ponto de partida para baixar XML (/xml, responde 302), PDF (/pdf, pode responder 202 enquanto gera) e o JSON do XML (/json). Host: api.nfse.io.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "description": "Identificador da empresa na NFE.io."
+          },
+          "id": {
+            "type": "string",
+            "description": "Id interno do documento (ObjectId) OU a chave de acesso de 50 dígitos."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "companyId",
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

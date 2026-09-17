@@ -1,0 +1,2919 @@
+openapi: 3.1.0
+info:
+  title: NFE.io — API reconstruída para o catálogo
+  version: '2026-09-17'
+  description: 'Reconstrução das operações da NFE.io documentadas no catálogo, a partir das especificações OpenAPI oficiais publicadas em https://nfe.io/docs/api/ e da documentação do portal. ATENÇÃO: a NFE.io usa mais de um host. Este documento tem como servidor padrão https://api.nfse.io (NF-e, NFC-e, empresas, certificados, webhooks e distribuição); as operações de NFS-e e as consultas cadastrais declaram o host correto em ''servers'' dentro da própria operação e em x-host. Não existe host de sandbox: o ambiente é atributo da Inscrição Municipal (NFS-e) ou Estadual (NF-e/NFC-e).'
+  contact:
+    url: https://nfe.io/docs/
+servers:
+- url: https://api.nfse.io
+  description: Produção — NF-e, NFC-e, empresas, webhooks e distribuição
+- url: https://api.nfe.io
+  description: Produção — NFS-e (mesmo host serve o ambiente de testes; o ambiente vem da Inscrição Municipal)
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Chave de API estática, sem prefixo Bearer. Use a Chave de Nota Fiscal em api.nfe.io e api.nfse.io e a Chave de Dados nos subdomínios de consulta.
+security:
+- ApiKeyAuth: []
+tags:
+- name: NotaFiscal
+  description: NFS-e, NF-e, NFC-e e documentos fiscais recebidos
+- name: Empresa
+  description: Empresas emissoras, certificados, inscrições e captura fiscal
+- name: Webhook
+  description: Assinaturas de eventos
+- name: Pessoa
+  description: Consultas cadastrais de CNPJ e CPF
+- name: Endereco
+  description: Consulta de endereço e CEP
+- name: TabelaAuxiliar
+  description: Listas de domínio da plataforma
+paths:
+  /v1/companies/{company_id}/serviceinvoices:
+    get:
+      operationId: nfe-io__nota_fiscal__listar__nfse
+      summary: Listar as Notas Fiscais de Serviço (NFSE)
+      description: 'Devolve a coleção paginada de NFS-e da empresa, com o documento inteiro em cada item (prestador, tomador, valores, impostos retidos e status de fluxo). É a rota que alimenta relatório de faturamento de serviço e conciliação com o sistema de vendas.
+
+
+        Quando usar: Use quando o cliente pedir ''as notas de serviço do mês'', um relatório de ISS retido, ou a conferência entre pedidos e notas emitidas. Para uma nota específica já conhecida, prefira obter por id ou por externalId — é mais barato que varrer a listagem.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-servico-v1.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      x-host: https://api.nfe.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                serviceInvoices:
+                - id: 6a6898a87864720001efa2dc
+                  number: 1042
+                  status: Issued
+                  flowStatus: Issued
+                  environment: Production
+                  issuedOn: '2026-08-14T10:12:00Z'
+                  cityServiceCode: '0107'
+                  description: Licenca de uso de software - agosto/2026
+                  servicesAmount: 4500.0
+                  issTaxAmount: 90.0
+                  issRate: 2.0
+                  externalId: PED-2026-8891
+                  checkCode: A1B2C3D4
+                  borrower:
+                    name: CLIENTE EXEMPLO LTDA
+                    federalTaxNumber: 00000000000191
+                    email: financeiro@example.com
+                totalResults: 137
+                totalPages: 3
+                page: 1
+        '401':
+          description: (corpo vazio)
+        '400':
+          description: Algum parâmetro informado não é válido
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://api.nfe.io
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel).
+        schema:
+          type: string
+      - name: pageCount
+        in: query
+        required: false
+        description: Quantidade de itens por página.
+        schema:
+          type: integer
+      - name: pageIndex
+        in: query
+        required: false
+        description: Número da página, começando em 1.
+        schema:
+          type: integer
+      - name: issuedBegin
+        in: query
+        required: false
+        description: Início do intervalo de data de competência (emissão).
+        schema:
+          type: string
+          format: date
+      - name: issuedEnd
+        in: query
+        required: false
+        description: Fim do intervalo de data de competência (emissão).
+        schema:
+          type: string
+          format: date
+      - name: createdBegin
+        in: query
+        required: false
+        description: Início do intervalo de data de criação do registro na NFE.io.
+        schema:
+          type: string
+          format: date
+      - name: createdEnd
+        in: query
+        required: false
+        description: Fim do intervalo de data de criação do registro na NFE.io.
+        schema:
+          type: string
+          format: date
+      - name: hasTotals
+        in: query
+        required: false
+        description: Quando verdadeiro, a resposta traz os totais de resultados e de páginas.
+        schema:
+          type: boolean
+    post:
+      operationId: nfe-io__nota_fiscal__emitir__nfse
+      summary: Emitir uma Nota Fiscal de Serviço (NFSE)
+      description: 'Enfileira a emissão de uma NFS-e para a prefeitura do município da Inscrição Municipal da empresa. Responde 202 com o documento em estado inicial; a autorização chega depois, por consulta ou webhook.
+
+
+        Quando usar: Quando o cliente fatura um serviço e precisa da nota. Só três campos são obrigatórios (cityServiceCode, description, servicesAmount), porque por padrão a NFE.io calcula os impostos a partir do código de serviço municipal — se você preencher issRate/issTaxAmount manualmente, assume o cálculo.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-servico-v1.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: emitir
+      x-host: https://api.nfe.io
+      x-seguro-para-executar: false
+      responses:
+        '202':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 6a6898a87864720001efa2dc
+                environment: Production
+                status: Created
+                flowStatus: WaitingCalculateTaxes
+                externalId: PED-2026-8891
+                cityServiceCode: '0107'
+                servicesAmount: 4500.0
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '408':
+          description: Tempo de resposta do servidor excedeu o limite (60s)
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://api.nfe.io
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cityServiceCode:
+                  type: string
+                  description: Código de serviço do município (lista da prefeitura). É por ele que a NFE.io calcula o ISS automaticamente.
+                description:
+                  type: string
+                  description: Descrição do serviço prestado que sai no corpo da nota.
+                servicesAmount:
+                  type: number
+                  description: Valor total dos serviços.
+                borrower:
+                  type: object
+                  description: 'Tomador do serviço: type (LegalEntity ou NaturalPerson), name, federalTaxNumber, email e address com city.code do IBGE.'
+                externalId:
+                  type: string
+                  description: Identificador do documento no seu sistema; habilita a busca por /serviceinvoices/external/{id}.
+                federalServiceCode:
+                  type: string
+                  description: Item da lista nacional (LC 116).
+                cnaeCode:
+                  type: string
+                  description: CNAE da atividade, exigido por alguns municípios.
+                taxationType:
+                  type: string
+                  description: Natureza da tributação do ISS.
+                  enum:
+                  - None
+                  - WithinCity
+                  - OutsideCity
+                  - Export
+                  - Free
+                  - Immune
+                  - SuspendedCourtDecision
+                  - SuspendedAdministrativeProcedure
+                  - OutsideCityFree
+                  - OutsideCityImmune
+                  - OutsideCitySuspended
+                  - OutsideCitySuspendedAdministrativeProcedure
+                  - ObjectiveImune
+                issRate:
+                  type: number
+                  description: Alíquota de ISS. Informar desliga o cálculo automático.
+                issAmountWithheld:
+                  type: number
+                  description: ISS retido pelo tomador.
+                retentionType:
+                  type: string
+                  description: Quem retém o ISS.
+                  enum:
+                  - NotWithheld
+                  - WithheldByBuyer
+                  - WithheldByIntermediary
+                issuedOn:
+                  type: string
+                  description: Data de competência.
+                rpsNumber:
+                  type: integer
+                  description: Número do RPS, quando você controla a numeração.
+                additionalInformation:
+                  type: string
+                  description: Observações que saem na nota.
+                ibsCbs:
+                  type: object
+                  description: Grupo da Reforma Tributária (IBS/CBS) para municípios no Ambiente Nacional.
+            example:
+              borrower:
+                type: LegalEntity
+                name: CLIENTE EXEMPLO LTDA
+                federalTaxNumber: 00000000000191
+                email: financeiro@example.com
+                address:
+                  country: BRA
+                  postalCode: '01310100'
+                  street: Avenida Paulista
+                  number: '1000'
+                  district: Bela Vista
+                  state: SP
+                  city:
+                    code: '3550308'
+                    name: Sao Paulo
+              cityServiceCode: '0107'
+              description: Licenca de uso de software - agosto/2026
+              servicesAmount: 4500.0
+              externalId: PED-2026-8891
+              taxationType: WithinCity
+  /v1/companies/{company_id}/serviceinvoices/{id}:
+    get:
+      operationId: nfe-io__nota_fiscal__obter__nfse
+      summary: Obter os detalhes de uma Nota Fiscal de Serviço (NFSE)
+      description: 'Retorna o documento completo de uma NFS-e pelo id gerado pela NFE.io na emissão, incluindo o estágio atual do fluxo e a mensagem de erro quando a prefeitura rejeitou.
+
+
+        Quando usar: É o endpoint de polling depois de uma emissão: o POST responde 202 e só diz que entrou na fila; quem confirma a autorização é esta consulta (ou o webhook). Use também para conferir o motivo de uma falha, em flowMessage.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-servico-v1.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: obter
+      x-host: https://api.nfe.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 6a6898a87864720001efa2dc
+                environment: Production
+                status: Issued
+                flowStatus: Issued
+                flowMessage: null
+                number: 1042
+                checkCode: A1B2C3D4
+                rpsNumber: 1042
+                rpsSerialNumber: IO
+                issuedOn: '2026-08-14T10:12:00Z'
+                cityServiceCode: '0107'
+                servicesAmount: 4500.0
+                issRate: 2.0
+                issTaxAmount: 90.0
+                amountNet: 4410.0
+                externalId: PED-2026-8891
+                borrower:
+                  name: CLIENTE EXEMPLO LTDA
+                  federalTaxNumber: 00000000000191
+        '401':
+          description: (corpo vazio)
+        '400':
+          description: Algum parâmetro informado não é válido
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://api.nfe.io
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel).
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        description: Identificador da NFS-e devolvido pela NFE.io no 202 da emissão.
+        schema:
+          type: string
+    delete:
+      operationId: nfe-io__nota_fiscal__cancelar__nfse
+      summary: Cancelar uma Nota Fiscal de Serviços (NFSE)
+      description: 'Solicita à prefeitura o cancelamento de uma NFS-e já autorizada. Assim como a emissão, é assíncrono: o resultado aparece em flowStatus (Cancelled ou CancelFailed).
+
+
+        Quando usar: Quando a nota saiu errada e o município ainda aceita cancelamento. O prazo e as regras são da prefeitura, não da NFE.io — vários municípios só permitem no mesmo mês de competência.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-servico-v1.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: cancelar
+      x-host: https://api.nfe.io
+      x-seguro-para-executar: false
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 6a6898a87864720001efa2dc
+                status: Issued
+                flowStatus: WaitingSendCancel
+                cancelledOn: null
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '408':
+          description: Tempo de resposta do servidor excedeu o limite (60s)
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://api.nfe.io
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel).
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        description: Identificador da NFS-e na NFE.io.
+        schema:
+          type: string
+  /v1/companies/{company_id}/serviceinvoices/external/{id}:
+    get:
+      operationId: nfe-io__nota_fiscal__obter__nfse_externo
+      summary: Obter os detalhes de uma NFS-e pelo ID externo (externalId)
+      description: 'Busca a NFS-e pelo identificador que o seu sistema enviou no campo externalId da emissão, sem precisar guardar o id gerado pela NFE.io.
+
+
+        Quando usar: Use na conciliação: você tem o número do pedido, do contrato ou da fatura no seu ERP e quer saber se existe nota para ele. Também serve como rede de proteção quando a resposta 202 da emissão se perdeu (timeout, deploy no meio).'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-servico-v1.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: obter
+      x-host: https://api.nfe.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 6a6898a87864720001efa2dc
+                status: Issued
+                flowStatus: Issued
+                number: 1042
+                externalId: PED-2026-8891
+                servicesAmount: 4500.0
+                borrower:
+                  name: CLIENTE EXEMPLO LTDA
+                  federalTaxNumber: 00000000000191
+        '401':
+          description: (corpo vazio)
+        '400':
+          description: Algum parâmetro informado não é válido
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://api.nfe.io
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel).
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        description: Valor enviado no campo externalId no momento da emissão (o identificador do seu sistema).
+        schema:
+          type: string
+  /v1/companies/{company_id}/serviceinvoices/{id}/pdf:
+    get:
+      operationId: nfe-io__nota_fiscal__baixar_arquivo__nfse_pdf
+      summary: Download do PDF da Nota Fiscal de Serviço (NFSE)
+      description: 'Baixa a representação em PDF da NFS-e autorizada, para anexar em e-mail, portal do cliente ou arquivo contábil.
+
+
+        Quando usar: Quando o cliente pede ''o PDF da nota''. Só existe depois que a nota está autorizada; antes disso a resposta é 404.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/desenvolvedores/rest-api/nota-fiscal-de-servico-v1/service-invoices-get-document-pdf/
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: baixar_arquivo
+      x-host: https://api.nfe.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                observacao: conteúdo binário do PDF; não há JSON de resposta
+        '401':
+          description: (corpo vazio)
+        '404':
+          description: Não foi possível o download
+        '408':
+          description: Tempo de resposta do servidor excedeu o limite (60s)
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://api.nfe.io
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel).
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        description: Identificador da NFS-e na NFE.io.
+        schema:
+          type: string
+  /v1/companies/{company_id}/serviceinvoices/{id}/xml:
+    get:
+      operationId: nfe-io__nota_fiscal__baixar_arquivo__nfse_xml
+      summary: Download do XML da Nota Fiscal de Serviço (NFSE)
+      description: 'Baixa o XML autorizado da NFS-e, que é o documento que a empresa precisa guardar pelo prazo legal e entregar ao contador.
+
+
+        Quando usar: No fechamento mensal, para montar o pacote de XMLs do período, e sempre que o contador pedir o arquivo original. Combine com a listagem por competência para baixar em lote.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/desenvolvedores/rest-api/nota-fiscal-de-servico-v1/service-invoices-get-document-xml/
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: baixar_arquivo
+      x-host: https://api.nfe.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                observacao: conteúdo XML conforme o padrão do município ou do Ambiente Nacional
+        '401':
+          description: (corpo vazio)
+        '404':
+          description: Não foi possível o download
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://api.nfe.io
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel).
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        description: Identificador da NFS-e na NFE.io.
+        schema:
+          type: string
+  /v1/companies/{company_id}/serviceinvoices/{id}/sendemail:
+    put:
+      operationId: nfe-io__nota_fiscal__enviar__nfse_email
+      summary: Enviar email para o Tomador com a Nota Fiscal de Serviço (NFSE)
+      description: 'Dispara o e-mail da NFE.io para o tomador com a nota anexada, usando o endereço registrado no campo borrower.email da nota.
+
+
+        Quando usar: Quando o cliente quer que a NFE.io faça a entrega ao tomador em vez de montar o próprio disparo. Útil para reenviar quando o cliente diz que não recebeu.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-servico-v1.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: enviar
+      x-host: https://api.nfe.io
+      x-seguro-para-executar: false
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                observacao: A spec documenta o sucesso sem detalhar o corpo da resposta.
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://api.nfe.io
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (obtido em GET /v2/companies em api.nfse.io ou no painel).
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        description: Identificador da NFS-e na NFE.io.
+        schema:
+          type: string
+  /v2/companies/{companyId}/productinvoices:
+    get:
+      operationId: nfe-io__nota_fiscal__listar__nfe
+      summary: Listar as Notas Fiscais Eletrônicas (NFE)
+      description: 'Lista as NF-e (modelo 55) emitidas pela empresa, com paginação por cursor e busca por query string no estilo Elasticsearch. O parâmetro environment é obrigatório.
+
+
+        Quando usar: Relatório de faturamento de mercadoria, conciliação com pedidos e auditoria de notas rejeitadas. Para achar uma nota por cliente, valor ou número, use o parâmetro q em vez de varrer páginas.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-produto-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                productInvoices:
+                - id: 6b1f2a3c4d5e6f7890abcdef
+                  serie: 1
+                  number: 5821
+                  status: Issued
+                  operationNature: Venda de mercadoria
+                  issuedOn: '2026-08-20T09:30:00Z'
+                  operationType: Outgoing
+                  environmentType: Production
+                  purposeType: Normal
+                  authorization:
+                    accessKey: '35260100000000000191550010000058211000058216'
+                    receiptOn: '2026-08-20T09:31:14Z'
+                    message: Autorizado o uso da NF-e
+                  buyer:
+                    name: CLIENTE EXEMPLO LTDA
+                    federalTaxNumber: 00000000000191
+                  totals:
+                    icms:
+                      invoiceAmount: 1250.0
+                hasMore: true
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (GET /v2/companies).
+        schema:
+          type: string
+      - name: environment
+        in: query
+        required: true
+        description: Ambiente das notas a listar. OBRIGATÓRIO nesta rota.
+        schema:
+          type: string
+          enum:
+          - None
+          - Production
+          - Test
+      - name: limit
+        in: query
+        required: false
+        description: Itens por página.
+        schema:
+          type: integer
+          default: 10
+      - name: startingAfter
+        in: query
+        required: false
+        description: 'Cursor: id da última nota da página anterior.'
+        schema:
+          type: string
+      - name: endingBefore
+        in: query
+        required: false
+        description: Cursor para paginar para trás.
+        schema:
+          type: string
+      - name: q
+        in: query
+        required: false
+        description: Busca no estilo Elasticsearch query string, por exemplo buyer.name:'EMPRESA LTDA' ou number:[100 TO 200].
+        schema:
+          type: string
+    post:
+      operationId: nfe-io__nota_fiscal__emitir__nfe
+      summary: Emitir uma Nota Fiscal Eletrônica (NFE)
+      description: 'Envia uma NF-e modelo 55 para autorização na SEFAZ da UF da Inscrição Estadual. Responde 202 (enfileirada); a autorização chega depois, por consulta ou webhook.
+
+
+        Quando usar: Venda de mercadoria, devolução, remessa, complemento e, com a Reforma Tributária, nota de crédito e de débito. Diferente da NFS-e, aqui a NFE.io não adivinha a tributação: NCM, CFOP, CST/CSOSN e bases têm de vir corretos do seu sistema (ou do motor de cálculo contratado à parte).'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-produto-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: emitir
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: false
+      responses:
+        '202':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 6b1f2a3c4d5e6f7890abcdef
+                status: Created
+                serie: 1
+                number: 5821
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (GET /v2/companies).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  description: 'Itens da nota: code, description, ncm, cfop, unit, quantity, unitAmount, totalAmount e o grupo de tributos por item.'
+                payment:
+                  type: array
+                  description: Formas de pagamento (paymentDetail e payBack); obrigatório desde a NT do grupo de pagamento.
+                buyer:
+                  type: object
+                  description: 'Destinatário: name, federalTaxNumber, stateTaxNumber, stateTaxNumberIndicator, email e address.'
+                operationNature:
+                  type: string
+                  description: Natureza da operação que aparece no DANFE.
+                operationType:
+                  type: string
+                  description: Sentido da operação.
+                  enum:
+                  - Outgoing
+                  - Incoming
+                destination:
+                  type: string
+                  description: Destino da operação.
+                  enum:
+                  - None
+                  - Internal_Operation
+                  - Interstate_Operation
+                  - International_Operation
+                purposeType:
+                  type: string
+                  description: Finalidade da nota.
+                  enum:
+                  - None
+                  - Normal
+                  - Complement
+                  - Adjustment
+                  - Devolution
+                  - CreditInvoice
+                  - DebitInvoice
+                consumerType:
+                  type: string
+                  description: Indicador de consumidor final.
+                  enum:
+                  - FinalConsumer
+                  - Normal
+                presenceType:
+                  type: string
+                  description: Indicador de presença do comprador.
+                  enum:
+                  - None
+                  - Presence
+                  - Internet
+                  - Telephone
+                  - Delivery
+                  - OthersNonPresenceOperation
+                issuedOn:
+                  type: string
+                  description: Data e hora de emissão (dhEmi). Sem o campo, a plataforma assume operationOn ou a data do processamento.
+                operationOn:
+                  type: string
+                  description: Data e hora de saída ou entrada (dhSaiEnt).
+                serie:
+                  type: integer
+                  description: Série da nota.
+                number:
+                  type: integer
+                  description: Número da nota, quando você controla a numeração.
+                totals:
+                  type: object
+                  description: Totais de icms, issqn e withheldTaxes.
+                transport:
+                  type: object
+                  description: Dados de transporte, volumes e veículo.
+                billing:
+                  type: object
+                  description: Fatura e duplicatas.
+            example:
+              operationNature: Venda de mercadoria
+              operationType: Outgoing
+              destination: Internal_Operation
+              purposeType: Normal
+              consumerType: FinalConsumer
+              presenceType: Internet
+              buyer:
+                name: CLIENTE EXEMPLO LTDA
+                federalTaxNumber: 00000000000191
+                stateTaxNumberIndicator: ICMSExempt
+                email: compras@example.com
+                address:
+                  country: BRA
+                  postalCode: '01310100'
+                  street: Avenida Paulista
+                  number: '1000'
+                  district: Bela Vista
+                  state: SP
+                  city:
+                    code: '3550308'
+                    name: Sao Paulo
+              items:
+              - code: SKU-001
+                description: Cadeira de escritorio
+                ncm: '94013000'
+                cfop: '5102'
+                unit: UN
+                quantity: 2
+                unitAmount: 625.0
+                totalAmount: 1250.0
+              payment:
+              - paymentDetail:
+                - method: Cash
+                  amount: 1250.0
+  /v2/companies/{companyId}/productinvoices/{invoiceId}:
+    get:
+      operationId: nfe-io__nota_fiscal__obter__nfe
+      summary: Consultar por ID uma Nota Fiscal Eletrônica (NFE)
+      description: 'Retorna uma NF-e específica com o grupo lastEvents, que é o histórico de tentativas com a SEFAZ e o único jeito de saber por que uma nota não foi autorizada.
+
+
+        Quando usar: É o endpoint de polling depois do POST de emissão (que responde 202) e o lugar onde se lê a rejeição da SEFAZ. Também traz a chave de acesso em authorization.accessKey, necessária para qualquer consulta pública da nota.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-produto-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: obter
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 6b1f2a3c4d5e6f7890abcdef
+                serie: 1
+                number: 5821
+                status: Issued
+                authorization:
+                  accessKey: '35260100000000000191550010000058211000058216'
+                  receiptOn: '2026-08-20T09:31:14Z'
+                  message: Autorizado o uso da NF-e
+                buyer:
+                  name: CLIENTE EXEMPLO LTDA
+                  federalTaxNumber: 00000000000191
+                lastEvents:
+                  events:
+                  - type: Authorization
+                    status: Issued
+                    message: Autorizado o uso da NF-e
+                    createdOn: '2026-08-20T09:31:14Z'
+                  hasMore: false
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (GET /v2/companies).
+        schema:
+          type: string
+      - name: invoiceId
+        in: path
+        required: true
+        description: Identificador da NF-e na NFE.io, devolvido no 202 da emissão.
+        schema:
+          type: string
+    delete:
+      operationId: nfe-io__nota_fiscal__cancelar__nfe
+      summary: Cancelar uma Nota Fiscal Eletrônica (NFE)
+      description: 'Registra o evento de cancelamento da NF-e junto à SEFAZ. O registro continua existindo com status Cancelled.
+
+
+        Quando usar: Quando a nota foi autorizada com erro e ainda está dentro da janela de cancelamento da UF (24 horas na maioria dos estados). Passado o prazo, o caminho é nota de devolução, não cancelamento.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-produto-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: cancelar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: false
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 6b1f2a3c4d5e6f7890abcdef
+                status: Processing
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (GET /v2/companies).
+        schema:
+          type: string
+      - name: invoiceId
+        in: path
+        required: true
+        description: Identificador da NF-e na NFE.io.
+        schema:
+          type: string
+  /v2/companies/{companyId}/productinvoices/{invoiceId}/events:
+    get:
+      operationId: nfe-io__nota_fiscal__listar__eventos_nfe
+      summary: Consultar eventos por ID de uma Nota Fiscal Eletrônica (NFE)
+      description: 'Lista os eventos registrados na NF-e: autorização, cancelamento, Carta de Correção, manifestação e, com a Reforma Tributária, os eventos de autoridade.
+
+
+        Quando usar: Auditoria fiscal e diagnóstico. É onde se vê a linha do tempo da nota e as mensagens da SEFAZ em cada tentativa, inclusive as rejeições.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-produto-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                events:
+                - type: Authorization
+                  status: Issued
+                  message: Autorizado o uso da NF-e
+                  createdOn: '2026-08-20T09:31:14Z'
+                - type: CorrectionLetter
+                  status: Issued
+                  message: Carta de Correcao registrada
+                  createdOn: '2026-08-21T14:02:00Z'
+                hasMore: false
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (GET /v2/companies).
+        schema:
+          type: string
+      - name: invoiceId
+        in: path
+        required: true
+        description: Identificador da NF-e na NFE.io.
+        schema:
+          type: string
+  /v2/companies/{companyId}/productinvoices/{invoiceId}/xml:
+    get:
+      operationId: nfe-io__nota_fiscal__baixar_arquivo__nfe_xml
+      summary: Consultar XML da Nota Fiscal Eletrônica (NFE)
+      description: 'Baixa o XML autorizado da NF-e — o documento fiscal que precisa ser guardado pelo prazo legal e enviado ao destinatário.
+
+
+        Quando usar: Fechamento contábil, envio ao cliente e importação em ERP. Combine com a listagem por período para montar o pacote do mês.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-produto-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: baixar_arquivo
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                observacao: conteúdo XML com o grupo de autorização da SEFAZ
+        '401':
+          description: (corpo vazio)
+        '404':
+          description: Não encontrado
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (GET /v2/companies).
+        schema:
+          type: string
+      - name: invoiceId
+        in: path
+        required: true
+        description: Identificador da NF-e na NFE.io.
+        schema:
+          type: string
+  /v2/companies/{companyId}/productinvoices/{invoiceId}/pdf:
+    get:
+      operationId: nfe-io__nota_fiscal__baixar_arquivo__nfe_pdf
+      summary: Consultar PDF do DANFE da Nota Fiscal Eletrônica (NFE)
+      description: 'Baixa o DANFE em PDF, o documento auxiliar que acompanha a mercadoria e é o que o cliente costuma chamar de ''a nota''.
+
+
+        Quando usar: Impressão para acompanhar a carga, anexo em e-mail ao cliente e conferência visual. Para o arquivo fiscal, use o XML.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-produto-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: baixar_arquivo
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                observacao: conteúdo binário application/pdf
+        '401':
+          description: (corpo vazio)
+        '404':
+          description: Não encontrado
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (GET /v2/companies).
+        schema:
+          type: string
+      - name: invoiceId
+        in: path
+        required: true
+        description: Identificador da NF-e na NFE.io.
+        schema:
+          type: string
+  /v2/companies/{companyId}/productinvoices/{invoiceId}/correctionletter:
+    put:
+      operationId: nfe-io__nota_fiscal__corrigir__nfe
+      summary: Enviar uma carta de correção para Nota Fiscal Eletrônica (CC-e)
+      description: 'Registra na SEFAZ a Carta de Correção Eletrônica de uma NF-e já autorizada, para ajustar informações que não alteram valores, destinatário nem data de emissão.
+
+
+        Quando usar: Quando o erro é de descrição, natureza da operação, dados de transporte ou informações complementares. Se o erro é de valor, de destinatário ou de data, a CC-e não vale — o caminho é cancelamento (dentro do prazo) ou devolução.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-produto-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: corrigir
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: false
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 6b1f2a3c4d5e6f7890abcdef
+                status: Processing
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (GET /v2/companies).
+        schema:
+          type: string
+      - name: invoiceId
+        in: path
+        required: true
+        description: Identificador da NF-e na NFE.io.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                correction:
+                  type: string
+                  description: Texto da correção. A legislação exige um mínimo de caracteres e proíbe corrigir valor, destinatário e data.
+            example:
+              correction: Fica corrigida a natureza da operacao para Venda de mercadoria adquirida de terceiros.
+  /v2/companies/{companyId}/consumerinvoices:
+    get:
+      operationId: nfe-io__nota_fiscal__listar__nfce
+      summary: Listar as Notas Fiscais de Consumidor Eletrônicas (NFCE)
+      description: 'Lista as NFC-e (modelo 65) emitidas pela empresa, com a mesma paginação por cursor da NF-e e busca por query string.
+
+
+        Quando usar: Relatório de vendas no varejo, fechamento de caixa e conciliação com o PDV. É o volume mais alto da plataforma em lojas físicas, então pagine com limit alto e filtre por período no parâmetro q.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-consumidor-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                consumerInvoices:
+                - id: 7c2d3e4f5a6b7c8d9e0f1234
+                  serie: 1
+                  number: 90211
+                  status: Issued
+                  operationOn: '2026-08-22T19:44:00Z'
+                  environmentType: Production
+                  authorization:
+                    accessKey: '35260100000000000191650010000902111000902118'
+                    receiptOn: '2026-08-22T19:44:05Z'
+                  totals:
+                    totalInvoiceAmount: 89.9
+                hasMore: true
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (GET /v2/companies).
+        schema:
+          type: string
+      - name: environment
+        in: query
+        required: false
+        description: Ambiente das notas. Aqui é OPCIONAL (diferente da NF-e, onde é obrigatório).
+        schema:
+          type: string
+          enum:
+          - None
+          - Production
+          - Test
+      - name: limit
+        in: query
+        required: false
+        description: Itens por página.
+        schema:
+          type: integer
+          default: 10
+      - name: startingAfter
+        in: query
+        required: false
+        description: 'Cursor: id da última nota da página anterior.'
+        schema:
+          type: string
+      - name: endingBefore
+        in: query
+        required: false
+        description: Cursor para paginar para trás.
+        schema:
+          type: string
+      - name: q
+        in: query
+        required: false
+        description: Busca no estilo Elasticsearch query string.
+        schema:
+          type: string
+    post:
+      operationId: nfe-io__nota_fiscal__emitir__nfce
+      summary: Emitir uma Nota Fiscal de Consumidor Eletrônica (NFCE)
+      description: 'Emite a NFC-e modelo 65 na SEFAZ da UF. O corpo é o mesmo da NF-e, com consumidor opcional e exigência de CSC configurado na Inscrição Estadual.
+
+
+        Quando usar: Venda no balcão, no PDV ou no delivery. Existe também a variante POST /v2/companies/{companyId}/statetaxes/{statetaxId}/consumerinvoices, para empresas com mais de uma Inscrição Estadual.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-consumidor-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: emitir
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: false
+      responses:
+        '202':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 7c2d3e4f5a6b7c8d9e0f1234
+                status: Created
+                number: 90211
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (GET /v2/companies).
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  description: Itens vendidos, com code, description, ncm, cfop, unit, quantity, unitAmount e totalAmount.
+                payment:
+                  type: array
+                  description: Formas de pagamento do cupom; em NFC-e é o grupo mais fiscalizado.
+                buyer:
+                  type: object
+                  description: Consumidor. Em NFC-e costuma vir só com federalTaxNumber (CPF na nota) ou vazio para consumidor não identificado.
+                presenceType:
+                  type: string
+                  description: Indicador de presença.
+                  enum:
+                  - None
+                  - Presence
+                  - Internet
+                  - Telephone
+                  - Delivery
+                  - OthersNonPresenceOperation
+                printType:
+                  type: string
+                  description: Formato do documento auxiliar.
+                  enum:
+                  - None
+                  - NFeNormalPortrait
+                  - NFeNormalLandscape
+                  - NFeSimplified
+                  - DANFE_NFC_E
+                  - DANFE_NFC_E_MSG_ELETRONICA
+                serie:
+                  type: integer
+                  description: Série do cupom.
+            example:
+              presenceType: Presence
+              printType: DANFE_NFC_E
+              buyer:
+                federalTaxNumber: '00000000000'
+              items:
+              - code: SKU-777
+                description: Cafe em graos 1kg
+                ncm: 09011110
+                cfop: '5102'
+                unit: UN
+                quantity: 1
+                unitAmount: 89.9
+                totalAmount: 89.9
+              payment:
+              - paymentDetail:
+                - method: CreditCard
+                  amount: 89.9
+  /v2/companies/{companyId}/consumerinvoices/{invoiceId}/pdf:
+    get:
+      operationId: nfe-io__nota_fiscal__baixar_arquivo__nfce_pdf
+      summary: Consultar PDF do DANFE da NFC-e (DANFE-NFC-e)
+      description: 'Baixa o DANFE-NFC-e em PDF — o cupom com o QR Code que o consumidor usa para consultar a nota no portal da SEFAZ.
+
+
+        Quando usar: Reimpressão de cupom, envio por e-mail ou WhatsApp ao consumidor e conferência de caixa.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-consumidor-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: baixar_arquivo
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                observacao: conteúdo binário application/pdf com o QR Code do cupom
+        '401':
+          description: (corpo vazio)
+        '404':
+          description: Não encontrado
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa emissora na NFE.io (GET /v2/companies).
+        schema:
+          type: string
+      - name: invoiceId
+        in: path
+        required: true
+        description: Identificador da NFC-e na NFE.io.
+        schema:
+          type: string
+  /v2/companies:
+    get:
+      operationId: nfe-io__empresa__listar
+      summary: Consultar todas as Empresas da Conta
+      description: 'Lista as empresas emissoras cadastradas na conta, com CNPJ, regime tributário, endereço, status e os blocos resumidos de inscrições estaduais e municipais.
+
+
+        Quando usar: É o primeiro endpoint de qualquer integração: é aqui que se descobre o company_id que entra no caminho de praticamente todas as outras rotas. Também serve para o painel de multiempresa de contabilidade e software house.'
+      tags:
+      - Empresa
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/contribuintes-v2.json
+      x-entidade-canonica: Empresa
+      x-acao-canonica: listar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                companies:
+                - id: e4a8f1c2b39d40aa9f0e7c51
+                  name: EMPRESA EXEMPLO LTDA
+                  tradeName: Exemplo
+                  federalTaxNumber: 00000000000191
+                  taxRegime: SimplesNacional
+                  status: Active
+                  address:
+                    postalCode: '01310100'
+                    state: SP
+                    city:
+                      code: '3550308'
+                      name: Sao Paulo
+        '401':
+          description: (corpo vazio)
+        '400':
+          description: Algum parâmetro informado não é válido
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        description: Itens por página.
+        schema:
+          type: integer
+          default: 10
+      - name: startingAfter
+        in: query
+        required: false
+        description: 'Cursor: id da última empresa da página anterior.'
+        schema:
+          type: string
+      - name: endingBefore
+        in: query
+        required: false
+        description: Cursor para paginar para trás.
+        schema:
+          type: string
+    post:
+      operationId: nfe-io__empresa__criar
+      summary: Criar uma Empresa
+      description: 'Cadastra uma nova empresa emissora na conta. É o primeiro dos três passos do onboarding fiscal (empresa, certificado, inscrição).
+
+
+        Quando usar: Onboarding de cliente em software house, contabilidade ou marketplace que emite em nome de terceiros. Depois de criar, faça o upload do certificado e cadastre a inscrição municipal (NFS-e) ou estadual (NF-e/NFC-e).'
+      tags:
+      - Empresa
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/contribuintes-v2.json
+      x-entidade-canonica: Empresa
+      x-acao-canonica: criar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: false
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                company:
+                  id: e4a8f1c2b39d40aa9f0e7c51
+                  federalTaxNumber: 00000000000191
+                  status: Active
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '409':
+          description: Conflito
+        '500':
+          description: Erro no processamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Razão social da empresa.
+                federalTaxNumber:
+                  type: string
+                  description: CNPJ da empresa.
+                tradeName:
+                  type: string
+                  description: Nome fantasia.
+                taxRegime:
+                  type: string
+                  description: Regime tributário do emitente.
+                address:
+                  type: object
+                  description: Endereço com postalCode, street, number, district, state e city (code do IBGE e name).
+                email:
+                  type: string
+                  description: E-mail de contato da empresa.
+            example:
+              name: EMPRESA EXEMPLO LTDA
+              tradeName: Exemplo
+              federalTaxNumber: 00000000000191
+              taxRegime: SimplesNacional
+              email: fiscal@example.com
+              address:
+                country: BRA
+                postalCode: '01310100'
+                street: Avenida Paulista
+                number: '1000'
+                district: Bela Vista
+                state: SP
+                city:
+                  code: '3550308'
+                  name: Sao Paulo
+  /v2/companies/{company_id}:
+    get:
+      operationId: nfe-io__empresa__obter
+      summary: Consultar uma Empresa pelo ID
+      description: 'Retorna o cadastro completo de uma empresa emissora, incluindo endereço, regime tributário e as inscrições vinculadas.
+
+
+        Quando usar: Conferência de cadastro antes de emitir e diagnóstico de rejeição por dado do emitente (endereço, CNAE, regime). Também é o jeito de confirmar que o company_id que você guardou continua válido.'
+      tags:
+      - Empresa
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/contribuintes-v2.json
+      x-entidade-canonica: Empresa
+      x-acao-canonica: obter
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                company:
+                  id: e4a8f1c2b39d40aa9f0e7c51
+                  name: EMPRESA EXEMPLO LTDA
+                  federalTaxNumber: 00000000000191
+                  taxRegime: SimplesNacional
+                  status: Active
+                  address:
+                    postalCode: '01310100'
+                    street: Avenida Paulista
+                    number: '1000'
+                    state: SP
+                    city:
+                      code: '3550308'
+                      name: Sao Paulo
+        '401':
+          description: (corpo vazio)
+        '404':
+          description: Não encontrado
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa na NFE.io.
+        schema:
+          type: string
+  /v2/companies/{company_id}/certificates:
+    get:
+      operationId: nfe-io__empresa__listar__certificados
+      summary: Consultar Certificado habilitado para empresa
+      description: 'Lista os certificados digitais ICP-Brasil vinculados à empresa, com a data de validade, o titular e o status.
+
+
+        Quando usar: Monitoramento: certificado A1 vale um ano e, quando vence, a emissão para de funcionar e a captura fiscal é desativada automaticamente. Esta é a leitura que alimenta o alerta de vencimento.'
+      tags:
+      - Empresa
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/documentacao/gerenciamento-empresas/api-certificados/
+      x-entidade-canonica: Empresa
+      x-acao-canonica: listar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                certificates:
+                - taxPayerId: e4a8f1c2b39d40aa9f0e7c51
+                  thumbprint: A1B2C3D4E5F6789012345678901234567890ABCD
+                  taxId: 00000000000191
+                  subject: EMPRESA EXEMPLO LTDA:00000000000191
+                  validUntil: '2027-03-14T23:59:59Z'
+                  status: Active
+        '401':
+          description: (corpo vazio)
+        '404':
+          description: Não encontrado
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa na NFE.io.
+        schema:
+          type: string
+    post:
+      operationId: nfe-io__empresa__criar__certificado
+      summary: Upload de um Certificado
+      description: 'Envia o arquivo .pfx do certificado A1 ICP-Brasil e a senha, vinculando-o à empresa. O envio é multipart/form-data.
+
+
+        Quando usar: No onboarding, logo depois de criar a empresa, e a cada renovação anual do certificado. É a operação que mais exige cuidado com segredo em toda a integração.'
+      tags:
+      - Empresa
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/documentacao/gerenciamento-empresas/api-certificados/
+      x-entidade-canonica: Empresa
+      x-acao-canonica: criar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: false
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                certificate:
+                  thumbprint: A1B2C3D4E5F6789012345678901234567890ABCD
+                  subject: EMPRESA EXEMPLO LTDA:00000000000191
+                  validUntil: '2027-03-14T23:59:59Z'
+                  status: Active
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa na NFE.io.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  description: Arquivo .pfx (PKCS#12) do certificado A1, enviado como multipart/form-data.
+                password:
+                  type: string
+                  description: Senha do arquivo .pfx.
+  /v2/companies/{company_id}/municipaltaxes:
+    get:
+      operationId: nfe-io__empresa__listar__inscricoes_municipais
+      summary: Listar as Inscrições Municipais
+      description: 'Lista as inscrições municipais da empresa, que é onde ficam o ambiente da NFS-e, a alíquota de ISS, a numeração de RPS e o status de integração com a prefeitura.
+
+
+        Quando usar: Diagnóstico de NFS-e: ''por que a nota saiu como teste?'' e ''a NFE.io tem integração homologada com a minha prefeitura?'' são respondidas aqui, nos campos environment e fiscalStatus.'
+      tags:
+      - Empresa
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/contribuintes-v2.json
+      x-entidade-canonica: Empresa
+      x-acao-canonica: listar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                municipalTax:
+                  id: mtx_6a12b3c4d5e6f70012345678
+                  companyId: e4a8f1c2b39d40aa9f0e7c51
+                  status: Active
+                  city:
+                    code: '3550308'
+                    name: Sao Paulo
+                  taxNumber: '111111111'
+                  issRate: 2.0
+                  environment: Production
+                  fiscalStatus: Active
+                  rpsSerialNumber: IO
+                  rpsNumber: 1042
+        '401':
+          description: (corpo vazio)
+        '404':
+          description: Não encontrado
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa na NFE.io.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Itens por página.
+        schema:
+          type: integer
+          default: 10
+      - name: startingAfter
+        in: query
+        required: false
+        description: Cursor de paginação.
+        schema:
+          type: string
+      - name: endingBefore
+        in: query
+        required: false
+        description: Cursor para paginar para trás.
+        schema:
+          type: string
+  /v2/webhooks:
+    get:
+      operationId: nfe-io__webhook__listar
+      summary: Listar os Webhooks
+      description: 'Lista os webhooks cadastrados na conta, com a URL de destino, os filtros de evento assinados, o tipo de conteúdo e o status.
+
+
+        Quando usar: Auditoria de integração: descobrir para onde a conta está mandando evento, se alguém cadastrou uma URL de teste esquecida e quais eventos estão realmente assinados.'
+      tags:
+      - Webhook
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-produto-v2.yaml
+      x-entidade-canonica: Webhook
+      x-acao-canonica: listar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                webHooks:
+                - id: 5f2c1a7e9b3d4c0001aa77bd
+                  uri: https://meu-sistema.example.com/webhooks/nfeio
+                  contentType: json
+                  insecureSsl: false
+                  status: Active
+                  filters:
+                  - service_invoice.issued_successfully
+                  - product_invoice.issued_error
+                  createdOn: '2026-05-02T13:00:00Z'
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Proibido
+        '500':
+          description: Erro no processamento
+    post:
+      operationId: nfe-io__webhook__assinar_webhook
+      summary: Criar um Webhook
+      description: 'Cadastra uma URL para receber os eventos da plataforma, com filtros por tipo de evento, secret para a assinatura HMAC e cabeçalhos fixos opcionais.
+
+
+        Quando usar: No lugar de polling. Como emissão, cancelamento e captura fiscal são assíncronos, o webhook é o caminho recomendado pelo fornecedor para saber o desfecho sem ficar consultando.'
+      tags:
+      - Webhook
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/documentacao/webhooks/integracao/
+      x-entidade-canonica: Webhook
+      x-acao-canonica: assinar_webhook
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: false
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                webHook:
+                  id: 5f2c1a7e9b3d4c0001aa77bd
+                  uri: https://meu-sistema.example.com/webhooks/nfeio
+                  status: Active
+                  filters:
+                  - service_invoice.issued_successfully
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Proibido
+        '500':
+          description: Erro no processamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                webHook.uri:
+                  type: string
+                  description: 'URL que receberá os POSTs. É validada no cadastro: precisa responder 200 a uma requisição de teste.'
+                webHook.filters:
+                  type: array
+                  description: Lista de tipos de evento assinados, obtida em GET /v2/webhooks/eventtypes.
+                webHook.secret:
+                  type: string
+                  description: Segredo de 32 a 64 caracteres usado no HMAC-SHA1 enviado em X-Hub-Signature.
+                webHook.contentType:
+                  type: string
+                  description: Formato do corpo.
+                webHook.insecureSsl:
+                  type: boolean
+                  description: Aceitar certificado TLS inválido no destino.
+                webHook.headers:
+                  type: object
+                  description: Cabeçalhos fixos que a NFE.io envia ao seu endpoint, por exemplo um Authorization do seu lado.
+            example:
+              webHook:
+                uri: https://meu-sistema.example.com/webhooks/nfeio
+                contentType: json
+                insecureSsl: false
+                secret: <<SEGREDO_HMAC_32_A_64_CARACTERES>>
+                filters:
+                - service_invoice.issued_successfully
+                - service_invoice.issued_error
+                - service_invoice.issued_failed
+                - product_invoice.issued_successfully
+                headers:
+                  Authorization: <<TOKEN_DO_SEU_ENDPOINT>>
+  /v2/webhooks/{webhook_id}:
+    delete:
+      operationId: nfe-io__webhook__excluir
+      summary: Excluir um Webhook existente
+      description: 'Remove um webhook da conta pelo id. A partir daí a conta deixa de receber os eventos que aquele webhook assinava.
+
+
+        Quando usar: Limpeza de URLs de teste e desligamento de integração antiga. Confira antes quais eventos aquele webhook cobria, para não ficar cego para falhas de emissão.'
+      tags:
+      - Webhook
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/nf-produto-v2.yaml
+      x-entidade-canonica: Webhook
+      x-acao-canonica: excluir
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: false
+      responses:
+        '204':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                observacao: 204 No Content
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Proibido
+        '404':
+          description: Não encontrado
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: webhook_id
+        in: path
+        required: true
+        description: Identificador do webhook, obtido em GET /v2/webhooks.
+        schema:
+          type: string
+  /v2/webhooks/eventtypes:
+    get:
+      operationId: nfe-io__tabela_auxiliar__listar__tipos_evento
+      summary: Listar os Tipos de Eventos gerados pela plataforma
+      description: 'Devolve a lista de tipos de evento que a plataforma gera e que podem ser usados como filtro no cadastro de um webhook.
+
+
+        Quando usar: Antes de criar ou atualizar um webhook, para não errar o nome do evento (erro que vira 400 no cadastro). Também serve de inventário do que dá para monitorar na conta.'
+      tags:
+      - TabelaAuxiliar
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/webhooks/catalogo-de-eventos/
+      x-entidade-canonica: TabelaAuxiliar
+      x-acao-canonica: listar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                eventTypes:
+                - name: service_invoice.issued_successfully
+                  description: NFS-e autorizada pela prefeitura
+                - name: service_invoice.issued_error
+                  description: Falha de negocio na emissao da NFS-e
+                - name: product_invoice.issued_successfully
+                  description: NF-e autorizada pela SEFAZ
+        '401':
+          description: (corpo vazio)
+        '500':
+          description: Erro no processamento
+  /v3/legalentities/basicInfo/{federalTaxNumber}:
+    get:
+      operationId: nfe-io__pessoa__obter__cnpj
+      summary: Consulta de dados do CNPJ
+      description: 'Consulta os dados cadastrais de um CNPJ na base da Receita Federal: razão social, nome fantasia, situação cadastral, endereço, CNAEs, natureza jurídica, capital social e sócios.
+
+
+        Quando usar: Saneamento de cadastro antes de emitir (evita rejeição por dado do destinatário), onboarding de cliente ou fornecedor e enriquecimento de base. A v3 é a recomendada porque aceita CNPJ alfanumérico; a v2 continua ativa como legada.'
+      tags:
+      - Pessoa
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/documentacao/consultas/pessoa-juridica/consulta-cnpj-v3/
+      x-entidade-canonica: Pessoa
+      x-acao-canonica: obter
+      x-host: https://legalentity.api.nfe.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                legalEntity:
+                  name: EMPRESA EXEMPLO LTDA
+                  tradeName: Exemplo
+                  federalTaxNumber: 00000000000191
+                  status: Active
+                  openedOn: '2011-04-15T00:00:00Z'
+                  size: Small
+                  shareCapital: 100000.0
+                  address:
+                    postalCode: '01310100'
+                    street: Avenida Paulista
+                    number: '1000'
+                    district: Bela Vista
+                    state: SP
+                    city:
+                      code: '3550308'
+                      name: Sao Paulo
+                  economicActivities:
+                  - code: '6201500'
+                    description: Desenvolvimento de programas de computador sob encomenda
+                    type: Main
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Acesso proibido
+        '404':
+          description: Empresa não encontrada para o CNPJ informado
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://legalentity.api.nfe.io
+      parameters:
+      - name: federalTaxNumber
+        in: path
+        required: true
+        description: 'CNPJ numérico ou alfanumérico. A v3 normaliza sozinha: aceita pontuação, converte minúsculas para maiúsculas e completa zeros à esquerda.'
+        schema:
+          type: string
+      - name: updateAddress
+        in: query
+        required: false
+        description: Atualiza o endereço com base nos Correios.
+        schema:
+          type: boolean
+          default: true
+      - name: updateCityCode
+        in: query
+        required: false
+        description: Quando updateAddress=false, atualiza apenas o código do município.
+        schema:
+          type: boolean
+          default: false
+  /v1/naturalperson/status/{federalTaxNumber}/{birthDate}:
+    get:
+      operationId: nfe-io__pessoa__consultar_status__cpf
+      summary: Consulta de Situação Cadastral do CPF na Receita Federal
+      description: 'Verifica a situação cadastral de um CPF na Receita Federal, exigindo o CPF e a data de nascimento como chave dupla.
+
+
+        Quando usar: Validação de cadastro de pessoa física antes de emitir NFS-e para tomador PF ou NFC-e com CPF na nota, e em fluxos de onboarding. Existe a variante ''irrestrita'' (Serpro), em /v1/naturalperson/serpro/status/...'
+      tags:
+      - Pessoa
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/cpf-api.yaml
+      x-entidade-canonica: Pessoa
+      x-acao-canonica: consultar_status
+      x-host: https://naturalperson.api.nfe.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                createdOn: '2026-09-17T12:00:00Z'
+                name: NOME DE TESTE DA SILVA
+                federalTaxNumber: '00000000000'
+                birthOn: '1990-01-31'
+                status: Regular
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Acesso proibido
+        '404':
+          description: Não encontrado
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://naturalperson.api.nfe.io
+      parameters:
+      - name: federalTaxNumber
+        in: path
+        required: true
+        description: CPF, somente dígitos.
+        schema:
+          type: string
+      - name: birthDate
+        in: path
+        required: true
+        description: Data de nascimento do titular, usada junto com o CPF como chave da consulta.
+        schema:
+          type: string
+          format: date
+  /v2/addresses/{postalCode}:
+    get:
+      operationId: nfe-io__endereco__obter__cep
+      summary: Consulta de Endereço por CEP
+      description: 'Devolve o endereço a partir do CEP, cruzando a base do Diretório Nacional de Endereços dos Correios com os municípios do IBGE — por isso traz o código IBGE, que o documento fiscal exige.
+
+
+        Quando usar: Preenchimento e validação de endereço em cadastro de cliente, fornecedor e empresa emissora. O diferencial em relação a consultas gratuitas de CEP é vir com o código IBGE do município pronto para o XML.'
+      tags:
+      - Endereco
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/consulta-endereco.yaml
+      x-entidade-canonica: Endereco
+      x-acao-canonica: obter
+      x-host: https://address.api.nfe.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                addresses:
+                - postalCode: '01310100'
+                  street: Avenida Paulista
+                  district: Bela Vista
+                  city:
+                    code: '3550308'
+                    name: Sao Paulo
+                  state: SP
+                  country: BRA
+                  numberMin: '612'
+                  numberMax: '1000'
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Acesso proibido
+        '404':
+          description: Não encontrado
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://address.api.nfe.io
+      parameters:
+      - name: postalCode
+        in: path
+        required: true
+        description: CEP com 8 dígitos, sem máscara.
+        schema:
+          type: string
+  /v2/addresses/{term}:
+    get:
+      operationId: nfe-io__endereco__listar
+      summary: Pesquisa de Endereço por termo genérico
+      description: 'Pesquisa endereços por um termo livre (nome de rua, bairro, cidade), devolvendo os candidatos com CEP e código IBGE.
+
+
+        Quando usar: Quando o cliente tem o endereço mas não o CEP — situação comum em cadastro vindo de planilha antiga ou de formulário sem validação.'
+      tags:
+      - Endereco
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/consulta-endereco.yaml
+      x-entidade-canonica: Endereco
+      x-acao-canonica: listar
+      x-host: https://address.api.nfe.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                addresses:
+                - postalCode: '01310100'
+                  street: Avenida Paulista
+                  district: Bela Vista
+                  city:
+                    code: '3550308'
+                    name: Sao Paulo
+                  state: SP
+        '400':
+          description: Algum parâmetro informado não é válido
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Acesso proibido
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://address.api.nfe.io
+      parameters:
+      - name: term
+        in: path
+        required: true
+        description: Termo livre de pesquisa, por exemplo 'avenida paulista sao paulo'.
+        schema:
+          type: string
+  /v2/productinvoices/{accessKey}:
+    get:
+      operationId: nfe-io__nota_fiscal__obter__sefaz_chave
+      summary: Consulta de Nota Fiscal Eletrônica na SEFAZ por Chave de Acesso
+      description: 'Consulta na SEFAZ uma NF-e de qualquer emitente pela chave de acesso de 44 dígitos e devolve o documento em JSON, com a situação atual.
+
+
+        Quando usar: Auditoria de nota de fornecedor: o time de compras recebe um DANFE em PDF e precisa confirmar se a nota existe, está autorizada e bate com o que foi comprado. Não exige ser destinatário nem ter certificado.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/consulta-nf.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: obter
+      x-host: https://nfe.api.nfe.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                currentStatus: authorized
+                accessKey: '35260100000000000191550010000058211000058216'
+                number: 5821
+                serie: 1
+                issuedOn: '2026-08-20T09:30:00Z'
+                issuer:
+                  name: FORNECEDOR EXEMPLO LTDA
+                  federalTaxNumber: 00000000000191
+                totals:
+                  icms:
+                    invoiceAmount: 1250.0
+        '400':
+          description: Algum parâmetro informado não é válido (resposta em texto simples)
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Acesso proibido
+        '404':
+          description: Nota Fiscal não foi encontrada
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://nfe.api.nfe.io
+      parameters:
+      - name: accessKey
+        in: path
+        required: true
+        description: Chave de acesso de 44 dígitos da NF-e.
+        schema:
+          type: string
+  /v2/productinvoices/events/{accessKey}:
+    get:
+      operationId: nfe-io__nota_fiscal__listar__eventos_sefaz
+      summary: Consulta de Eventos da Nota Fiscal Eletrônica na SEFAZ por Chave de Acesso
+      description: 'Lista os eventos registrados na SEFAZ para uma NF-e: cancelamento, Carta de Correção, manifestação do destinatário e eventos de autoridade.
+
+
+        Quando usar: Complemento da consulta por chave: a nota pode estar autorizada e ter uma CC-e que muda a interpretação, ou ter sido cancelada depois que o PDF foi enviado. Aqui aparece a linha do tempo oficial.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/consulta-nf.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      x-host: https://nfe.api.nfe.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                events:
+                - code: 110111
+                  description: Cancelamento
+                  protocol: '135260000000001'
+                  receivedOn: '2026-08-21T11:02:00Z'
+                  sequence: 1
+        '400':
+          description: Algum parâmetro informado não é válido (texto simples)
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Acesso proibido
+        '404':
+          description: Nota Fiscal não foi encontrada
+        '500':
+          description: Erro no processamento
+      servers:
+      - url: https://nfe.api.nfe.io
+      parameters:
+      - name: accessKey
+        in: path
+        required: true
+        description: Chave de acesso de 44 dígitos da NF-e.
+        schema:
+          type: string
+  /v2/companies/{company_id}/inbound/productinvoices:
+    post:
+      operationId: nfe-io__empresa__criar__inbound_nfe
+      summary: Ativar busca automática de NF-e (Inbound)
+      description: 'Liga a captura automática de NF-e emitidas CONTRA o CNPJ da empresa. A partir daí a NFE.io consulta a distribuição da SEFAZ em nome do cliente e entrega os documentos por webhook e por API.
+
+
+        Quando usar: Quando o cliente quer receber as notas dos fornecedores sem depender de e-mail, e precisa manifestar dentro do prazo. É configuração, não emissão — mas tem efeito de cobrança por documento capturado.'
+      tags:
+      - Empresa
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/consulta-dfe-distribuicao-v2.yaml
+      x-entidade-canonica: Empresa
+      x-acao-canonica: criar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: false
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                status: Active
+                environmentSEFAZ: Production
+                startFromDate: '2026-08-01'
+        '400':
+          description: Requisição inválida
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Proibido
+        '429':
+          description: Too Many Requests
+        '503':
+          description: Serviço indisponível
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa na NFE.io.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                startFromDate:
+                  type: string
+                  description: 'Data de corte: documentos anteriores não são entregues.'
+                startFromNsu:
+                  type: integer
+                  description: 'NSU inicial. ATENÇÃO: um NSU menor que o atual recaptura documentos já processados e cada um é COBRADO DE NOVO.'
+                environmentSEFAZ:
+                  type: string
+                  description: Ambiente da SEFAZ usado na consulta.
+                  enum:
+                  - Production
+                  - Homologation
+                automaticManifesting:
+                  type: boolean
+                  description: Registrar automaticamente a ciência da operação nos documentos capturados.
+            example:
+              startFromDate: '2026-08-01'
+              environmentSEFAZ: Production
+              automaticManifesting: false
+    get:
+      operationId: nfe-io__empresa__obter__inbound_nfe
+      summary: Obter configuração do serviço de distribuição NF-e
+      description: 'Mostra se a captura de NF-e está ativa para a empresa, em que ambiente da SEFAZ e a partir de que data.
+
+
+        Quando usar: Diagnóstico do ''parei de receber notas'': o primeiro passo é conferir aqui se o serviço continua ativo, porque a plataforma desativa sozinha em caso de certificado vencido ou falhas seguidas no polling.'
+      tags:
+      - Empresa
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/consulta-dfe-distribuicao-v2.yaml
+      x-entidade-canonica: Empresa
+      x-acao-canonica: obter
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                status: Active
+                environmentSEFAZ: Production
+                startFromDate: '2026-08-01'
+        '400':
+          description: Requisição inválida
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Proibido
+        '429':
+          description: Too Many Requests
+        '503':
+          description: Serviço indisponível
+        '404':
+          description: Não encontrado
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa na NFE.io.
+        schema:
+          type: string
+  /v2/companies/{company_id}/inbound/odata/ProductInvoices:
+    get:
+      operationId: nfe-io__nota_fiscal__listar__inbound_nfe
+      summary: Listar NF-e capturadas com paginação OData
+      description: 'Lista os metadados das NF-e capturadas contra o CNPJ da empresa, com filtro OData obrigatório, ordenação, seleção de campos e paginação por $skiptoken.
+
+
+        Quando usar: É a leitura que monta o relatório de notas de entrada — compras do período, conferência com o contas a pagar e base para manifestação. O $filter é obrigatório, então sempre há recorte.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/consulta-dfe-distribuicao-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                '@odata.nextLink': https://api.nfse.io/v2/companies/e4a8.../inbound/odata/ProductInvoices?$skiptoken=21825
+                value:
+                - accessKey: '35260100000000000191550010000012341234567890'
+                  nsu: '21825'
+                  nfeNumber: '1234'
+                  nfeSerialNumber: '1'
+                  issuedOn: '2026-08-15T10:00:00Z'
+                  type: productInvoice
+                  description: Autorizado o uso da NF-e
+                  totalInvoiceAmount: '1500.00'
+                  operationType: Incoming
+                  issuer:
+                    federalTaxNumber: 00000000000191
+                    name: FORNECEDOR EXEMPLO LTDA
+        '400':
+          description: Requisição inválida
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Proibido
+        '429':
+          description: Too Many Requests
+        '503':
+          description: Serviço indisponível
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa na NFE.io.
+        schema:
+          type: string
+      - name: $filter
+        in: query
+        required: true
+        description: 'Filtro OData. OBRIGATÓRIO. Ex.: issuedOn ge 2026-08-01T00:00:00Z and issuedOn lt 2026-09-01T00:00:00Z'
+        schema:
+          type: string
+      - name: $top
+        in: query
+        required: false
+        description: Máximo de registros por página.
+        schema:
+          type: integer
+      - name: $skiptoken
+        in: query
+        required: false
+        description: Cursor de paginação; vem no fim da URL de @odata.nextLink.
+        schema:
+          type: string
+      - name: $orderby
+        in: query
+        required: false
+        description: Ordenação, por exemplo issuedOn desc.
+        schema:
+          type: string
+      - name: $select
+        in: query
+        required: false
+        description: Campos a retornar, por exemplo accessKey,issuedOn.
+        schema:
+          type: string
+      - name: $count
+        in: query
+        required: false
+        description: Incluir a contagem total.
+        schema:
+          type: boolean
+  /v2/companies/{company_id}/inbound/productinvoices/{access_key}:
+    get:
+      operationId: nfe-io__nota_fiscal__obter__inbound_nfe
+      summary: Obter metadados de uma NF-e capturada pela chave de acesso
+      description: 'Devolve os dados estruturados de uma NF-e recebida, incluindo links temporários para o XML e o DANFE.
+
+
+        Quando usar: Depois de receber o webhook de documento capturado, ou ao investigar uma nota específica de fornecedor. É aqui que estão os links de download prontos.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/distribuicao-nfe-cte-endpoints-nfe/
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: obter
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                accessKey: '35260100000000000191550010000012341234567890'
+                createdOn: '2026-08-15T14:22:10Z'
+                nsu: '21825'
+                nfeNumber: '1234'
+                nfeSerialNumber: '1'
+                issuedOn: '2026-08-15T10:00:00Z'
+                type: productInvoice
+                description: Autorizado o uso da NF-e
+                totalInvoiceAmount: '1500.00'
+                operationType: Incoming
+                issuer:
+                  federalTaxNumber: 00000000000191
+                  name: FORNECEDOR EXEMPLO LTDA
+                links:
+                  xml: https://storage.example.com/temp/xml/...
+                  pdf: https://storage.example.com/temp/pdf/...
+        '400':
+          description: Requisição inválida
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Proibido
+        '429':
+          description: Too Many Requests
+        '503':
+          description: Serviço indisponível
+        '404':
+          description: Document not found for the given access key.
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa na NFE.io.
+        schema:
+          type: string
+      - name: access_key
+        in: path
+        required: true
+        description: Chave de acesso de 44 dígitos do documento.
+        schema:
+          type: string
+  /v2/companies/{company_id}/inbound/{access_key}/xml:
+    get:
+      operationId: nfe-io__nota_fiscal__baixar_arquivo__inbound_xml
+      summary: Obter o XML de um documento recebido (NF-e ou CT-e) pela chave de acesso
+      description: 'Devolve uma URL temporária para baixar o XML autorizado do documento capturado. A resposta é JSON com o link, não o arquivo.
+
+
+        Quando usar: Montagem do pacote de XMLs de entrada do mês para o contador e importação no ERP. Vale tanto para NF-e quanto para CT-e — a rota é comum aos dois.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/api/consulta-dfe-distribuicao-v2.yaml
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: baixar_arquivo
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                url: https://storage.example.com/temp/xml/35260100000000000191550010000012341234567890.xml
+        '400':
+          description: Requisição inválida
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Proibido
+        '429':
+          description: Too Many Requests
+        '503':
+          description: Serviço indisponível
+        '404':
+          description: Document not found for the given access key.
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa na NFE.io.
+        schema:
+          type: string
+      - name: access_key
+        in: path
+        required: true
+        description: Chave de acesso de 44 dígitos do documento.
+        schema:
+          type: string
+  /v2/companies/{company_id}/inbound/{access_key}/manifest:
+    post:
+      operationId: nfe-io__nota_fiscal__manifestar__inbound_nfe
+      summary: Enviar evento de manifestação do destinatário
+      description: 'Registra na SEFAZ a manifestação do destinatário sobre uma NF-e recebida: ciência da operação, confirmação, desconhecimento ou operação não realizada.
+
+
+        Quando usar: Obrigação do destinatário, com prazo. A ciência da operação também é o que libera o XML completo de uma nota que chegou só como resumo.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/distribuicao-nfe-cte-endpoints-nfe/
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: manifestar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: false
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                status: Registered
+                protocol: '135260000000001'
+        '400':
+          description: Requisição inválida
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Proibido
+        '429':
+          description: Too Many Requests
+        '503':
+          description: Serviço indisponível
+        '409':
+          description: Conflito (duplicado)
+        '422':
+          description: Entidade não processável
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: company_id
+        in: path
+        required: true
+        description: Identificador da empresa na NFE.io.
+        schema:
+          type: string
+      - name: access_key
+        in: path
+        required: true
+        description: Chave de acesso de 44 dígitos da NF-e.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eventCode:
+                  type: string
+                  description: 'Código do evento de manifestação: ciência da operação, confirmação, desconhecimento ou operação não realizada.'
+                justification:
+                  type: string
+                  description: Justificativa, obrigatória em desconhecimento e operação não realizada.
+            example:
+              eventCode: '210210'
+              justification: null
+  /v2/companies/{companyId}/inbound/nfse:
+    get:
+      operationId: nfe-io__nota_fiscal__listar__inbound_nfse
+      summary: Listar as NFS-e capturadas (NFS-e Inbound)
+      description: 'Lista as NFS-e recebidas pela empresa no Ambiente Nacional, com filtros amplos por período, tipo, status, CNPJ do prestador ou tomador, faixa de NSU e estado do webhook.
+
+
+        Quando usar: Relatório de notas de serviço tomadas (despesa com fornecedores de serviço) e fila de manifestação. Para sincronizar, filtre por nsuBegin em vez de paginar por índice.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/distribuicao-nfse-inbound-endpoints/
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                documents:
+                - id: 66b2c3d4e5f6a7890bcdef12
+                  nsu: 1850
+                  type: serviceInvoice
+                  accessKey: <chave de 50 digitos>
+                  issuedOn: '2026-08-20T21:15:48Z'
+                  accrualOn: 2026-08
+                  provider:
+                    federalTaxNumber: 00000000000191
+                    name: PRESTADOR EXEMPLO LTDA
+                    cityCode: '3106200'
+                    state: MG
+                  borrower:
+                    federalTaxNumber: 00000000000191
+                    name: MINHA EMPRESA LTDA
+                    cityCode: '3550308'
+                  servicesAmount: 1200.0
+                  serviceCode: '100501.004'
+                  status: Processed
+                  webhookStatus: Delivered
+        '400':
+          description: Requisição inválida
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Proibido
+        '429':
+          description: Too Many Requests
+        '503':
+          description: Serviço indisponível
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa na NFE.io.
+        schema:
+          type: string
+      - name: type
+        in: query
+        required: false
+        description: Tipo de documento; use Nfse para trazer só notas.
+        schema:
+          type: string
+      - name: issuedBegin
+        in: query
+        required: false
+        description: Início do período de emissão.
+        schema:
+          type: string
+          format: date
+      - name: issuedEnd
+        in: query
+        required: false
+        description: Fim do período de emissão.
+        schema:
+          type: string
+          format: date
+      - name: nsuBegin
+        in: query
+        required: false
+        description: NSU inicial. É o filtro certo para sincronização incremental.
+        schema:
+          type: integer
+      - name: pageIndex
+        in: query
+        required: false
+        description: Número da página, começando em 1.
+        schema:
+          type: integer
+      - name: pageCount
+        in: query
+        required: false
+        description: Itens por página.
+        schema:
+          type: integer
+      - name: hasTotals
+        in: query
+        required: false
+        description: Traz os totais; mais lento porque faz contagem no banco.
+        schema:
+          type: boolean
+      - name: webhookStatus
+        in: query
+        required: false
+        description: Filtra por estado da entrega do webhook, por exemplo DefinitivelyFailed.
+        schema:
+          type: string
+  /v2/companies/{companyId}/inbound/nfse/{id}:
+    get:
+      operationId: nfe-io__nota_fiscal__obter__inbound_nfse
+      summary: Obter o detalhe de uma NFS-e capturada
+      description: 'Devolve o detalhe de um documento capturado. O mesmo endpoint aceita tanto o id interno quanto a chave de acesso de 50 dígitos — o servidor detecta qual foi enviado.
+
+
+        Quando usar: Depois do webhook de NFS-e recebida, ou ao investigar uma nota de prestador específica. Também é o ponto de partida para baixar XML, PDF ou o JSON convertido.'
+      tags:
+      - NotaFiscal
+      security:
+      - ApiKeyAuth: []
+      x-confianca: verificado
+      x-fonte-url: https://nfe.io/docs/distribuicao-nfse-inbound-integracao-rest/
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: obter
+      x-host: https://api.nfse.io
+      x-seguro-para-executar: true
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                id: 66b2c3d4e5f6a7890bcdef12
+                nsu: 1850
+                type: serviceInvoice
+                accessKey: <chave de 50 digitos>
+                issuedOn: '2026-08-20T21:15:48Z'
+                accrualOn: 2026-08
+                provider:
+                  federalTaxNumber: 00000000000191
+                  name: PRESTADOR EXEMPLO LTDA
+                  cityCode: '3106200'
+                  state: MG
+                servicesAmount: 1200.0
+                serviceCode: '100501.004'
+                status: Processed
+                webhookStatus: Delivered
+                hasPdf: true
+                xmlSizeBytes: 9718
+        '400':
+          description: Requisição inválida
+        '401':
+          description: (corpo vazio)
+        '403':
+          description: Proibido
+        '429':
+          description: Too Many Requests
+        '503':
+          description: Serviço indisponível
+        '404':
+          description: Não encontrado
+        '500':
+          description: Erro no processamento
+      parameters:
+      - name: companyId
+        in: path
+        required: true
+        description: Identificador da empresa na NFE.io.
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        description: Id interno do documento (ObjectId) OU a chave de acesso de 50 dígitos.
+        schema:
+          type: string

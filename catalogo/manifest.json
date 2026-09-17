@@ -858,7 +858,25 @@
         "valor": 3,
         "total": 18
       },
-      "status": "pendente"
+      "status": "concluido",
+      "concluido_em": "2026-09-17",
+      "endpoints_detalhados": 90,
+      "endpoints_catalogados": 94,
+      "faq": 20,
+      "indice_integrabilidade": 62,
+      "validador": "0 erros, 0 avisos",
+      "execucao": {
+        "completo_em": "2026-09-17",
+        "endpoints_executaveis": 56,
+        "endpoints_total": 90
+      },
+      "conferencia_orquestrador": "amostra de 4 endpoints conferida; cobre 100% das 184 operações da spec oficial",
+      "pendencias": [
+        "não emite CT-e (diferença central frente à Focus NFe)",
+        "rate limit e preços não publicados",
+        "MDF-e sem leiaute publicado para modais além do rodoviário",
+        "sandbox é mock compartilhado e a doc não lista o que é simulado"
+      ]
     },
     {
       "slug": "omie",
