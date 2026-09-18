@@ -15,6 +15,8 @@ import {
   responderLocalmente,
   type Mensagem,
 } from "@/lib/assistente";
+import { CONSULTAS } from "@/lib/catalogo-demo";
+import { perguntarAoAssistente } from "@/lib/assistente.servidor";
 import { baixarPlanilha } from "@/lib/planilha";
 
 const SUGESTOES = [
@@ -78,6 +80,7 @@ function Index() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([BOAS_VINDAS]);
   const [pergunta, setPergunta] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [iaLigada, setIaLigada] = useState(true);
   const fim = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,7 +97,29 @@ function Index() {
     setOcupado(true);
 
     try {
-      await new Promise((r) => setTimeout(r, 450));
+      const resposta = await perguntarAoAssistente({
+        data: {
+          pergunta: limpo,
+          historico: mensagens.map(({ autor, texto }) => ({ autor, texto })),
+        },
+      });
+
+      if (resposta.origem === "sem_chave") {
+        setIaLigada(false);
+        setMensagens((atual) => [...atual, responderLocalmente(limpo)]);
+      } else {
+        setIaLigada(true);
+        // as consultas citadas pela IA viram botões de executar, quando existem na demonstração
+        const propostas = CONSULTAS.filter((c) => resposta.resposta.includes(c.id));
+        setMensagens((atual) => [
+          ...atual,
+          mensagem("assistente", resposta.resposta, propostas.length > 0 ? { propostas } : {}),
+        ]);
+      }
+    } catch (erro) {
+      const motivo = erro instanceof Error ? erro.message : "falha desconhecida";
+      toast.error("A IA não respondeu", { description: motivo });
+      setIaLigada(false);
       setMensagens((atual) => [...atual, responderLocalmente(limpo)]);
     } finally {
       setOcupado(false);
@@ -137,8 +162,8 @@ function Index() {
               Pergunte o que precisa do seu sistema e receba a planilha pronta
             </p>
           </div>
-          <Badge variant="secondary" className="hidden sm:inline-flex">
-            Demonstração
+          <Badge variant={iaLigada ? "default" : "secondary"} className="hidden sm:inline-flex">
+            {iaLigada ? "IA + catálogo" : "Demonstração"}
           </Badge>
         </div>
       </header>

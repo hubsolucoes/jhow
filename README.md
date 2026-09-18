@@ -14,6 +14,33 @@ catálogo, pede aprovação, executa e devolve os dados em planilha (.xlsx).
 | Geração da planilha no navegador | `src/lib/planilha.ts` |
 | Catálogo completo das APIs e executor | `catalogo/` |
 
+## Ligando a IA
+
+O assistente consulta um modelo **no servidor**. A chave nunca fica no código nem no navegador:
+configure uma variável de ambiente no ambiente de execução (no Lovable, em Settings → Environment
+variables; localmente, no shell antes de `bun run dev`):
+
+| Variável | Para quê |
+|---|---|
+| `ANTHROPIC_API_KEY` | chave da Anthropic (Claude). Começa com `sk-ant-api03-` |
+| `OPENAI_API_KEY` | alternativa, se preferir OpenAI |
+| `MODELO_IA` | opcional, troca o modelo (padrão: `claude-sonnet-5` ou `gpt-4o-mini`) |
+
+Sem nenhuma delas, o chat continua funcionando em modo demonstração.
+
+**Nunca** coloque a chave em arquivo do repositório: ele é sincronizado com o GitHub.
+
+## O conhecimento do assistente
+
+`src/lib/conhecimento.json` é gerado do catálogo real e carregado **apenas no servidor**:
+
+```sh
+cd catalogo && .venv/Scripts/python scripts/gerar_conhecimento.py
+```
+
+Hoje são 10 sistemas, 271 consultas executáveis e 241 operações de escrita descritas. A cada
+pergunta, só o recorte relevante vai para o modelo — o prompt não carrega o catálogo inteiro.
+
 ## Demonstração x produção
 
 Sem configuração, o chat roda em **demonstração**: entende a pergunta, propõe a consulta
