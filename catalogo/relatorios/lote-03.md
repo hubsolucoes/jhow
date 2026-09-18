@@ -10,7 +10,7 @@ Concluído em 2026-09-18.
 | plugnotas | documentado | 90 + 94 | 56 | 20 | **62** | 0 erros |
 | sefaz-nfe | documentado | 12 + 8 | 5 | 15 | **43** | 0 erros |
 
-**Catálogo acumulado:** 10 sistemas, 596 endpoints detalhados, 257 executáveis pelo assistente.
+**Catálogo acumulado:** 10 sistemas, 512 endpoints detalhados, 858 catalogados e 271 executáveis pelo assistente.
 
 ## Índice de integrabilidade
 
