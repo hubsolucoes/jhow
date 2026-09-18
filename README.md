@@ -19,8 +19,9 @@ catálogo, pede aprovação, executa e devolve os dados em planilha (.xlsx).
 Sem configuração, o chat roda em **demonstração**: entende a pergunta, propõe a consulta
 e gera uma planilha com dados fictícios no formato real de cada API.
 
-Em **produção**, clique no ícone de configuração e informe o endereço do backend. Ele deve
-aceitar `POST` com `{ pergunta, historico }` e responder:
+Para **produção**, o código que conversa com um backend já existe em `src/lib/assistente.ts`
+(`responderPeloBackend`), mas o campo de configuração foi retirado da tela até o backend existir.
+O contrato previsto: `POST` com `{ pergunta, historico }` respondendo:
 
 ```json
 {

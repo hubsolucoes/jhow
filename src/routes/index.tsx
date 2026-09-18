@@ -1,30 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Download, Loader2, Send, Settings2, Sparkles } from "lucide-react";
+import { Download, Loader2, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Consulta } from "@/lib/catalogo-demo";
 import {
   BOAS_VINDAS,
-  CHAVE_BACKEND,
   executarConsulta,
   mensagem,
   responderLocalmente,
-  responderPeloBackend,
   type Mensagem,
 } from "@/lib/assistente";
 import { baixarPlanilha } from "@/lib/planilha";
@@ -90,16 +78,7 @@ function Index() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([BOAS_VINDAS]);
   const [pergunta, setPergunta] = useState("");
   const [ocupado, setOcupado] = useState(false);
-  const [urlBackend, setUrlBackend] = useState("");
-  const [rascunhoUrl, setRascunhoUrl] = useState("");
-  const [configAberta, setConfigAberta] = useState(false);
   const fim = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const salva = window.localStorage.getItem(CHAVE_BACKEND) ?? "";
-    setUrlBackend(salva);
-    setRascunhoUrl(salva);
-  }, []);
 
   useEffect(() => {
     fim.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -115,23 +94,8 @@ function Index() {
     setOcupado(true);
 
     try {
-      if (urlBackend) {
-        const resposta = await responderPeloBackend(urlBackend, mensagens, limpo);
-        setMensagens((atual) => [...atual, resposta]);
-      } else {
-        await new Promise((r) => setTimeout(r, 450));
-        setMensagens((atual) => [...atual, responderLocalmente(limpo)]);
-      }
-    } catch (erro) {
-      const motivo = erro instanceof Error ? erro.message : "falha desconhecida";
-      toast.error("Não consegui falar com o backend", { description: motivo });
-      setMensagens((atual) => [
-        ...atual,
-        mensagem(
-          "assistente",
-          `Não consegui falar com o backend configurado (${motivo}). Verifique o endereço em Configurar, ou remova-o para usar o modo demonstração.`,
-        ),
-      ]);
+      await new Promise((r) => setTimeout(r, 450));
+      setMensagens((atual) => [...atual, responderLocalmente(limpo)]);
     } finally {
       setOcupado(false);
     }
@@ -158,14 +122,6 @@ function Index() {
     }
   }
 
-  function salvarConfig() {
-    const valor = rascunhoUrl.trim();
-    setUrlBackend(valor);
-    window.localStorage.setItem(CHAVE_BACKEND, valor);
-    setConfigAberta(false);
-    toast.success(valor ? "Backend conectado" : "Modo demonstração ativo");
-  }
-
   return (
     <main className="flex min-h-screen flex-col bg-background">
       <header className="border-b bg-card/60 backdrop-blur">
@@ -181,17 +137,9 @@ function Index() {
               Pergunte o que precisa do seu sistema e receba a planilha pronta
             </p>
           </div>
-          <Badge variant={urlBackend ? "default" : "secondary"} className="hidden sm:inline-flex">
-            {urlBackend ? "Backend conectado" : "Demonstração"}
+          <Badge variant="secondary" className="hidden sm:inline-flex">
+            Demonstração
           </Badge>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Configurar"
-            onClick={() => setConfigAberta(true)}
-          >
-            <Settings2 className="size-4" />
-          </Button>
         </div>
       </header>
 
@@ -323,39 +271,6 @@ function Index() {
           </p>
         </div>
       </div>
-
-      <Dialog open={configAberta} onOpenChange={setConfigAberta}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Conectar ao backend</DialogTitle>
-            <DialogDescription>
-              Sem endereço, o chat roda em demonstração, com dados fictícios no formato real das
-              APIs. Com o backend conectado, ele consulta os sistemas da empresa — as credenciais e
-              a chave da IA ficam lá, nunca no navegador.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="url-backend">Endereço do backend</Label>
-            <Input
-              id="url-backend"
-              value={rascunhoUrl}
-              onChange={(e) => setRascunhoUrl(e.target.value)}
-              placeholder="https://seu-backend.exemplo.com/chat"
-              inputMode="url"
-            />
-            <p className="text-xs text-muted-foreground">
-              Ele deve aceitar POST com <code>{"{ pergunta, historico }"}</code> e responder{" "}
-              <code>{"{ resposta, planilha? }"}</code>.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfigAberta(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={salvarConfig}>Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }
