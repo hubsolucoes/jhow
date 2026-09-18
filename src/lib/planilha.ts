@@ -1,4 +1,4 @@
-import type { Coluna } from "./catalogo-demo";
+export type Coluna = { titulo: string; chave: string };
 
 export type DadosPlanilha = {
   nomeArquivo: string;

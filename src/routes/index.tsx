@@ -1,45 +1,64 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Download, Loader2, Send, Sparkles } from "lucide-react";
+import { Download, KeyRound, Loader2, Send, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { Consulta } from "@/lib/catalogo-demo";
 import {
   BOAS_VINDAS,
-  executarConsulta,
   mensagem,
-  responderLocalmente,
+  planilhaDaConsulta,
+  type Consulta,
   type Mensagem,
 } from "@/lib/assistente";
-import { CONSULTAS } from "@/lib/catalogo-demo";
 import { perguntarAoAssistente } from "@/lib/assistente.servidor";
+import { executarConsultaReal } from "@/lib/executor.servidor";
+import conhecimento from "@/lib/conhecimento.json";
 import { baixarPlanilha } from "@/lib/planilha";
 
+const CONSULTAS = conhecimento.consultas as Consulta[];
+const CREDENCIAIS = (
+  conhecimento as unknown as {
+    execucao: Record<
+      string,
+      {
+        auth: {
+          credenciais_necessarias: {
+            nome: string;
+            rotulo: string;
+            segredo: boolean;
+            onde_obter: string;
+            default?: string;
+          }[];
+        };
+      }
+    >;
+  }
+).execucao["sygecom"]!.auth.credenciais_necessarias;
+
 const SUGESTOES = [
-  "Cobranças pagas no último mês",
-  "Pedidos de venda em aberto",
-  "Movimentos de estoque da matriz",
-  "Notas fiscais recebidas",
+  "Produtos cadastrados",
+  "Movimentos de estoque",
+  "Pedidos de compra",
+  "Clientes",
 ];
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Assistente de integrações — consulte seu sistema e receba a planilha" },
+      { title: "Assistente Sagi — consulte seu ERP e receba a planilha" },
       {
         name: "description",
         content:
-          "Pergunte em português o que precisa do seu ERP ou meio de pagamento. O assistente encontra a consulta certa, executa e devolve a planilha pronta.",
+          "Pergunte em português o que precisa do Sagi (SyGeCom). O assistente encontra a consulta certa, executa na API e devolve a planilha pronta.",
       },
-      { property: "og:title", content: "Assistente de integrações" },
-      {
-        property: "og:description",
-        content: "Pergunte, aprove e receba os dados do seu sistema em planilha.",
-      },
+      { property: "og:title", content: "Assistente Sagi" },
+      { property: "og:description", content: "Pergunte, aprove e receba os dados em planilha." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -47,7 +66,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-/** Negrito simples (**texto**) e quebras de linha, sem trazer um renderizador de markdown. */
+/** Negrito simples (**texto**), código (`texto`) e quebras de linha. */
 function Texto({ conteudo }: { conteudo: string }) {
   return (
     <>
@@ -63,7 +82,10 @@ function Texto({ conteudo }: { conteudo: string }) {
             }
             if (parte.startsWith("`") && parte.endsWith("`")) {
               return (
-                <code key={j} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em]">
+                <code
+                  key={j}
+                  className="rounded bg-background/60 px-1.5 py-0.5 font-mono text-[0.85em]"
+                >
                   {parte.slice(1, -1)}
                 </code>
               );
@@ -76,12 +98,74 @@ function Texto({ conteudo }: { conteudo: string }) {
   );
 }
 
+function FormularioCredenciais({
+  consulta,
+  valores,
+  aoConfirmar,
+  ocupado,
+}: {
+  consulta: Consulta;
+  valores: Record<string, string>;
+  aoConfirmar: (credenciais: Record<string, string>, consulta: Consulta) => void;
+  ocupado: boolean;
+}) {
+  const [campos, setCampos] = useState<Record<string, string>>(() => {
+    const inicial: Record<string, string> = {};
+    for (const c of CREDENCIAIS) inicial[c.nome] = valores[c.nome] ?? c.default ?? "";
+    return inicial;
+  });
+
+  const faltando = CREDENCIAIS.some((c) => !campos[c.nome]?.trim());
+
+  return (
+    <Card className="mt-3 gap-0 border-border/60 p-3">
+      <div className="flex items-center gap-2">
+        <KeyRound className="size-4 text-muted-foreground" />
+        <p className="text-sm font-medium">Credenciais do seu usuário de integração</p>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Ficam só neste navegador, são usadas apenas nesta consulta e não são enviadas à IA.
+      </p>
+      <form
+        className="mt-3 space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          aoConfirmar(campos, consulta);
+        }}
+      >
+        {CREDENCIAIS.map((c) => (
+          <div key={c.nome} className="space-y-1">
+            <Label htmlFor={`cred-${c.nome}`} className="text-xs">
+              {c.rotulo}
+            </Label>
+            <Input
+              id={`cred-${c.nome}`}
+              type={c.segredo ? "password" : "text"}
+              autoComplete={c.segredo ? "current-password" : "off"}
+              value={campos[c.nome] ?? ""}
+              onChange={(e) => setCampos((atual) => ({ ...atual, [c.nome]: e.target.value }))}
+              placeholder={c.default ?? ""}
+            />
+            <p className="text-[11px] leading-snug text-muted-foreground">{c.onde_obter}</p>
+          </div>
+        ))}
+        <Button type="submit" size="sm" disabled={faltando || ocupado}>
+          Consultar o Sagi
+        </Button>
+      </form>
+    </Card>
+  );
+}
+
 function Index() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([BOAS_VINDAS]);
   const [pergunta, setPergunta] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [iaLigada, setIaLigada] = useState(true);
+  const [credenciais, setCredenciais] = useState<Record<string, string>>({});
   const fim = useRef<HTMLDivElement>(null);
+
+  const temCredenciais = CREDENCIAIS.every((c) => credenciais[c.nome]);
 
   useEffect(() => {
     fim.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -91,8 +175,7 @@ function Index() {
     const limpo = texto.trim();
     if (!limpo || ocupado) return;
 
-    const daVez = mensagem("cliente", limpo);
-    setMensagens((atual) => [...atual, daVez]);
+    setMensagens((atual) => [...atual, mensagem("cliente", limpo)]);
     setPergunta("");
     setOcupado(true);
 
@@ -100,39 +183,72 @@ function Index() {
       const resposta = await perguntarAoAssistente({
         data: {
           pergunta: limpo,
-          historico: mensagens.map(({ autor, texto }) => ({ autor, texto })),
+          historico: mensagens.map(({ autor, texto: t }) => ({ autor, texto: t })),
         },
       });
 
-      if (resposta.origem === "sem_chave") {
-        setIaLigada(false);
-        setMensagens((atual) => [...atual, responderLocalmente(limpo)]);
-      } else {
-        setIaLigada(true);
-        // as consultas citadas pela IA viram botões de executar, quando existem na demonstração
-        const propostas = CONSULTAS.filter((c) => resposta.resposta.includes(c.id));
-        setMensagens((atual) => [
-          ...atual,
-          mensagem("assistente", resposta.resposta, propostas.length > 0 ? { propostas } : {}),
-        ]);
-      }
+      setIaLigada(resposta.origem === "ia");
+      const propostas = CONSULTAS.filter((c) => resposta.resposta.includes(c.id));
+      setMensagens((atual) => [
+        ...atual,
+        mensagem("assistente", resposta.resposta, propostas.length > 0 ? { propostas } : {}),
+      ]);
     } catch (erro) {
       const motivo = erro instanceof Error ? erro.message : "falha desconhecida";
       toast.error("A IA não respondeu", { description: motivo });
-      setIaLigada(false);
-      setMensagens((atual) => [...atual, responderLocalmente(limpo)]);
+      setMensagens((atual) => [
+        ...atual,
+        mensagem("assistente", `Não consegui responder agora: ${motivo}`),
+      ]);
     } finally {
       setOcupado(false);
     }
   }
 
   function aprovar(consulta: Consulta) {
+    setMensagens((atual) => [
+      ...atual,
+      mensagem("cliente", `Pode executar: ${consulta.descricao.slice(0, 60)}`),
+    ]);
+    if (temCredenciais) {
+      void executar(credenciais, consulta);
+    } else {
+      setMensagens((atual) => [
+        ...atual,
+        mensagem(
+          "assistente",
+          "Para consultar o Sagi eu preciso das credenciais do usuário de integração. Preencha abaixo — elas ficam só no seu navegador.",
+          { pedirCredenciais: consulta },
+        ),
+      ]);
+    }
+  }
+
+  async function executar(cred: Record<string, string>, consulta: Consulta) {
+    setCredenciais(cred);
     setOcupado(true);
-    setMensagens((atual) => [...atual, mensagem("cliente", `Pode executar: ${consulta.titulo}`)]);
-    setTimeout(() => {
-      setMensagens((atual) => [...atual, executarConsulta(consulta)]);
+    try {
+      const resultado = await executarConsultaReal({
+        data: { endpointId: consulta.id, credenciais: cred, maximo: 1000 },
+      });
+      const planilha = planilhaDaConsulta(consulta, resultado);
+      setMensagens((atual) => [
+        ...atual,
+        mensagem(
+          "assistente",
+          resultado.linhas.length > 0
+            ? `Pronto. ${resultado.linhas.length} registros de **${resultado.titulo}**.`
+            : `A consulta funcionou, mas o Sagi não devolveu nenhum registro para **${resultado.titulo}**. Talvez falte um filtro (filial, data) ou o usuário não tenha acesso a esses dados.`,
+          resultado.linhas.length > 0 ? { planilha } : {},
+        ),
+      ]);
+    } catch (erro) {
+      const motivo = erro instanceof Error ? erro.message : "falha desconhecida";
+      toast.error("Não consegui consultar o Sagi", { description: motivo });
+      setMensagens((atual) => [...atual, mensagem("assistente", `Não deu certo: ${motivo}`)]);
+    } finally {
       setOcupado(false);
-    }, 600);
+    }
   }
 
   async function baixar(m: Mensagem) {
@@ -155,15 +271,26 @@ function Index() {
             <Sparkles className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-semibold text-foreground">
-              Assistente de integrações
-            </h1>
+            <h1 className="truncate text-base font-semibold text-foreground">Assistente Sagi</h1>
             <p className="truncate text-sm text-muted-foreground">
-              Pergunte o que precisa do seu sistema e receba a planilha pronta
+              Pergunte o que precisa do seu ERP e receba a planilha pronta
             </p>
           </div>
+          {temCredenciais && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setCredenciais({});
+                toast.success("Credenciais esquecidas");
+              }}
+            >
+              <Trash2 className="mr-1 size-4" />
+              Esquecer credenciais
+            </Button>
+          )}
           <Badge variant={iaLigada ? "default" : "secondary"} className="hidden sm:inline-flex">
-            {iaLigada ? "IA + catálogo" : "Demonstração"}
+            {iaLigada ? "IA + catálogo" : "IA desligada"}
           </Badge>
         </div>
       </header>
@@ -191,15 +318,17 @@ function Index() {
                     {m.propostas.map((consulta, indice) => (
                       <Card key={consulta.id} className="gap-0 border-border/60 p-3">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline">{consulta.sistema}</Badge>
-                          <span className="text-sm font-medium">{consulta.titulo}</span>
+                          <Badge variant="outline">{consulta.entidade}</Badge>
                           <code className="text-xs text-muted-foreground">
-                            {consulta.metodo} {consulta.caminho}
+                            {consulta.metodo} {consulta.path}
                           </code>
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Filtros: {consulta.filtros.map((f) => f.parametro).join(" · ")}
-                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">{consulta.descricao}</p>
+                        {consulta.colunas && consulta.colunas.length > 0 && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Colunas: {consulta.colunas.join(", ")}
+                          </p>
+                        )}
                         <div className="mt-3">
                           <Button
                             size="sm"
@@ -213,6 +342,15 @@ function Index() {
                       </Card>
                     ))}
                   </div>
+                )}
+
+                {m.pedirCredenciais && (
+                  <FormularioCredenciais
+                    consulta={m.pedirCredenciais}
+                    valores={credenciais}
+                    ocupado={ocupado}
+                    aoConfirmar={(cred, consulta) => void executar(cred, consulta)}
+                  />
                 )}
 
                 {m.planilha && (
@@ -236,7 +374,7 @@ function Index() {
           {ocupado && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              Consultando…
+              Trabalhando…
             </div>
           )}
           <div ref={fim} />
@@ -276,7 +414,7 @@ function Index() {
                   void enviar(pergunta);
                 }
               }}
-              placeholder="O que você precisa? Ex.: cobranças pagas em agosto"
+              placeholder="O que você precisa do Sagi? Ex.: movimentos de estoque da matriz"
               aria-label="Sua pergunta"
               rows={1}
               className="max-h-40 min-h-11 resize-none"
@@ -292,7 +430,8 @@ function Index() {
             </Button>
           </form>
           <p className="mt-2 text-xs text-muted-foreground">
-            O assistente só executa consultas de leitura e pede aprovação antes de cada uma.
+            O assistente só executa consultas de leitura e pede aprovação antes de cada uma. Nunca
+            digite senha no campo de conversa.
           </p>
         </div>
       </div>

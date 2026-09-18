@@ -23,15 +23,20 @@ def curto(texto, limite=LIMITE_DESCRICAO):
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
-    sistemas, consultas, escritas = [], [], []
+    # --sistemas slug1,slug2 limita o conhecimento (útil para pilotos)
+    filtro = None
+    if "--sistemas" in sys.argv:
+        filtro = set(sys.argv[sys.argv.index("--sistemas") + 1].split(","))
+    sistemas, consultas, escritas, execucao = [], [], [], {}
 
     for pasta in sorted((RAIZ / "sistemas").iterdir()):
         arq_sistema, arq_endpoints = pasta / "system.json", pasta / "endpoints.json"
         if not (arq_sistema.is_file() and arq_endpoints.is_file()):
             continue
         s = json.loads(arq_sistema.read_text(encoding="utf-8"))
-        if s.get("status") != "documentado":
+        if s.get("status") != "documentado" or (filtro and s["slug"] not in filtro):
             continue
+        execucao[s["slug"]] = {"auth": s.get("execucao_auth"), "endpoints": {}}
         auth = s.get("execucao_auth") or {}
         sistemas.append({
             "slug": s["slug"],
@@ -67,6 +72,15 @@ def main():
                 base["colunas"] = [c.get("titulo") for c in (ex.get("colunas_sugeridas") or [])][:15]
                 base["paginacao"] = (ex.get("paginacao") or {}).get("tipo")
                 consultas.append(base)
+                # receita completa para o executor do servidor
+                execucao[s["slug"]]["endpoints"][e["id"]] = {
+                    "metodo": e["metodo"], "path": e["path"],
+                    "lista_em": ex.get("lista_em"), "campo_total": ex.get("campo_total"),
+                    "paginacao": ex.get("paginacao"),
+                    "filtros": ex.get("filtros_recomendados") or [],
+                    "colunas": ex.get("colunas_sugeridas") or [],
+                    "titulo": curto(e.get("nome_fornecedor") or e.get("descricao"), 80),
+                }
             else:
                 base["motivo_nao_executa"] = curto(ex.get("motivo_inseguro"), 160)
                 escritas.append(base)
@@ -77,12 +91,15 @@ def main():
         "sistemas": sistemas,
         "consultas": consultas,
         "escritas": escritas,
+        "execucao": execucao,
     }
     DESTINO.parent.mkdir(parents=True, exist_ok=True)
     DESTINO.write_text(json.dumps(conhecimento, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     tamanho = DESTINO.stat().st_size / 1024
     print(f"{DESTINO}: {len(sistemas)} sistemas, {len(consultas)} consultas, "
           f"{len(escritas)} operações de escrita — {tamanho:.0f} KB")
+    if filtro:
+        print("filtrado para:", ", ".join(sorted(filtro)))
 
 
 if __name__ == "__main__":
