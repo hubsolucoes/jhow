@@ -1,0 +1,418 @@
+{
+  "slug": "sefaz-nfe",
+  "nome": "SEFAZ — NF-e e NFC-e (web services oficiais)",
+  "categoria": "fiscal_governo",
+  "fornecedor": {
+    "razao_social": "Administrações tributárias estaduais (ENCAT/CONFAZ) e Receita Federal do Brasil — projeto NF-e",
+    "pais": "BR",
+    "site": "https://www.nfe.fazenda.gov.br/portal/"
+  },
+  "descricao_curta": "Conjunto de web services SOAP 1.2 dos autorizadores estaduais (SEFAZ da UF, SVRS, SVAN), dos autorizadores de contingência (SVC-AN, SVC-RS) e do Ambiente Nacional, usados para autorizar, consultar, cancelar, corrigir, inutilizar e distribuir NF-e (modelo 55) e NFC-e (modelo 65). Acesso exclusivamente por TLS com autenticação mútua usando certificado ICP-Brasil e XML assinado digitalmente (XML-DSig).",
+  "porte_alvo": [
+    "media",
+    "grande"
+  ],
+  "verticais": [
+    "varejo",
+    "industria",
+    "atacado_distribuicao",
+    "transporte_logistica",
+    "software_house",
+    "contabilidade"
+  ],
+  "status": "documentado",
+  "api": {
+    "estilo": "SOAP",
+    "base_urls": {
+      "producao": "Não existe base URL única. Cada autorizador publica a sua. Exemplo de referência usado neste catálogo (SVRS, NF-e modelo 55, produção): https://nfe.svrs.rs.gov.br",
+      "sandbox": "Ambiente de homologação, também por autorizador. Exemplo de referência (SVRS, NF-e modelo 55): https://nfe-homologacao.svrs.rs.gov.br"
+    },
+    "versao_atual": "Leiaute e web services na versão 4.00 (NF-e/NFC-e). NFeDistribuicaoDFe na versão 1.00. Manual vigente: MOC — Manual de Orientação do Contribuinte versão 7.0, mais as Notas Técnicas em vigor.",
+    "politica_versionamento": "A versão do leiaute vai no elemento versaoDados do SOAP Header (nfeCabecMsg) e no atributo versao da mensagem. Mudanças são publicadas em Notas Técnicas e Informes Técnicos no Portal Nacional da NF-e, cada uma com cronograma próprio de implantação em homologação e em produção. Versões antigas (2.00, 3.10) foram desativadas; a 4.00 está em vigor desde 2018 e vem sendo estendida por NT (sem troca de número de versão).",
+    "formatos": [
+      "xml"
+    ],
+    "spec_oficial_url": "https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=BMPFMBoln3w=",
+    "openapi_disponivel": false
+  },
+  "autenticacao": {
+    "tipos": [
+      "certificado_icp_brasil",
+      "mtls"
+    ],
+    "fluxo_resumido": "Não há login, token nem chave de API. A autenticação acontece em duas camadas independentes. (1) Canal: TLS 1.2 ou superior com autenticação mútua; o cliente apresenta um certificado ICP-Brasil A1 ou A3 cujo CNPJ (OID 2.16.76.1.3.3) ou CPF (OID 2.16.76.1.3.1) identifica o responsável pela transmissão, e que precisa ter Extended Key Usage de autenticação de cliente. (2) Documento: o XML enviado é assinado com XML-DSig (RSA-SHA1, Enveloped, C14N) usando certificado que contenha o CNPJ/CPF do emitente do documento; a assinatura recai sobre o elemento identificado pelo atributo Id (infNFe, infInut, infEvento). O certificado de transmissão e o de assinatura podem ser diferentes. Além disso, o CNPJ precisa estar credenciado como emissor de NF-e na SEFAZ da UF.",
+    "escopos_permissoes": [
+      "Credenciamento estadual como emissor de NF-e e/ou NFC-e, concedido pela SEFAZ da UF (sem ele, as chamadas são rejeitadas com cStat 203 'Emissor não habilitado para emissão de NF-e')",
+      "Para NFC-e: CSC (Código de Segurança do Contribuinte) obtido no portal da SEFAZ da UF, usado no hash do QR Code, não na autenticação do web service",
+      "Para NfeConsultaCadastro: o CNPJ do certificado de transmissão precisa constar no cadastro nacional de emissores de DF-e"
+    ],
+    "expiracao_token": "Não se aplica — não há token. O que expira é o certificado digital: A1 dura tipicamente 1 ano e A3 até 3 anos (prazo comercial, confirmar com a Autoridade Certificadora).",
+    "renovacao": "Renovação do certificado junto a uma Autoridade Certificadora credenciada pela ICP-Brasil. Não há endpoint de renovação.",
+    "ip_allowlist_obrigatorio": false
+  },
+  "execucao_auth": {
+    "tipo": "certificado_icp_brasil",
+    "header": null,
+    "prefixo": "",
+    "usuario_basic_e_a_credencial": false,
+    "headers_fixos": {
+      "Content-Type": "application/soap+xml; charset=utf-8"
+    },
+    "token_url": null,
+    "credenciais_necessarias": [
+      {
+        "nome": "certificado_pem",
+        "rotulo": "Certificado ICP-Brasil do transmissor (cadeia pública, PEM)",
+        "segredo": true,
+        "onde_obter": "Emitido por Autoridade Certificadora credenciada pela ICP-Brasil (e-CNPJ ou e-CPF, tipo A1 para uso em servidor). Para A1 o cliente exporta o .pfx/.p12 do repositório de certificados e converte para PEM.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "chave_privada_pem",
+        "rotulo": "Chave privada do certificado (PEM)",
+        "segredo": true,
+        "onde_obter": "Extraída do mesmo arquivo .pfx/.p12 do certificado A1. Certificado A3 (token/smartcard) não exporta a chave privada e por isso não serve para integração servidor a servidor desassistida.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "senha_certificado",
+        "rotulo": "Senha do arquivo .pfx/.p12",
+        "segredo": true,
+        "onde_obter": "Definida pelo cliente no momento da emissão/instalação do certificado A1.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "base_url",
+        "rotulo": "URL do autorizador (por UF, ambiente e modelo)",
+        "segredo": false,
+        "onde_obter": "Portal Nacional da NF-e > Serviços > Relação de Serviços Web (https://www.nfe.fazenda.gov.br/portal/webServices.aspx?tipoConteudo=OUC/YVNWZfo=) para produção, e portal da SEFAZ da UF ou do SVRS para homologação. Varia por UF, por ambiente e por modelo (55 x 65).",
+        "obrigatoria": true
+      }
+    ],
+    "base_url_por_ambiente": {
+      "sandbox": "https://nfe-homologacao.svrs.rs.gov.br",
+      "producao": "https://nfe.svrs.rs.gov.br"
+    },
+    "observacao": "Tipo criado em 2026-09-18 a partir desta ficha (antes era 'nenhum' por falta de valor no enum). ATENÇÃO — nenhum dos tipos previstos na especificação descreve esta autenticação. Registramos 'nenhum' porque não há header, token, basic nem OAuth: a credencial é um certificado digital ICP-Brasil apresentado no handshake TLS (autenticação mútua/mTLS) somado a uma assinatura XML-DSig dentro do próprio documento. O tipo 'mtls_oauth2' não serve porque não existe OAuth. Ver lacunas[] — proposta de novo tipo 'certificado_icp_brasil' para execucao_auth. Enquanto o tipo não existir, o executor NÃO deve tentar montar a chamada a partir deste bloco: ele precisaria carregar um par certificado+chave no contexto TLS, assinar XML com XML-DSig e montar um envelope SOAP 1.2 com nfeCabecMsg no Header e nfeDadosMsg no Body. As base_url_por_ambiente aqui são apenas o autorizador de referência (SVRS, NF-e modelo 55); a URL real depende da UF do emitente, do ambiente e do modelo do documento, e vem da credencial de configuração base_url."
+  },
+  "ambiente_testes": {
+    "sandbox": true,
+    "como_obter": "Todo autorizador publica um ambiente de homologação (tpAmb=2), com URLs próprias. Para usá-lo é preciso o mesmo certificado ICP-Brasil da produção e, na maioria das UF, credenciamento prévio do CNPJ como emissor. Em homologação o campo xProd do primeiro item deve conter a literal exigida pelo leiaute ('NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL'). Para NFC-e é preciso também um CSC de homologação, solicitado no portal da SEFAZ da UF.",
+    "custo": "O ambiente em si é gratuito, mas o certificado ICP-Brasil é pago (A1 e A3 custam algumas centenas de reais por ano — valor comercial, confirmar com a AC).",
+    "dados_ficticios": false
+  },
+  "limites": {
+    "rate_limit": "Não há rate limit numérico publicado no MOC. O que existe são orientações operacionais obrigatórias: aguardar no mínimo 15 segundos entre o envio do lote (NfeAutorizacao) e a primeira consulta do recibo (NfeRetAutorizacao), e no mínimo 3 minutos entre consultas sucessivas ao NfeStatusServico quando a aplicação fica em laço. Autorizadores estaduais podem aplicar bloqueios próprios não documentados.",
+    "janela": null,
+    "burst": null,
+    "paginacao": {
+      "estilo": "cursor",
+      "tamanho_max": 50
+    },
+    "tamanho_max_payload": "Não há limite em bytes publicado no MOC 7.0. Os limites são por quantidade: até 50 NF-e por lote no NfeAutorizacao (1 única NFC-e por lote, conforme NT 2023.002), até 20 eventos por lote no NFeRecepcaoEvento, até 50 documentos por resposta no NFeDistribuicaoDFe e até 10.000 números por pedido de inutilização. Mensagem acima do limite do autorizador devolve cStat 214 'Tamanho da mensagem excedeu o limite estabelecido'.",
+    "timeout_recomendado": null,
+    "politica_retry": "Nunca reenviar cegamente uma autorização: o reenvio da mesma NF-e devolve cStat 204 (duplicidade de chave/chave natural) e o reenvio com novo cNF cria documento fiscal duplicado. Em erro de rede após o POST de autorização, o caminho correto é consultar (NfeRetAutorizacao pelo recibo ou NfeConsultaProtocolo pela chave) antes de qualquer retentativa. Em cStat 105 (lote em processamento), repetir a consulta do recibo com espera. Em cStat 108/109 (serviço paralisado), entrar em contingência (SVC ou EPEC) em vez de insistir.",
+    "idempotencia": {
+      "suportada": true,
+      "header": null
+    },
+    "volatil": true
+  },
+  "webhooks": {
+    "suportados": false,
+    "eventos": [],
+    "verificacao_assinatura": "",
+    "politica_reentrega": "",
+    "requer_endpoint_publico": false
+  },
+  "erros": {
+    "formato": "Não existe corpo de erro JSON nem uso semântico de status HTTP: o transporte devolve HTTP 200 com um envelope SOAP e o resultado de negócio vem nos campos cStat (código numérico de 3 posições, ampliado para 4 nas rejeições exclusivas de IBS/CBS/IS pela NT 2025.002) e xMotivo (texto). Falhas de schema ou de assinatura também chegam como cStat de rejeição. Erros de infraestrutura aparecem como SOAP Fault ou como falha de handshake TLS (certificado ausente, expirado ou fora da ICP-Brasil).",
+    "codigos_principais": [
+      "100 — Autorizado o uso da NF-e",
+      "101 — Cancelamento de NF-e homologado",
+      "102 — Inutilização de número homologado",
+      "103 — Lote recebido com sucesso",
+      "104 — Lote processado",
+      "105 — Lote em processamento (consultar de novo o recibo)",
+      "106 — Lote não localizado",
+      "107 — Serviço em Operação",
+      "108 — Serviço Paralisado Momentaneamente (curto prazo)",
+      "109 — Serviço Paralisado sem Previsão",
+      "110 — Uso Denegado (não se aplica mais à NFC-e, NT 2023.002)",
+      "111/112 — Consulta cadastro com uma / com mais de uma ocorrência",
+      "126 — Rejeição: Enviado lote com mais de 1 NFC-e",
+      "135 — Evento registrado e vinculado a NF-e",
+      "150 — Autorizado o uso da NF-e fora de prazo",
+      "155 — Cancelamento homologado fora de prazo",
+      "201 — Número máximo de numeração a inutilizar ultrapassou o limite",
+      "203 — Emissor não habilitado para emissão de NF-e",
+      "204 — Duplicidade de NF-e (chave natural já autorizada)",
+      "214 — Tamanho da mensagem excedeu o limite estabelecido",
+      "223 — CNPJ/CPF do transmissor do lote difere do CNPJ/CPF do transmissor da consulta",
+      "240 — Cancelamento/Inutilização: irregularidade fiscal do emitente",
+      "241 — Um número da faixa já foi utilizado",
+      "248 — UF do Recibo diverge da UF autorizadora",
+      "252 — Ambiente informado diverge do Ambiente de recebimento (tpAmb errado)",
+      "256 — Uma NF-e da faixa já está inutilizada",
+      "257 — Solicitante não habilitado para emissão da NF-e (ConsultaCadastro)",
+      "280/281/282/283/284/285 — Certificado de transmissão inválido, expirado, sem CNPJ, com erro de cadeia, revogado ou fora da ICP-Brasil",
+      "289 — Código da UF informada diverge da UF solicitada",
+      "501 — Prazo de cancelamento superior ao previsto na Legislação",
+      "563 — Já existe pedido de Inutilização com a mesma faixa",
+      "574 — Autor do evento diverge do emissor da NF-e",
+      "578 — A data do evento não pode ser maior que a data do processamento",
+      "580 — O evento exige uma NF-e autorizada",
+      "594 — Número de sequência do evento maior que o permitido",
+      "595 — Obrigatória a informação da justificativa do evento",
+      "596 — Evento apresentado fora do prazo",
+      "784 — NFC-e não permite o evento de Carta de Correção"
+    ]
+  },
+  "sdks_oficiais": [],
+  "comercial": {
+    "modelo_acesso": "aberto",
+    "custo_api": "Não há tarifa por chamada nem contrato comercial com a SEFAZ. O custo real da integração é indireto: certificado ICP-Brasil (A1/A3, anual), credenciamento estadual, infraestrutura de assinatura e retentativa, e — para a maioria das empresas — a mensalidade de um gateway fiscal que encapsula estes web services.",
+    "exige_homologacao": true,
+    "tempo_medio_aprovacao": "Não publicado nacionalmente; o credenciamento como emissor de NF-e é processo estadual, com prazo definido por cada SEFAZ.",
+    "volatil": true
+  },
+  "conformidade": {
+    "trafega_dado_pessoal": true,
+    "dado_sensivel": false,
+    "base_legal_tipica": "Cumprimento de obrigação legal e regulatória (art. 7º, II da LGPD): a emissão e a guarda do documento fiscal eletrônico são obrigação tributária prevista no Ajuste SINIEF 07/05 e na legislação estadual. O XML da NF-e/NFC-e carrega CPF/CNPJ, nome e endereço de destinatário, e o XML autorizado deve ser guardado por 5 anos.",
+    "exige_certificado_digital": true,
+    "regulador": "SEFAZ estaduais / CONFAZ / ENCAT, com a Receita Federal do Brasil no Ambiente Nacional; a partir da Reforma Tributária do Consumo entra também o Comitê Gestor do IBS (CGIBS), com atos conjuntos RFB/CGIBS.",
+    "residencia_dados": "Brasil — servidores das administrações tributárias estaduais e do Ambiente Nacional (RFB).",
+    "termos_uso_url": "https://www.nfe.fazenda.gov.br/portal/legislacao.aspx",
+    "permite_uso_em_produto_terceiro": "sim"
+  },
+  "esforco_integracao": {
+    "complexidade": "muito_alta",
+    "horas_estimadas_mvp": 400,
+    "principais_armadilhas": [
+      "Não existe base URL única: as URLs variam por UF, por ambiente (produção/homologação) e por modelo (NF-e 55 x NFC-e 65). Um integrador nacional precisa manter e revisar uma tabela de dezenas de URLs, alimentada pela Relação de Serviços Web do Portal Nacional.",
+      "Certificado A1 x A3: só o A1 (arquivo .pfx/.p12) permite integração servidor a servidor desassistida. O A3 fica em token/smartcard, exige PIN e não exporta a chave privada — inviável para emissão automática em lote.",
+      "O certificado tem dois papéis distintos: transmissão (TLS mútuo, precisa de Extended Key Usage 'Autenticação Cliente') e assinatura do XML (XML-DSig sobre o elemento com atributo Id). Errar um dos dois gera rejeições da família 280-285 ou erro de assinatura, que muita gente confunde com problema de rede.",
+      "Contingência não é um detalhe: quando o autorizador da UF cai (cStat 108/109) é preciso migrar para SVC-AN ou SVC-RS (conforme a UF), ou registrar EPEC no Ambiente Nacional, ou — para NFC-e — usar contingência offline (tpEmis=9). Cada modalidade muda tpEmis, que faz parte da chave de acesso: a mesma nota reemitida em outro tpEmis vira outra chave.",
+      "NFC-e tem regras próprias: CSC (Código de Segurança do Contribuinte) obtido no portal da UF para gerar o hash do QR Code, lote de no máximo 1 documento (NT 2023.002, rejeição 126), sem Carta de Correção (rejeição 784), sem denegação, e prazo de cancelamento muito mais curto que o da NF-e, definido em legislação estadual.",
+      "Numeração e séries são responsabilidade do contribuinte, e um buraco na sequência precisa ser fechado por inutilização (NfeInutilizacao) antes do prazo estadual. Números já usados não voltam: cStat 241/256/563.",
+      "Prazo de cancelamento: a regra nacional rejeita cancelamento de NF-e autorizada há mais de 24 horas (cStat 501); o cancelamento por substituição da NFC-e tem 7 dias. Algumas UF ampliam o prazo e devolvem cStat 155 (homologado fora de prazo). Passado o prazo, o único caminho é nota de devolução/ajuste.",
+      "Tamanho de lote e assincronismo: até 50 NF-e por lote, resposta síncrona só com indSinc=1 e uma única NF-e. No modo assíncrono a resposta imediata é apenas um recibo (cStat 103); é obrigatório aguardar 15 segundos antes de consultar o resultado, e tratar cStat 105 em laço.",
+      "Erro de rede depois de enviar o lote é o cenário mais perigoso: reenviar gera duplicidade (cStat 204) ou nota duplicada. A recuperação correta é sempre consultar antes de reenviar.",
+      "O NFeDistribuicaoDFe só devolve documentos dos últimos 3 meses e 50 por chamada; quem parar de paginar por NSU perde notas recebidas, e a consulta por ultNSU=0 não traz o histórico completo.",
+      "Reforma Tributária: a NT 2025.002-RTC ampliou o código de status para 4 posições nas rejeições de IBS/CBS/IS e alterou o número do protocolo. Parser que assume cStat com 3 dígitos e protocolo com 15 posições vai quebrar.",
+      "Por tudo isso, a maioria das empresas não integra direto: contrata um gateway fiscal (Focus NFe, PlugNotas, NFe.io, Tecnospeed e similares), que expõe REST/JSON, guarda o certificado, resolve contingência e roteamento de URL. Integrar direto só compensa com volume alto, equipe fiscal dedicada e necessidade de controle total do XML."
+    ]
+  },
+  "casos_uso_negocio": [
+    {
+      "titulo": "Emissão própria de NF-e sem intermediário",
+      "dor_resolvida": "Eliminar a mensalidade e a dependência de um gateway fiscal, mantendo o XML e o certificado sob controle da própria empresa.",
+      "endpoints_envolvidos": [
+        "sefaz-nfe.nota_fiscal.emitir",
+        "sefaz-nfe.nota_fiscal.consultar_status.lote",
+        "sefaz-nfe.nota_fiscal.consultar_status.protocolo"
+      ],
+      "valor_percebido": "Custo marginal por nota próximo de zero em volumes altos e liberdade total de leiaute; em troca, a empresa assume contingência, atualização de Notas Técnicas e suporte."
+    },
+    {
+      "titulo": "Captura automática de notas recebidas de fornecedores",
+      "dor_resolvida": "Descobrir e baixar as NF-e emitidas contra o CNPJ da empresa sem depender de o fornecedor enviar o XML por e-mail.",
+      "endpoints_envolvidos": [
+        "sefaz-nfe.nota_fiscal.listar",
+        "sefaz-nfe.nota_fiscal.manifestar"
+      ],
+      "valor_percebido": "Entrada de mercadoria e contas a pagar conferidas contra o documento fiscal oficial, com manifestação do destinatário registrada dentro do prazo legal."
+    },
+    {
+      "titulo": "Monitoramento de disponibilidade dos autorizadores e decisão de contingência",
+      "dor_resolvida": "Saber em tempo real se a SEFAZ da UF está fora do ar antes de o caixa travar.",
+      "endpoints_envolvidos": [
+        "sefaz-nfe.nota_fiscal.consultar_status.servico",
+        "sefaz-nfe.nota_fiscal.emitir.epec"
+      ],
+      "valor_percebido": "Loja e expedição continuam operando em contingência, com o EPEC registrado no Ambiente Nacional e o DANFE impresso legalmente."
+    },
+    {
+      "titulo": "Saneamento de numeração e de cadastro antes de faturar",
+      "dor_resolvida": "Fechar buracos de numeração e evitar rejeição por destinatário com inscrição estadual irregular.",
+      "endpoints_envolvidos": [
+        "sefaz-nfe.nota_fiscal.inutilizar",
+        "sefaz-nfe.pessoa.obter.cadastro_icms"
+      ],
+      "valor_percebido": "Menos rejeições no faturamento e menos autuação por falta de justificativa de numeração pulada."
+    },
+    {
+      "titulo": "Base analítica de documentos fiscais para BI",
+      "dor_resolvida": "Montar um data mart de compras e vendas a partir do XML oficial, e não de relatórios do ERP.",
+      "endpoints_envolvidos": [
+        "sefaz-nfe.nota_fiscal.listar",
+        "sefaz-nfe.nota_fiscal.consultar_status.protocolo"
+      ],
+      "valor_percebido": "Conferência fiscal, curva de fornecedores e apuração de crédito a partir da fonte primária, com a ressalva de que o Power Query não envia certificado cliente e por isso exige um coletor intermediário."
+    }
+  ],
+  "indice_integrabilidade": {
+    "score": 43,
+    "componentes": {
+      "documentacao": {
+        "peso": 20,
+        "pontos": 14,
+        "justificativa": "O MOC 7.0 e seus anexos, mais as Notas Técnicas, são extremamente detalhados (leiaute campo a campo, regras de validação numeradas, códigos de rejeição). Perde pontos por estar espalhado em dezenas de PDFs, sem spec legível por máquina, sem changelog unificado e com informações críticas (URLs, prazos de cancelamento) delegadas a 27 portais estaduais."
+      },
+      "sandbox": {
+        "peso": 15,
+        "pontos": 6,
+        "justificativa": "Homologação existe em todos os autorizadores e é gratuita, mas não é self-service: exige certificado ICP-Brasil pago e, na maioria das UF, credenciamento prévio. Para NFC-e exige ainda um CSC de homologação."
+      },
+      "autenticacao": {
+        "peso": 15,
+        "pontos": 4,
+        "justificativa": "mTLS com certificado ICP-Brasil somado a assinatura XML-DSig no documento. É seguro e não expira sessão, mas é o oposto de moderno: sem OAuth, sem escopos, sem rotação simples, inviável em ferramentas que não enviam certificado cliente (Power Query, muitos iPaaS)."
+      },
+      "webhooks": {
+        "peso": 15,
+        "pontos": 1,
+        "justificativa": "Não há webhooks. O único mecanismo de notificação é polling do NFeDistribuicaoDFe por NSU, que já é um avanço sobre nada mas obriga o cliente a manter um agendador e um cursor."
+      },
+      "limites_paginacao": {
+        "peso": 10,
+        "pontos": 6,
+        "justificativa": "A paginação por NSU do NFeDistribuicaoDFe é bem especificada (ultNSU/maxNSU, 50 documentos por resposta) e o limite de lote é claro. Perde pontos pela janela de retenção de apenas 3 meses e pela ausência de rate limit publicado, que deixa o integrador sem parâmetro objetivo."
+      },
+      "sdks_comunidade": {
+        "peso": 10,
+        "pontos": 5,
+        "justificativa": "Nenhum SDK oficial. Em compensação a comunidade brasileira é grande e ativa (bibliotecas abertas em Delphi, PHP, Python, Java e .NET), e os gateways fiscais funcionam como camada de abstração de fato."
+      },
+      "acesso_sem_barreira": {
+        "peso": 10,
+        "pontos": 3,
+        "justificativa": "Não há contrato nem tarifa, mas há duas barreiras reais: comprar certificado ICP-Brasil e obter credenciamento estadual como emissor. Sem os dois, nenhuma chamada de autorização funciona."
+      },
+      "versionamento": {
+        "peso": 5,
+        "pontos": 4,
+        "justificativa": "A versão 4.00 está estável desde 2018 e as mudanças vêm por Nota Técnica com cronograma de homologação e produção publicado. Perde ponto porque as NT alteram leiaute e regras sem trocar o número de versão, então 'estar na 4.00' não diz qual conjunto de campos o parceiro implementa."
+      }
+    }
+  },
+  "qualidade_doc": {
+    "nota": 7,
+    "observacoes": "Documentação oficial profunda e honesta, com regras de validação numeradas e rastreáveis, o que é raro. O problema é de forma e de distribuição: PDFs com texto em colunas quebradas, links opacos (exibirArquivo.aspx?conteudo=<token>), nenhuma spec legível por máquina, nenhum exemplo completo de envelope SOAP pronto para copiar, e a informação mais operacional de todas — a URL do serviço — dispersa entre o Portal Nacional e os portais estaduais."
+  },
+  "monitoramento": {
+    "changelog_url": "https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=04BIflQt1aY=",
+    "canal_breaking_changes": "Notas Técnicas e Informes Técnicos publicados no Portal Nacional da NF-e (abas Documentos > Notas Técnicas e Documentos > Informes Técnicos), mais os avisos da página principal. Cada NT traz um 'Histórico de Alterações / Cronograma' com as datas de implantação em homologação e em produção.",
+    "frequencia_revisao_sugerida": "mensal"
+  },
+  "lacunas": [
+    {
+      "campo": "execucao_auth.tipo",
+      "descricao": "Nenhum valor do enum da especificação (header_api_key, bearer, basic, oauth2_client_credentials, oauth2_refresh_token, mtls_oauth2, login_credenciais, nenhum) descreve autenticação por certificado ICP-Brasil em mTLS somada a assinatura XML-DSig no documento. Usamos 'nenhum' com explicação em observacao, para não inventar valor de enum. Sugestão de extensão: novo tipo 'certificado_icp_brasil', com sub-bloco indicando as credenciais de certificado, o algoritmo de assinatura XML e o elemento a assinar. Observação: a taxonomia v1.2 já tem 'certificado_icp_brasil' no enum enums.auth (usado em system.json > autenticacao.tipos); falta o equivalente em execucao_auth.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "entidade canônica para status do autorizador",
+      "descricao": "O NfeStatusServico consulta a disponibilidade do ambiente autorizador, não um documento fiscal. Não há entidade canônica para 'ambiente/serviço do fornecedor'. Mapeamos como NotaFiscal + consultar_status com o qualificador 'servico'. Sugestão de extensão: entidade 'Disponibilidade' ou 'ServicoFornecedor' para endpoints de health check e status de ambiente, que aparecem em vários sistemas.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "api.base_urls",
+      "descricao": "Não existe base URL única e não conseguimos confirmar nesta sessão, em fonte oficial, as URLs de homologação de todos os 27 autorizadores nem as URLs de NFC-e de todas as UF. Registramos as que confirmamos: produção de todos os autorizadores (Portal Nacional, Relação de Serviços Web), homologação e produção de SVRS NF-e e NFC-e (portal SVRS), homologação e produção de SP (portal SEFAZ-SP), homologação de MG e de PE (portais estaduais). As demais precisam ser consultadas no portal da SEFAZ da UF.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "limites.rate_limit",
+      "descricao": "O MOC não publica limite numérico de requisições por minuto. As únicas restrições documentadas são temporais (15 segundos antes de consultar o recibo, 3 minutos entre consultas de status em laço) e por quantidade (50 NF-e por lote, 20 eventos, 50 documentos por resposta). Autorizadores estaduais podem aplicar throttling próprio sem documentar.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "prazo de cancelamento da NFC-e",
+      "descricao": "A regra nacional documentada é de 24 horas para NF-e (cStat 501) e 7 dias para cancelamento por substituição da NFC-e. O prazo de cancelamento comum da NFC-e é definido em legislação estadual (em várias UF é de 30 minutos) e não conseguimos confirmar em fonte nacional oficial. Precisa ser verificado no regulamento de ICMS da UF do emitente.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "URL de homologação do NFeDistribuicaoDFe (Ambiente Nacional)",
+      "descricao": "A Relação de Serviços Web do Portal Nacional publica apenas a URL de produção (https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx). A URL de homologação correspondente (host hom1.nfe.fazenda.gov.br) aparece em material de terceiros e ficou marcada como inferida. A de homologação do RecepcaoEvento do AN (hom.nfe.fazenda.gov.br) foi confirmada no portal SPED da SEFAZ-MG.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "tempo de disponibilidade dos novos eventos da Reforma Tributária",
+      "descricao": "A NT 2025.002-RTC v1.51 informa que os novos eventos de IBS/CBS (112110 a 112150, 211110 a 211150, 212110/212120, 412120/412130, 110001) serão autorizados na SVRS, e remete as URLs à Relação de Serviços Web. Não localizamos, nesta sessão, uma seção específica da Relação de Serviços Web dedicada a esses eventos, então documentamos os eventos em endpoints_secundarios sem afirmar URL própria.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "snippets power_query_m",
+      "descricao": "Todos os endpoints têm power_query_m = null, inclusive os de leitura. O Power Query do Excel e do Power BI não envia certificado cliente em mTLS e não assina XML, então nenhuma chamada a estes web services é viável direto do Power Query. A alternativa documentada é um coletor em Python ou .NET que grave CSV/Parquet consumido pelo Power Query.",
+      "impacto": "medio"
+    }
+  ],
+  "fontes": [
+    {
+      "url": "https://www.nfe.fazenda.gov.br/portal/webServices.aspx?tipoConteudo=OUC/YVNWZfo=",
+      "titulo": "Portal Nacional da NF-e — Serviços > Relação de Serviços Web (URLs de produção por autorizador)",
+      "data_consulta": "2026-09-18"
+    },
+    {
+      "url": "https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=ndIjl+iEFdE=",
+      "titulo": "Portal Nacional da NF-e — Documentos > Manuais (MOC 7.0 e anexos, manual do DANFE NFC-e e QR Code v6.0, manual de contingência offline NFC-e v2.0)",
+      "data_consulta": "2026-09-18"
+    },
+    {
+      "url": "https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=04BIflQt1aY=",
+      "titulo": "Portal Nacional da NF-e — Documentos > Notas Técnicas (documentos vigentes)",
+      "data_consulta": "2026-09-18"
+    },
+    {
+      "url": "https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=LrBx7WT9PuA=",
+      "titulo": "Manual de Orientação do Contribuinte — MOC versão 7.00, Visão Geral (padrão de comunicação SOAP 1.2, certificado, assinatura e leiaute de todos os web services)",
+      "data_consulta": "2026-09-18"
+    },
+    {
+      "url": "https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=AKD/muSmiIY=",
+      "titulo": "Nota Técnica 2025.002-RTC versão 1.51 — Reforma Tributária do Consumo, adequações NF-e/NFC-e (grupos IBS/CBS/IS, novos eventos, cStat de 4 posições)",
+      "data_consulta": "2026-09-18"
+    },
+    {
+      "url": "https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=T3QyeMfpios=",
+      "titulo": "Nota Técnica 2023.002 versão 1.01 — NFC-e por emitente pessoa física, fim da denegação e eliminação do lote com mais de 1 NFC-e (rejeição 126)",
+      "data_consulta": "2026-09-18"
+    },
+    {
+      "url": "https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo= WTd7iuD21s=",
+      "titulo": "Nota Técnica 2020.001 versão 1.60 — Manifestação do Destinatário (prazo conclusivo reduzido de 180 para 90 dias pelo Ajuste SINIEF 14/26)",
+      "data_consulta": "2026-09-18"
+    },
+    {
+      "url": "https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=k/IuuaW4YiY=",
+      "titulo": "Manual de Padrões Técnicos do DANFE NFC-e e QR Code versão 6.0 (fornecimento e regras do CSC, hash do QR Code online e offline)",
+      "data_consulta": "2026-09-18"
+    },
+    {
+      "url": "https://dfe-portal.svrs.rs.gov.br/Nfe/Servicos",
+      "titulo": "Portal SVRS — Serviços NF-e (URLs de produção e homologação do SVRS, modelo 55)",
+      "data_consulta": "2026-09-18"
+    },
+    {
+      "url": "https://dfe-portal.svrs.rs.gov.br/NFCE/Servicos",
+      "titulo": "Portal SVRS — Serviços NFC-e (URLs de produção e homologação do SVRS, modelo 65)",
+      "data_consulta": "2026-09-18"
+    },
+    {
+      "url": "https://portal.fazenda.sp.gov.br/servicos/nfe/Paginas/URL-WEBSERVICES.aspx",
+      "titulo": "SEFAZ-SP — URLs dos Web Services da NF-e (produção e homologação externa)",
+      "data_consulta": "2026-09-18"
+    },
+    {
+      "url": "https://portalsped.fazenda.mg.gov.br/spedmg/nfe/webservices/",
+      "titulo": "SPED MG — Web Services da NF-e (MG produção e homologação; RecepcaoEvento do Ambiente Nacional para EPEC, produção e homologação)",
+      "data_consulta": "2026-09-18"
+    },
+    {
+      "url": "https://www.sefaz.pe.gov.br/Servicos/nota-fiscal-eletronica/Paginas/url-web-services-prod-homolog.aspx",
+      "titulo": "SEFAZ-PE — URLs dos web services de produção e homologação",
+      "data_consulta": "2026-09-18"
+    }
+  ]
+}

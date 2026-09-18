@@ -41,7 +41,8 @@ CHAVES_ENDPOINT = [
     "idempotente", "pre_requisitos", "snippets", "execucao", "confianca", "fonte_url", "data_consulta",
 ]
 TIPOS_AUTH_EXEC = {"header_api_key", "bearer", "basic", "oauth2_client_credentials",
-                   "oauth2_refresh_token", "mtls_oauth2", "login_credenciais", "nenhum"}
+                   "oauth2_refresh_token", "mtls_oauth2", "login_credenciais",
+                   "certificado_icp_brasil", "nenhum"}
 TIPOS_PAGINACAO = {"offset", "page", "cursor", "versao", "nenhuma"}
 CHAVES_META_CHUNK = [
     "sistema", "categoria", "entidade_canonica", "acao_canonica", "metodo", "path", "id",

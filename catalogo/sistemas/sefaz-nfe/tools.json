@@ -1,0 +1,975 @@
+{
+ "sistema": "sefaz-nfe",
+ "tools": [
+  {
+   "name": "sefaz-nfe__nota_fiscal__emitir",
+   "title": "NfeAutorizacao - metodo nfeAutorizacaoLote (schema enviNFe_v4.00.xsd)",
+   "description": "Envia um lote com ate 50 NF-e (modelo 55) ou exatamente 1 NFC-e (modelo 65) para o autorizador pedir a autorizacao de uso. Sempre que a empresa precisar autorizar um documento fiscal novo. E a unica porta de entrada de NF-e e NFC-e: nao existe rascunho nem pre-emissao no autorizador. Use o modo sincrono no varejo (NFC-e e balcao), onde o caixa precisa da resposta na hora; use o modo assincrono para faturamento em lote. NAO use para consultar nota ja emitida (use consultar_status.protocolo), nem para reenviar depois de erro de rede (consulte antes: reenvio gera cStat 204 ou nota duplicada), nem para NFC-e em lote com mais de um documento (cStat 126). PRE-REQUISITOS: certificado digital ICP-Brasil A1 valido, credenciamento estadual do CNPJ como emissor, TLS 1.2+ com autenticacao mutua e envelope SOAP 1.2 (nfeCabecMsg no Header, nfeDadosMsg no Body); o XML precisa ir assinado com XML-DSig.",
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cUF": {
+      "type": "string",
+      "description": "Codigo da UF do autorizador, no elemento nfeCabecMsg do SOAP Header. Formato: codigo IBGE de 2 digitos. E o codigo IBGE da UF (ex.: 43 = RS, 35 = SP), nao a sigla."
+     },
+     "versaoDados": {
+      "type": "string",
+      "description": "Versao do leiaute da mensagem, no elemento nfeCabecMsg do SOAP Header.",
+      "enum": [
+       "4.00"
+      ]
+     },
+     "enviNFe_versao": {
+      "type": "string",
+      "description": "Versao do leiaute na TAG raiz enviNFe.",
+      "enum": [
+       "4.00"
+      ]
+     },
+     "enviNFe_idLote": {
+      "type": "string",
+      "description": "Identificador sequencial do lote, gerado e controlado exclusivamente pelo contribuinte. Formato: numerico 1-15. O autorizador nao valida unicidade do idLote; o controle e seu."
+     },
+     "enviNFe_indSinc": {
+      "type": "string",
+      "description": "0 = processamento assincrono com geracao de recibo; 1 = a empresa solicita processamento sincrono. A resposta sincrona so ocorre se o lote tiver uma unica NF-e E o autorizador implementar o modo sincrono.",
+      "enum": [
+       "0",
+       "1"
+      ]
+     },
+     "enviNFe_NFe": {
+      "type": "array",
+      "description": "Conjunto de NF-e transmitidas, cada uma com a estrutura infNFe do MOC Anexo I mais o elemento Signature. Formato: 1 a 50 elementos NFe assinados. Maximo de 50 para modelo 55. Para NFC-e (modelo 65) o lote so pode ter 1 documento: mais de um devolve cStat 126 (NT 2023.002)."
+     },
+     "enviNFe_NFe_infNFe_Id": {
+      "type": "string",
+      "description": "Atributo Id do elemento infNFe: literal NFe seguido da chave de acesso. E o elemento assinado. Formato: NFe + 44 digitos. A chave concatena cUF + AAMM + CNPJ/CPF + modelo + serie + numero + tpEmis + cNF + cDV."
+     },
+     "enviNFe_NFe_infNFe_ide_tpAmb": {
+      "type": "string",
+      "description": "Ambiente do documento: 1 = producao, 2 = homologacao. Precisa casar com a URL usada, senao cStat 252.",
+      "enum": [
+       "1",
+       "2"
+      ]
+     },
+     "enviNFe_NFe_infNFe_ide_mod": {
+      "type": "string",
+      "description": "Modelo do documento fiscal: 55 = NF-e, 65 = NFC-e. URLs de NF-e e de NFC-e sao diferentes no mesmo autorizador.",
+      "enum": [
+       "55",
+       "65"
+      ]
+     },
+     "enviNFe_NFe_infNFe_ide_serie": {
+      "type": "string",
+      "description": "Serie do documento. Faixa 000-889 para emitente CNPJ com aplicativo proprio; 920-969 para emitente CPF com aplicativo proprio. Formato: numerico 1-3. Series 890-919 sao reservadas a emissao no site do Fisco (NFA-e)."
+     },
+     "enviNFe_NFe_infNFe_ide_nNF": {
+      "type": "string",
+      "description": "Numero do documento fiscal dentro da serie. Formato: numerico 1-9. A numeracao e responsabilidade do contribuinte; buracos precisam ser fechados por inutilizacao."
+     },
+     "enviNFe_NFe_infNFe_ide_tpEmis": {
+      "type": "string",
+      "description": "Forma de emissao: 1 = normal, 4 = contingencia EPEC, 6 = contingencia SVC-AN, 7 = contingencia SVC-RS, 9 = contingencia offline da NFC-e, entre outras. tpEmis compoe a chave de acesso: mudar de contingencia gera outra chave para a mesma venda.",
+      "enum": [
+       "1",
+       "2",
+       "4",
+       "5",
+       "6",
+       "7",
+       "9"
+      ]
+     },
+     "enviNFe_NFe_Signature": {
+      "type": "object",
+      "description": "Assinatura digital XML-DSig aplicada ao elemento infNFe, sem os elementos X509SubjectName, X509IssuerSerial, X509IssuerName, X509SerialNumber e X509SKI. Formato: XML-DSig. Precisa usar certificado com o CNPJ/CPF do emitente da nota; pode ser matriz ou filial do mesmo CNPJ base."
+     },
+     "base_url_autorizador": {
+      "type": "string",
+      "description": "URL do autorizador a usar, ja escolhida pela UF do emitente, pelo ambiente (producao/homologacao) e pelo modelo (55 NF-e / 65 NFC-e). Nao existe base URL unica; consulte a Relacao de Servicos Web do Portal Nacional da NF-e."
+     }
+    },
+    "required": [
+     "base_url_autorizador",
+     "cUF",
+     "enviNFe_NFe",
+     "enviNFe_NFe_Signature",
+     "enviNFe_NFe_infNFe_Id",
+     "enviNFe_NFe_infNFe_ide_mod",
+     "enviNFe_NFe_infNFe_ide_nNF",
+     "enviNFe_NFe_infNFe_ide_serie",
+     "enviNFe_NFe_infNFe_ide_tpAmb",
+     "enviNFe_NFe_infNFe_ide_tpEmis",
+     "enviNFe_idLote",
+     "enviNFe_indSinc",
+     "enviNFe_versao",
+     "versaoDados"
+    ],
+    "additionalProperties": false
+   },
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true
+   }
+  },
+  {
+   "name": "sefaz-nfe__nota_fiscal__consultar_status__lote",
+   "title": "NfeRetAutorizacao - metodo nfeRetAutorizacao (schema consReciNFe_v4.00.xsd)",
+   "description": "Consulta o resultado do processamento de um lote enviado ao NfeAutorizacao no modo assincrono, usando o numero do recibo (nRec) devolvido com cStat 103. Logo apos enviar um lote assincrono, respeitando a espera minima de 15 segundos prevista no MOC, e em laco enquanto o retorno for cStat 105 (lote em processamento). Tambem e o caminho de recuperacao quando a conexao caiu depois do POST de autorizacao e voce guardou o recibo. NAO use sem o numero do recibo, nem antes de 15 segundos do envio, nem para consultar por chave de acesso (use consultar_status.protocolo). Nao serve para lote enviado em modo sincrono, que nao gera recibo. PRE-REQUISITOS: certificado digital ICP-Brasil A1 valido, credenciamento estadual do CNPJ como emissor, TLS 1.2+ com autenticacao mutua e envelope SOAP 1.2 (nfeCabecMsg no Header, nfeDadosMsg no Body).",
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cUF": {
+      "type": "string",
+      "description": "Codigo da UF do autorizador no nfeCabecMsg. Formato: codigo IBGE de 2 digitos."
+     },
+     "versaoDados": {
+      "type": "string",
+      "description": "Versao do leiaute no nfeCabecMsg.",
+      "enum": [
+       "4.00"
+      ]
+     },
+     "consReciNFe_tpAmb": {
+      "type": "string",
+      "description": "Ambiente: 1 = producao, 2 = homologacao.",
+      "enum": [
+       "1",
+       "2"
+      ]
+     },
+     "consReciNFe_nRec": {
+      "type": "string",
+      "description": "Numero do recibo gerado pelo autorizador na resposta do lote. Formato: numerico de 15 posicoes. O recibo carrega a UF e o tipo de autorizador; consultar em autorizador diferente devolve cStat 248 ou 553."
+     },
+     "base_url_autorizador": {
+      "type": "string",
+      "description": "URL do autorizador a usar, ja escolhida pela UF do emitente, pelo ambiente (producao/homologacao) e pelo modelo (55 NF-e / 65 NFC-e). Nao existe base URL unica; consulte a Relacao de Servicos Web do Portal Nacional da NF-e."
+     }
+    },
+    "required": [
+     "base_url_autorizador",
+     "cUF",
+     "consReciNFe_nRec",
+     "consReciNFe_tpAmb",
+     "versaoDados"
+    ],
+    "additionalProperties": false
+   },
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true
+   }
+  },
+  {
+   "name": "sefaz-nfe__nota_fiscal__consultar_status__protocolo",
+   "title": "NfeConsultaProtocolo - metodo nfeConsulta (schema consSitNFe_4.00.xsd)",
+   "description": "Consulta a situacao atual de uma NF-e ou NFC-e na base do autorizador, exclusivamente pela chave de acesso de 44 digitos. E o servico de verdade de campo: use para confirmar se uma nota foi mesmo autorizada depois de uma falha de rede, para descobrir se ja existe cancelamento ou CC-e antes de tentar um novo evento, e para conciliar o que o ERP acha que emitiu com o que o Fisco registrou. Tambem e o caminho para recuperar o numero do protocolo, exigido no evento de cancelamento. NAO use para listar notas por periodo, CNPJ ou numero: o unico argumento e a chave de acesso de 44 digitos. Para descobrir notas recebidas de terceiros use o NFeDistribuicaoDFe. PRE-REQUISITOS: certificado digital ICP-Brasil A1 valido, credenciamento estadual do CNPJ como emissor, TLS 1.2+ com autenticacao mutua e envelope SOAP 1.2 (nfeCabecMsg no Header, nfeDadosMsg no Body).",
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cUF": {
+      "type": "string",
+      "description": "Codigo da UF do autorizador no nfeCabecMsg. Formato: codigo IBGE de 2 digitos."
+     },
+     "versaoDados": {
+      "type": "string",
+      "description": "Versao do leiaute no nfeCabecMsg.",
+      "enum": [
+       "4.00"
+      ]
+     },
+     "consSitNFe_tpAmb": {
+      "type": "string",
+      "description": "Ambiente: 1 = producao, 2 = homologacao.",
+      "enum": [
+       "1",
+       "2"
+      ]
+     },
+     "consSitNFe_xServ": {
+      "type": "string",
+      "description": "Servico solicitado; literal fixa CONSULTAR. Formato: literal fixa.",
+      "enum": [
+       "CONSULTAR"
+      ]
+     },
+     "consSitNFe_chNFe": {
+      "type": "string",
+      "description": "Chave de acesso do documento consultado. Formato: 44 digitos. E o unico argumento de pesquisa aceito: nao existe consulta por numero, periodo ou CNPJ."
+     },
+     "base_url_autorizador": {
+      "type": "string",
+      "description": "URL do autorizador a usar, ja escolhida pela UF do emitente, pelo ambiente (producao/homologacao) e pelo modelo (55 NF-e / 65 NFC-e). Nao existe base URL unica; consulte a Relacao de Servicos Web do Portal Nacional da NF-e."
+     }
+    },
+    "required": [
+     "base_url_autorizador",
+     "cUF",
+     "consSitNFe_chNFe",
+     "consSitNFe_tpAmb",
+     "consSitNFe_xServ",
+     "versaoDados"
+    ],
+    "additionalProperties": false
+   },
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true
+   }
+  },
+  {
+   "name": "sefaz-nfe__nota_fiscal__consultar_status__servico",
+   "title": "NfeStatusServico - metodo nfeStatusServico (schema consStatServ_v4.00.xsd)",
+   "description": "Consulta a disponibilidade do ambiente autorizador. Antes de abrir o caixa ou o turno de faturamento, e como sonda periodica para decidir entrada e saida de contingencia. O MOC exige espera minima de 3 minutos entre consultas quando a aplicacao fica em laco permanente, para nao sobrecarregar o autorizador. NAO use para consultar a situacao de uma nota (isso e consultar_status.protocolo) nem em laco com intervalo menor que 3 minutos, que o MOC proibe. PRE-REQUISITOS: certificado digital ICP-Brasil A1 valido, credenciamento estadual do CNPJ como emissor, TLS 1.2+ com autenticacao mutua e envelope SOAP 1.2 (nfeCabecMsg no Header, nfeDadosMsg no Body).",
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cUF": {
+      "type": "string",
+      "description": "Codigo da UF do autorizador no nfeCabecMsg. Formato: codigo IBGE de 2 digitos."
+     },
+     "versaoDados": {
+      "type": "string",
+      "description": "Versao do leiaute no nfeCabecMsg.",
+      "enum": [
+       "4.00"
+      ]
+     },
+     "consStatServ_tpAmb": {
+      "type": "string",
+      "description": "Ambiente: 1 = producao, 2 = homologacao.",
+      "enum": [
+       "1",
+       "2"
+      ]
+     },
+     "consStatServ_cUF": {
+      "type": "string",
+      "description": "Codigo da UF consultada, dentro da area de dados. Formato: codigo IBGE de 2 digitos. Se divergir da UF do web service, o autorizador devolve cStat 289."
+     },
+     "consStatServ_xServ": {
+      "type": "string",
+      "description": "Servico solicitado; literal fixa STATUS. Formato: literal fixa.",
+      "enum": [
+       "STATUS"
+      ]
+     },
+     "base_url_autorizador": {
+      "type": "string",
+      "description": "URL do autorizador a usar, ja escolhida pela UF do emitente, pelo ambiente (producao/homologacao) e pelo modelo (55 NF-e / 65 NFC-e). Nao existe base URL unica; consulte a Relacao de Servicos Web do Portal Nacional da NF-e."
+     }
+    },
+    "required": [
+     "base_url_autorizador",
+     "cUF",
+     "consStatServ_cUF",
+     "consStatServ_tpAmb",
+     "consStatServ_xServ",
+     "versaoDados"
+    ],
+    "additionalProperties": false
+   },
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true
+   }
+  },
+  {
+   "name": "sefaz-nfe__nota_fiscal__inutilizar",
+   "title": "NfeInutilizacao - metodo nfeInutilizacaoNF (schema inutNFe_v4.00.xsd)",
+   "description": "Declara ao Fisco que uma faixa de numeracao de determinada serie nao sera utilizada, fechando o buraco na sequencia. Quando um numero foi consumido pelo sistema mas nunca chegou a ser autorizado (falha de impressao, erro de sequencia, teste em producao) e a numeracao ficou com lacuna. E obrigacao acessoria: a maioria das UF exige a inutilizacao ate o mes seguinte. Nao serve para anular nota autorizada, para isso e cancelamento. NAO use para anular nota autorizada (isso e cancelamento) nem para faixa que contenha numero ja usado ou ja coberto por EPEC: o pedido inteiro e rejeitado. PRE-REQUISITOS: certificado digital ICP-Brasil A1 valido, credenciamento estadual do CNPJ como emissor, TLS 1.2+ com autenticacao mutua e envelope SOAP 1.2 (nfeCabecMsg no Header, nfeDadosMsg no Body); o XML precisa ir assinado com XML-DSig.",
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cUF": {
+      "type": "string",
+      "description": "Codigo da UF do autorizador no nfeCabecMsg. Formato: codigo IBGE de 2 digitos."
+     },
+     "versaoDados": {
+      "type": "string",
+      "description": "Versao do leiaute no nfeCabecMsg.",
+      "enum": [
+       "4.00"
+      ]
+     },
+     "inutNFe_infInut_Id": {
+      "type": "string",
+      "description": "Identificador do elemento assinado: literal ID + cUF + ano(2) + CNPJ + modelo + serie + numero inicial + numero final. Formato: ID + 43 caracteres. Se a concatenacao nao bater com os campos, o autorizador devolve cStat 502."
+     },
+     "inutNFe_infInut_tpAmb": {
+      "type": "string",
+      "description": "Ambiente: 1 = producao, 2 = homologacao.",
+      "enum": [
+       "1",
+       "2"
+      ]
+     },
+     "inutNFe_infInut_xServ": {
+      "type": "string",
+      "description": "Servico solicitado; literal fixa INUTILIZAR. Formato: literal fixa.",
+      "enum": [
+       "INUTILIZAR"
+      ]
+     },
+     "inutNFe_infInut_ano": {
+      "type": "string",
+      "description": "Ano da inutilizacao, com 2 posicoes. Formato: 2 digitos. Nao pode ser superior ao ano corrente (cStat 453) nem inferior a 2006 (cStat 454)."
+     },
+     "inutNFe_infInut_CNPJ": {
+      "type": "string",
+      "description": "CNPJ do emitente. Formato: 14 posicoes. A NT 2026.004 adequou o schema ao CNPJ alfanumerico; validacoes que assumem 14 digitos numericos vao quebrar."
+     },
+     "inutNFe_infInut_mod": {
+      "type": "string",
+      "description": "Modelo do documento: 55 ou 65.",
+      "enum": [
+       "55",
+       "65"
+      ]
+     },
+     "inutNFe_infInut_serie": {
+      "type": "string",
+      "description": "Serie da numeracao inutilizada. Formato: numerico 1-3. Serie na faixa 910-969 identifica emitente CPF e nao e aceita neste web service (cStat 266)."
+     },
+     "inutNFe_infInut_nNFIni": {
+      "type": "string",
+      "description": "Primeiro numero da faixa a inutilizar. Formato: numerico 1-9."
+     },
+     "inutNFe_infInut_nNFFin": {
+      "type": "string",
+      "description": "Ultimo numero da faixa a inutilizar. Formato: numerico 1-9. Faixa inicial maior que a final devolve cStat 224; faixa com mais de 10.000 numeros devolve cStat 201."
+     },
+     "inutNFe_infInut_xJust": {
+      "type": "string",
+      "description": "Justificativa do pedido de inutilizacao. Formato: texto de 15 a 255 caracteres. Menos de 15 caracteres reprova no schema antes de chegar a validacao de negocio."
+     },
+     "inutNFe_Signature": {
+      "type": "object",
+      "description": "Assinatura XML-DSig sobre o elemento infInut. Formato: XML-DSig."
+     },
+     "base_url_autorizador": {
+      "type": "string",
+      "description": "URL do autorizador a usar, ja escolhida pela UF do emitente, pelo ambiente (producao/homologacao) e pelo modelo (55 NF-e / 65 NFC-e). Nao existe base URL unica; consulte a Relacao de Servicos Web do Portal Nacional da NF-e."
+     }
+    },
+    "required": [
+     "base_url_autorizador",
+     "cUF",
+     "inutNFe_Signature",
+     "inutNFe_infInut_CNPJ",
+     "inutNFe_infInut_Id",
+     "inutNFe_infInut_ano",
+     "inutNFe_infInut_mod",
+     "inutNFe_infInut_nNFFin",
+     "inutNFe_infInut_nNFIni",
+     "inutNFe_infInut_serie",
+     "inutNFe_infInut_tpAmb",
+     "inutNFe_infInut_xJust",
+     "inutNFe_infInut_xServ",
+     "versaoDados"
+    ],
+    "additionalProperties": false
+   },
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": true
+   }
+  },
+  {
+   "name": "sefaz-nfe__nota_fiscal__cancelar",
+   "title": "NFeRecepcaoEvento - evento 110111 Cancelamento (schema envEventoCancNFe_v1.00.xsd)",
+   "description": "Registra o evento de cancelamento de uma NF-e ou NFC-e ja autorizada, informando o protocolo de autorizacao e uma justificativa de 15 a 255 caracteres. Quando a operacao nao vai acontecer e a nota foi autorizada ha menos de 24 horas (prazo nacional para NF-e; a NFC-e tem prazo estadual bem menor). Passado o prazo, o autorizador rejeita com cStat 501 e a correcao so pode ser feita por nota de devolucao ou ajuste. NAO use depois do prazo legal (24 horas para NF-e; prazo estadual menor para NFC-e), nem para NF-e denegada ou ja cancelada, nem sem o numero do protocolo de autorizacao. PRE-REQUISITOS: certificado digital ICP-Brasil A1 valido, credenciamento estadual do CNPJ como emissor, TLS 1.2+ com autenticacao mutua e envelope SOAP 1.2 (nfeCabecMsg no Header, nfeDadosMsg no Body); o XML precisa ir assinado com XML-DSig.",
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cUF": {
+      "type": "string",
+      "description": "Codigo da UF do autorizador no nfeCabecMsg. Formato: codigo IBGE de 2 digitos."
+     },
+     "versaoDados": {
+      "type": "string",
+      "description": "Versao do leiaute do envelope de eventos no nfeCabecMsg. O envelope de eventos usa versao 1.00, diferente do 4.00 da autorizacao.",
+      "enum": [
+       "1.00"
+      ]
+     },
+     "envEvento_idLote": {
+      "type": "string",
+      "description": "Identificador do lote de eventos, de uso exclusivo do autor; o web service nao o utiliza. Formato: numerico 1-15."
+     },
+     "envEvento_evento_infEvento_Id": {
+      "type": "string",
+      "description": "Identificador do elemento assinado: literal ID + tpEvento (6) + chave de acesso (44) + nSeqEvento (2). Formato: ID + tpEvento + chave + nSeqEvento."
+     },
+     "envEvento_evento_infEvento_cOrgao": {
+      "type": "string",
+      "description": "Codigo do orgao de recepcao do evento; informar o codigo da UF (91 = Ambiente Nacional). Formato: codigo IBGE de 2 digitos."
+     },
+     "envEvento_evento_infEvento_CNPJ": {
+      "type": "string",
+      "description": "CNPJ do autor do evento, que precisa ser o emitente da nota. Formato: 14 posicoes. Autor diferente do emitente devolve cStat 574."
+     },
+     "envEvento_evento_infEvento_chNFe": {
+      "type": "string",
+      "description": "Chave de acesso da nota cancelada. Formato: 44 digitos."
+     },
+     "envEvento_evento_infEvento_dhEvento": {
+      "type": "string",
+      "description": "Data e hora do evento, em UTC com offset. Formato: AAAA-MM-DDThh:mm:ssTZD. Data maior que a do processamento devolve cStat 578; ha tolerancia de ate 5 minutos."
+     },
+     "envEvento_evento_infEvento_tpEvento": {
+      "type": "string",
+      "description": "Codigo do tipo de evento: 110111 = Cancelamento. Formato: 6 digitos.",
+      "enum": [
+       "110111"
+      ]
+     },
+     "envEvento_evento_infEvento_nSeqEvento": {
+      "type": "string",
+      "description": "Sequencial do evento; para cancelamento deve ser 1. Valor diferente de 1 devolve cStat 594.",
+      "enum": [
+       "1"
+      ]
+     },
+     "envEvento_evento_infEvento_detEvento_nProt": {
+      "type": "string",
+      "description": "Numero do protocolo de autorizacao da nota a cancelar. Formato: 15 posicoes. Se voce nao guardou o protocolo, recupere pelo NfeConsultaProtocolo antes de cancelar."
+     },
+     "envEvento_evento_infEvento_detEvento_xJust": {
+      "type": "string",
+      "description": "Justificativa do cancelamento. Formato: texto de 15 a 255 caracteres."
+     },
+     "envEvento_evento_Signature": {
+      "type": "object",
+      "description": "Assinatura XML-DSig sobre o elemento infEvento, com certificado do emitente (matriz ou filial do mesmo CNPJ base). Formato: XML-DSig."
+     },
+     "base_url_autorizador": {
+      "type": "string",
+      "description": "URL do autorizador a usar, ja escolhida pela UF do emitente, pelo ambiente (producao/homologacao) e pelo modelo (55 NF-e / 65 NFC-e). Nao existe base URL unica; consulte a Relacao de Servicos Web do Portal Nacional da NF-e."
+     }
+    },
+    "required": [
+     "base_url_autorizador",
+     "cUF",
+     "envEvento_evento_Signature",
+     "envEvento_evento_infEvento_CNPJ",
+     "envEvento_evento_infEvento_Id",
+     "envEvento_evento_infEvento_cOrgao",
+     "envEvento_evento_infEvento_chNFe",
+     "envEvento_evento_infEvento_detEvento_nProt",
+     "envEvento_evento_infEvento_detEvento_xJust",
+     "envEvento_evento_infEvento_dhEvento",
+     "envEvento_evento_infEvento_nSeqEvento",
+     "envEvento_evento_infEvento_tpEvento",
+     "envEvento_idLote",
+     "versaoDados"
+    ],
+    "additionalProperties": false
+   },
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": true
+   }
+  },
+  {
+   "name": "sefaz-nfe__nota_fiscal__cancelar__substituicao",
+   "title": "NFeRecepcaoEvento - evento 110112 Cancelamento por substituicao (schema envEventoCancSubst_v1.00.xsd)",
+   "description": "Variante do cancelamento especifica para NFC-e: cancela a nota original apontando a chave de acesso da NFC-e substituta que a corrige. No varejo, quando a NFC-e foi emitida errada e ja foi substituida por outra correta, dentro de 7 dias. Serve para amarrar o par original/substituta no registro do Fisco, coisa que o cancelamento comum nao faz. NAO use para NF-e modelo 55 nem para nota emitida em contingencia (tpEmis diferente de 1). Exige a chave da NFC-e substituta ja autorizada. PRE-REQUISITOS: certificado digital ICP-Brasil A1 valido, credenciamento estadual do CNPJ como emissor, TLS 1.2+ com autenticacao mutua e envelope SOAP 1.2 (nfeCabecMsg no Header, nfeDadosMsg no Body); o XML precisa ir assinado com XML-DSig.",
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cUF": {
+      "type": "string",
+      "description": "Codigo da UF do autorizador no nfeCabecMsg. Formato: codigo IBGE de 2 digitos."
+     },
+     "versaoDados": {
+      "type": "string",
+      "description": "Versao do leiaute do envelope de eventos.",
+      "enum": [
+       "1.00"
+      ]
+     },
+     "envEvento_evento_infEvento_tpEvento": {
+      "type": "string",
+      "description": "Codigo do tipo de evento: 110112 = Cancelamento por substituicao. Formato: 6 digitos. Evento exclusivo de NFC-e (modelo 65).",
+      "enum": [
+       "110112"
+      ]
+     },
+     "envEvento_evento_infEvento_chNFe": {
+      "type": "string",
+      "description": "Chave de acesso da NFC-e cancelada. Formato: 44 digitos."
+     },
+     "envEvento_evento_infEvento_detEvento_cOrgaoAutor": {
+      "type": "string",
+      "description": "Codigo da UF do orgao autor do evento; exclusivo do 110112. Formato: codigo IBGE de 2 digitos. Divergir da UF da chave devolve cStat 455."
+     },
+     "envEvento_evento_infEvento_detEvento_tpAutor": {
+      "type": "string",
+      "description": "Tipo do autor; para este evento informar 1 = Empresa Emitente. Valor diferente de 1 devolve cStat 466.",
+      "enum": [
+       "1"
+      ]
+     },
+     "envEvento_evento_infEvento_detEvento_verAplic": {
+      "type": "string",
+      "description": "Versao do aplicativo do autor do evento; exclusivo do 110112. Formato: texto ate 20."
+     },
+     "envEvento_evento_infEvento_detEvento_nProt": {
+      "type": "string",
+      "description": "Protocolo de autorizacao da NFC-e a ser cancelada. Formato: 15 posicoes."
+     },
+     "envEvento_evento_infEvento_detEvento_xJust": {
+      "type": "string",
+      "description": "Justificativa do cancelamento. Formato: texto de 15 a 255 caracteres."
+     },
+     "envEvento_evento_infEvento_detEvento_chNFeRef": {
+      "type": "string",
+      "description": "Chave de acesso da NFC-e substituta; exclusivo do 110112. Formato: 44 digitos. Precisa ser de outra nota, da mesma UF e do mesmo CNPJ/CPF, senao cStat 910 ou 911."
+     },
+     "base_url_autorizador": {
+      "type": "string",
+      "description": "URL do autorizador a usar, ja escolhida pela UF do emitente, pelo ambiente (producao/homologacao) e pelo modelo (55 NF-e / 65 NFC-e). Nao existe base URL unica; consulte a Relacao de Servicos Web do Portal Nacional da NF-e."
+     }
+    },
+    "required": [
+     "base_url_autorizador",
+     "cUF",
+     "envEvento_evento_infEvento_chNFe",
+     "envEvento_evento_infEvento_detEvento_cOrgaoAutor",
+     "envEvento_evento_infEvento_detEvento_chNFeRef",
+     "envEvento_evento_infEvento_detEvento_nProt",
+     "envEvento_evento_infEvento_detEvento_tpAutor",
+     "envEvento_evento_infEvento_detEvento_verAplic",
+     "envEvento_evento_infEvento_detEvento_xJust",
+     "envEvento_evento_infEvento_tpEvento",
+     "versaoDados"
+    ],
+    "additionalProperties": false
+   },
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": true
+   }
+  },
+  {
+   "name": "sefaz-nfe__nota_fiscal__corrigir",
+   "title": "NFeRecepcaoEvento - evento 110110 Carta de Correcao Eletronica (schema envCCe_v9.99.xsd)",
+   "description": "Registra a Carta de Correcao Eletronica (CC-e) sobre uma NF-e autorizada. Para corrigir erro que nao mexe no valor do imposto, nem troca remetente ou destinatario, nem altera data de emissao ou de saida: tipicamente descricao do produto, dados de transporte, informacoes complementares. Nao existe CC-e para NFC-e: o autorizador rejeita com cStat 784. NAO use para NFC-e (cStat 784), nem para corrigir valor de imposto, base de calculo, quantidade, remetente, destinatario ou data de emissao: a legislacao proibe. Cada CC-e substitui a anterior. PRE-REQUISITOS: certificado digital ICP-Brasil A1 valido, credenciamento estadual do CNPJ como emissor, TLS 1.2+ com autenticacao mutua e envelope SOAP 1.2 (nfeCabecMsg no Header, nfeDadosMsg no Body); o XML precisa ir assinado com XML-DSig.",
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cUF": {
+      "type": "string",
+      "description": "Codigo da UF do autorizador no nfeCabecMsg. Formato: codigo IBGE de 2 digitos."
+     },
+     "versaoDados": {
+      "type": "string",
+      "description": "Versao do leiaute do envelope de eventos.",
+      "enum": [
+       "1.00"
+      ]
+     },
+     "envEvento_evento_infEvento_chNFe": {
+      "type": "string",
+      "description": "Chave de acesso da NF-e corrigida. Formato: 44 digitos. Modelo 65 (NFC-e) e rejeitado com cStat 784."
+     },
+     "envEvento_evento_infEvento_tpEvento": {
+      "type": "string",
+      "description": "Codigo do tipo de evento: 110110 = Carta de Correcao. Formato: 6 digitos.",
+      "enum": [
+       "110110"
+      ]
+     },
+     "envEvento_evento_infEvento_nSeqEvento": {
+      "type": "string",
+      "description": "Sequencial da CC-e para a mesma nota, de 1 a 20. Formato: 1 a 2 digitos. Valor fora da faixa devolve cStat 594. Cada CC-e substitui a anterior."
+     },
+     "envEvento_evento_infEvento_detEvento_descEvento": {
+      "type": "string",
+      "description": "Descricao do evento; literal Carta de Correcao (com ou sem acentuacao). Formato: literal.",
+      "enum": [
+       "Carta de Correcao",
+       "Carta de Correção"
+      ]
+     },
+     "envEvento_evento_infEvento_detEvento_xCorrecao": {
+      "type": "string",
+      "description": "Texto livre com a correcao a ser considerada. Formato: texto de 15 a 1000 caracteres. A correcao mais recente substitui as anteriores: repita tudo o que continua valendo."
+     },
+     "envEvento_evento_infEvento_detEvento_xCondUso": {
+      "type": "string",
+      "description": "Condicoes de uso da Carta de Correcao; texto literal definido no MOC, com ou sem acentuacao. Formato: literal fixa do MOC. Precisa ser copiado exatamente do MOC 7.0 item 5.10.1; qualquer diferenca reprova no schema."
+     },
+     "envEvento_evento_Signature": {
+      "type": "object",
+      "description": "Assinatura XML-DSig sobre infEvento, com certificado do emitente da NF-e. Formato: XML-DSig."
+     },
+     "base_url_autorizador": {
+      "type": "string",
+      "description": "URL do autorizador a usar, ja escolhida pela UF do emitente, pelo ambiente (producao/homologacao) e pelo modelo (55 NF-e / 65 NFC-e). Nao existe base URL unica; consulte a Relacao de Servicos Web do Portal Nacional da NF-e."
+     }
+    },
+    "required": [
+     "base_url_autorizador",
+     "cUF",
+     "envEvento_evento_Signature",
+     "envEvento_evento_infEvento_chNFe",
+     "envEvento_evento_infEvento_detEvento_descEvento",
+     "envEvento_evento_infEvento_detEvento_xCondUso",
+     "envEvento_evento_infEvento_detEvento_xCorrecao",
+     "envEvento_evento_infEvento_nSeqEvento",
+     "envEvento_evento_infEvento_tpEvento",
+     "versaoDados"
+    ],
+    "additionalProperties": false
+   },
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   }
+  },
+  {
+   "name": "sefaz-nfe__nota_fiscal__manifestar",
+   "title": "NFeRecepcaoEvento (Ambiente Nacional) - eventos 210200, 210210, 210220 e 210240 (schema envConfRecebto_v9.99.xsd)",
+   "description": "Registra a posicao do destinatario sobre uma NF-e emitida contra o seu CNPJ ou CPF. Sempre que a empresa recebe mercadoria ou identifica uma nota emitida contra ela. Alem da obrigacao legal em varias situacoes, a manifestacao e o que libera o download do XML completo pelo NFeDistribuicaoDFe: antes dela o destinatario so enxerga o resumo da NF-e. A NT 2020.001 v1.60 reduziu o prazo da manifestacao conclusiva de 180 para 90 dias contados da autorizacao, e a Ciencia da Emissao tem prazo de 10 dias. NAO use como emitente da nota: o autor precisa ser o destinatario. Nao use fora do prazo (10 dias para Ciencia da Emissao, 90 dias para a manifestacao conclusiva) nem depois de ja ter registrado duas ocorrencias do evento conclusivo. PRE-REQUISITOS: certificado digital ICP-Brasil A1 valido, credenciamento estadual do CNPJ como emissor, TLS 1.2+ com autenticacao mutua e envelope SOAP 1.2 (nfeCabecMsg no Header, nfeDadosMsg no Body); o XML precisa ir assinado com XML-DSig.",
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cUF": {
+      "type": "string",
+      "description": "Codigo do orgao no nfeCabecMsg; para o Ambiente Nacional use 91. Formato: codigo IBGE de 2 digitos."
+     },
+     "versaoDados": {
+      "type": "string",
+      "description": "Versao do leiaute do envelope de eventos.",
+      "enum": [
+       "1.00"
+      ]
+     },
+     "envEvento_evento_infEvento_cOrgao": {
+      "type": "string",
+      "description": "Orgao de recepcao do evento; 91 identifica o Ambiente Nacional.",
+      "enum": [
+       "91"
+      ]
+     },
+     "envEvento_evento_infEvento_CNPJ": {
+      "type": "string",
+      "description": "CNPJ do destinatario, autor do evento (use CPF quando pessoa fisica). Formato: 14 posicoes. O certificado de assinatura precisa ter o mesmo CNPJ base (8 primeiras posicoes) ou o CPF."
+     },
+     "envEvento_evento_infEvento_chNFe": {
+      "type": "string",
+      "description": "Chave de acesso da NF-e manifestada. Formato: 44 digitos."
+     },
+     "envEvento_evento_infEvento_tpEvento": {
+      "type": "string",
+      "description": "210200 Confirmacao da Operacao, 210210 Ciencia da Emissao, 210220 Desconhecimento da Operacao, 210240 Operacao nao Realizada. Formato: 6 digitos. Ciencia da Emissao nao e manifestacao final e nao pode ser registrada depois de uma conclusiva (cStat 655).",
+      "enum": [
+       "210200",
+       "210210",
+       "210220",
+       "210240"
+      ]
+     },
+     "envEvento_evento_infEvento_nSeqEvento": {
+      "type": "string",
+      "description": "Sequencial do evento; a NT 2020.001 v1.50 passou a admitir ate 2 ocorrencias de cada evento conclusivo (retificacao unica). Valor acima do permitido devolve cStat 594.",
+      "enum": [
+       "1",
+       "2"
+      ]
+     },
+     "envEvento_evento_infEvento_detEvento_descEvento": {
+      "type": "string",
+      "description": "Descricao textual do evento, casando com o tpEvento. Formato: literal.",
+      "enum": [
+       "Confirmacao da Operacao",
+       "Ciencia da Operacao",
+       "Desconhecimento da Operacao",
+       "Operacao nao Realizada"
+      ]
+     },
+     "envEvento_evento_infEvento_detEvento_xJust": {
+      "type": "string",
+      "description": "Justificativa; obrigatoria apenas no evento 210240 Operacao nao Realizada. Formato: texto de 15 a 255 caracteres. Ausencia no 210240 devolve cStat 595."
+     },
+     "base_url_autorizador": {
+      "type": "string",
+      "description": "URL do autorizador a usar, ja escolhida pela UF do emitente, pelo ambiente (producao/homologacao) e pelo modelo (55 NF-e / 65 NFC-e). Nao existe base URL unica; consulte a Relacao de Servicos Web do Portal Nacional da NF-e."
+     }
+    },
+    "required": [
+     "base_url_autorizador",
+     "cUF",
+     "envEvento_evento_infEvento_CNPJ",
+     "envEvento_evento_infEvento_cOrgao",
+     "envEvento_evento_infEvento_chNFe",
+     "envEvento_evento_infEvento_detEvento_descEvento",
+     "envEvento_evento_infEvento_nSeqEvento",
+     "envEvento_evento_infEvento_tpEvento",
+     "versaoDados"
+    ],
+    "additionalProperties": false
+   },
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+   }
+  },
+  {
+   "name": "sefaz-nfe__nota_fiscal__emitir__epec",
+   "title": "NFeRecepcaoEvento (Ambiente Nacional) - evento 110140 EPEC, Evento Previo de Emissao em Contingencia",
+   "description": "Registra no Ambiente Nacional, com leiaute minimo, a intencao de emitir uma NF-e em contingencia quando a empresa nao consegue transmitir para o autorizador da UF. Quando o autorizador da UF esta indisponivel (cStat 108/109 ou falha de rede) e a SEFAZ Virtual de Contingencia nao foi ativada para aquela UF. A NF-e precisa ser gerada com tpEmis=4 e numero diferente de qualquer nota ja transmitida com outro tpEmis. Cessado o problema, a NF-e correspondente tem de ser transmitida ao autorizador de origem dentro do prazo da legislacao. NAO use quando o autorizador da UF esta operando normalmente, nem para NFC-e (que tem contingencia offline propria). Nao use sem gerar a NF-e com tpEmis=4 e numeracao exclusiva. PRE-REQUISITOS: certificado digital ICP-Brasil A1 valido, credenciamento estadual do CNPJ como emissor, TLS 1.2+ com autenticacao mutua e envelope SOAP 1.2 (nfeCabecMsg no Header, nfeDadosMsg no Body); o XML precisa ir assinado com XML-DSig.",
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cUF": {
+      "type": "string",
+      "description": "Orgao de recepcao no nfeCabecMsg; 91 = Ambiente Nacional.",
+      "enum": [
+       "91"
+      ]
+     },
+     "versaoDados": {
+      "type": "string",
+      "description": "Versao do leiaute do envelope de eventos.",
+      "enum": [
+       "1.00"
+      ]
+     },
+     "envEvento_evento_infEvento_tpEvento": {
+      "type": "string",
+      "description": "Codigo do tipo de evento: 110140 = EPEC. Formato: 6 digitos.",
+      "enum": [
+       "110140"
+      ]
+     },
+     "envEvento_evento_infEvento_chNFe": {
+      "type": "string",
+      "description": "Chave de acesso da NF-e que sera emitida em contingencia, com tpEmis=4 na posicao 35. Formato: 44 digitos. O numero precisa ser diferente de qualquer NF-e ja transmitida com outro tpEmis, senao a numeracao colide depois."
+     },
+     "envEvento_evento_infEvento_detEvento_cOrgaoAutor": {
+      "type": "string",
+      "description": "Codigo da UF do emitente. Formato: codigo IBGE de 2 digitos."
+     },
+     "envEvento_evento_infEvento_detEvento_dest_UF": {
+      "type": "string",
+      "description": "UF do destinatario. Formato: sigla."
+     },
+     "envEvento_evento_infEvento_detEvento_dest_CNPJ": {
+      "type": "string",
+      "description": "CNPJ do destinatario (alternativo ao CPF). Formato: 14 posicoes."
+     },
+     "envEvento_evento_infEvento_detEvento_dest_vNF": {
+      "type": "number",
+      "description": "Valor total da NF-e. Formato: 13v2."
+     },
+     "envEvento_evento_infEvento_detEvento_dest_vICMS": {
+      "type": "number",
+      "description": "Valor total do ICMS. Formato: 13v2."
+     },
+     "envEvento_evento_infEvento_detEvento_dest_vST": {
+      "type": "number",
+      "description": "Valor total do ICMS por substituicao tributaria. Formato: 13v2."
+     },
+     "envEvento_evento_Signature": {
+      "type": "object",
+      "description": "Assinatura XML-DSig sobre infEvento, com certificado do CNPJ base do emitente. Formato: XML-DSig."
+     },
+     "base_url_autorizador": {
+      "type": "string",
+      "description": "URL do autorizador a usar, ja escolhida pela UF do emitente, pelo ambiente (producao/homologacao) e pelo modelo (55 NF-e / 65 NFC-e). Nao existe base URL unica; consulte a Relacao de Servicos Web do Portal Nacional da NF-e."
+     }
+    },
+    "required": [
+     "base_url_autorizador",
+     "cUF",
+     "envEvento_evento_Signature",
+     "envEvento_evento_infEvento_chNFe",
+     "envEvento_evento_infEvento_detEvento_cOrgaoAutor",
+     "envEvento_evento_infEvento_detEvento_dest_UF",
+     "envEvento_evento_infEvento_detEvento_dest_vICMS",
+     "envEvento_evento_infEvento_detEvento_dest_vNF",
+     "envEvento_evento_infEvento_detEvento_dest_vST",
+     "envEvento_evento_infEvento_tpEvento",
+     "versaoDados"
+    ],
+    "additionalProperties": false
+   },
+   "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true
+   }
+  },
+  {
+   "name": "sefaz-nfe__nota_fiscal__listar",
+   "title": "NFeDistribuicaoDFe - metodo nfeDistDFeInteresse (schema distDFeInt_v9.99.xsd), versao 1.00",
+   "description": "Servico do Ambiente Nacional que entrega ao interessado os documentos fiscais eletronicos e resumos que nao foram gerados por ele: NF-e emitidas contra o seu CNPJ, eventos de cancelamento, Carta de Correcao, resumos de eventos de CT-e e MDF-e e outros. E o unico mecanismo de notificacao do ecossistema NF-e: nao ha webhook. Use em rotina agendada para descobrir notas recebidas de fornecedores, alimentar contas a pagar e entrada de mercadoria, e disparar a manifestacao do destinatario. Tambem serve para montar base analitica de compras a partir do XML oficial. NAO use para buscar notas emitidas pela propria empresa (o servico entrega documentos de terceiros de interesse do ator) nem esperando historico completo: a janela e de 3 meses. Nao reconsulte sempre o mesmo ultNSU, sob pena de cStat 656 por consumo indevido. PRE-REQUISITOS: certificado digital ICP-Brasil A1 valido, credenciamento estadual do CNPJ como emissor, TLS 1.2+ com autenticacao mutua e envelope SOAP 1.2 (nfeCabecMsg no Header, nfeDadosMsg no Body).",
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cUF": {
+      "type": "string",
+      "description": "Codigo da UF do autor no nfeCabecMsg. Formato: codigo IBGE de 2 digitos."
+     },
+     "versaoDados": {
+      "type": "string",
+      "description": "Versao do leiaute da mensagem de distribuicao no nfeCabecMsg. O schema publicado usa o coringa v9.99; a versao efetiva vem das Notas Tecnicas 2014.002.",
+      "enum": [
+       "1.01",
+       "1.00"
+      ]
+     },
+     "distDFeInt_tpAmb": {
+      "type": "string",
+      "description": "Ambiente: 1 = producao, 2 = homologacao.",
+      "enum": [
+       "1",
+       "2"
+      ]
+     },
+     "distDFeInt_cUFAutor": {
+      "type": "string",
+      "description": "Codigo da UF do autor da consulta. Formato: codigo IBGE de 2 digitos."
+     },
+     "distDFeInt_CNPJ": {
+      "type": "string",
+      "description": "CNPJ do interessado nos documentos (alternativo ao CPF). Formato: 14 posicoes. Permite recuperar documentos de qualquer estabelecimento da empresa usando um unico certificado PJ, desde que o CNPJ base coincida."
+     },
+     "distDFeInt_CPF": {
+      "type": "string",
+      "description": "CPF do interessado (alternativo ao CNPJ). Formato: 11 posicoes."
+     },
+     "distDFeInt_distNSU_ultNSU": {
+      "type": "string",
+      "description": "Ultimo NSU ja recebido pelo interessado; o servico devolve o proximo bloco a partir dele. Formato: numerico ate 15. Com zero ou NSU muito antigo, o retorno cobre apenas os documentos recepcionados nos ultimos 3 meses: nao ha historico completo."
+     },
+     "distDFeInt_consNSU_NSU": {
+      "type": "string",
+      "description": "NSU especifico a consultar, para fechar lacuna na sequencia. Formato: numerico ate 15. Os tres grupos distNSU, consNSU e consChNFe sao mutuamente exclusivos."
+     },
+     "distDFeInt_consChNFe_chNFe": {
+      "type": "string",
+      "description": "Chave de acesso de uma NF-e especifica. Formato: 44 digitos. O XML completo so vem depois de o destinatario manifestar Ciencia, Confirmacao ou Operacao nao Realizada."
+     },
+     "base_url_autorizador": {
+      "type": "string",
+      "description": "URL do autorizador a usar, ja escolhida pela UF do emitente, pelo ambiente (producao/homologacao) e pelo modelo (55 NF-e / 65 NFC-e). Nao existe base URL unica; consulte a Relacao de Servicos Web do Portal Nacional da NF-e."
+     }
+    },
+    "required": [
+     "base_url_autorizador",
+     "cUF",
+     "distDFeInt_tpAmb",
+     "versaoDados"
+    ],
+    "additionalProperties": false
+   },
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true
+   }
+  },
+  {
+   "name": "sefaz-nfe__pessoa__obter__cadastro_icms",
+   "title": "NfeConsultaCadastro - metodo consultaCadastro (schema consCad_v2.00.xsd)",
+   "description": "Consulta o cadastro de contribuintes do ICMS de uma unidade federada por CNPJ, IE ou CPF. Antes de faturar para um cliente novo ou para higienizar a base de clientes e fornecedores, evitando rejeicoes por IE invalida ou destinatario nao contribuinte. O servico e oferecido obrigatoriamente pelas UF que autorizam documentos fiscais eletronicos, mas o MOC avisa que a disponibilidade dele e menor que a dos demais web services. NAO use para listar contribuintes em massa nem como substituto de base cadastral: e uma consulta por vez, com disponibilidade menor que a dos demais web services. Nao use versaoDados 4.00, e 2.00. PRE-REQUISITOS: certificado digital ICP-Brasil A1 valido, credenciamento estadual do CNPJ como emissor, TLS 1.2+ com autenticacao mutua e envelope SOAP 1.2 (nfeCabecMsg no Header, nfeDadosMsg no Body).",
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+     "cUF": {
+      "type": "string",
+      "description": "Codigo da UF do autorizador no nfeCabecMsg. Formato: codigo IBGE de 2 digitos."
+     },
+     "versaoDados": {
+      "type": "string",
+      "description": "Versao do leiaute da consulta de cadastro; note que e 2.00, nao 4.00. Erro classico: enviar 4.00 neste servico.",
+      "enum": [
+       "2.00"
+      ]
+     },
+     "ConsCad_infCons_xServ": {
+      "type": "string",
+      "description": "Servico solicitado; literal fixa CONS-CAD. Formato: literal fixa.",
+      "enum": [
+       "CONS-CAD"
+      ]
+     },
+     "ConsCad_infCons_UF": {
+      "type": "string",
+      "description": "Sigla da UF consultada; informar SU para consultar a SUFRAMA. Formato: sigla de 2 letras. Divergir da UF do web service devolve cStat 265."
+     },
+     "ConsCad_infCons_CNPJ": {
+      "type": "string",
+      "description": "CNPJ do contribuinte consultado (alternativo a IE e CPF). Formato: 3 a 14 posicoes. Os tres argumentos sao mutuamente exclusivos: informe apenas um."
+     },
+     "ConsCad_infCons_IE": {
+      "type": "string",
+      "description": "Inscricao estadual do contribuinte consultado. Formato: 2 a 14 posicoes. Mascara e digito verificador variam entre as 27 UF."
+     },
+     "ConsCad_infCons_CPF": {
+      "type": "string",
+      "description": "CPF do contribuinte consultado. Formato: 3 a 11 posicoes. Nem toda UF fornece consulta por CPF: o retorno nesse caso e cStat 262."
+     },
+     "base_url_autorizador": {
+      "type": "string",
+      "description": "URL do autorizador a usar, ja escolhida pela UF do emitente, pelo ambiente (producao/homologacao) e pelo modelo (55 NF-e / 65 NFC-e). Nao existe base URL unica; consulte a Relacao de Servicos Web do Portal Nacional da NF-e."
+     }
+    },
+    "required": [
+     "ConsCad_infCons_UF",
+     "ConsCad_infCons_xServ",
+     "base_url_autorizador",
+     "cUF",
+     "versaoDados"
+    ],
+    "additionalProperties": false
+   },
+   "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true
+   }
+  }
+ ]
+}

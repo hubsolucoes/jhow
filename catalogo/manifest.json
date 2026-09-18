@@ -5,7 +5,7 @@
   "aguardando_aprovacao": false,
   "aprovado_em": "2026-09-14",
   "criado_em": "2026-09-14",
-  "atualizado_em": "2026-09-17",
+  "atualizado_em": "2026-09-18",
   "legenda_status": {
     "pendente": "ainda não iniciado",
     "em_andamento": "lote em execução",
@@ -136,7 +136,9 @@
         "nfe-io",
         "plugnotas"
       ],
-      "status": "em_andamento"
+      "status": "concluido",
+      "concluido_em": "2026-09-18",
+      "relatorio": "relatorios/lote-03.md"
     },
     {
       "lote": 4,
@@ -823,14 +825,31 @@
         "valor": 3,
         "total": 18
       },
-      "status": "pendente",
+      "status": "concluido",
       "hipoteses_a_validar": [
         "SOAP com certificado ICP-Brasil",
         "URLs variam por autorizador/UF",
         "Reforma Tributária (IBS/CBS) altera leiaute — verificar Notas Técnicas vigentes"
       ],
       "risco": "complexidade muito alta; pode ser dividido em sefaz-nfe e sefaz-cte-mdfe",
-      "observacao_execucao": "segurado até um dos agentes do Lote 3 terminar (controle de limite de uso)"
+      "observacao_execucao": "segurado até um dos agentes do Lote 3 terminar (controle de limite de uso)",
+      "concluido_em": "2026-09-18",
+      "endpoints_detalhados": 12,
+      "endpoints_catalogados": 8,
+      "faq": 15,
+      "indice_integrabilidade": 43,
+      "validador": "0 erros, 0 avisos",
+      "execucao": {
+        "completo_em": "2026-09-18",
+        "endpoints_executaveis": 5,
+        "endpoints_total": 12
+      },
+      "conferencia_orquestrador": "validado; tipo certificado_icp_brasil criado a partir desta ficha",
+      "pendencias": [
+        "URLs de homologação confirmadas só para SVRS, SP, MG, PE e Ambiente Nacional",
+        "sem limite numérico de requisições (só regras temporais do MOC)",
+        "executor não executa: exige assinatura XML e credenciamento estadual"
+      ]
     },
     {
       "slug": "nfe-io",
@@ -844,7 +863,24 @@
         "valor": 3,
         "total": 18
       },
-      "status": "pendente"
+      "status": "concluido",
+      "concluido_em": "2026-09-18",
+      "endpoints_detalhados": 43,
+      "endpoints_catalogados": 142,
+      "faq": 17,
+      "indice_integrabilidade": 69,
+      "validador": "0 erros, 0 avisos",
+      "execucao": {
+        "completo_em": "2026-09-18",
+        "endpoints_executaveis": 30,
+        "endpoints_total": 43
+      },
+      "pendencias": [
+        "dois hosts e duas chaves distintas por produto",
+        "sem sandbox: ambiente é atributo da inscrição",
+        "rate limit sem valor publicado",
+        "preço público só para NFS-e"
+      ]
     },
     {
       "slug": "plugnotas",

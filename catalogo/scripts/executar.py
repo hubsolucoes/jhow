@@ -187,6 +187,13 @@ def preparar_sessao(sistema, credenciais, ambiente):
         s.headers["Authorization"] = "Bearer " + token
         if tipo == "oauth2_refresh_token":
             print("  (token renovado; guarde o novo refresh_token se a API tiver rotacionado)")
+    elif tipo == "certificado_icp_brasil":
+        raise SystemExit(
+            f"{sistema['slug']} usa certificado ICP-Brasil com assinatura XML (XML-DSig).\n"
+            "O executor não monta esse tipo de chamada: além do certificado no canal TLS, cada documento\n"
+            "precisa ser assinado e, em geral, há credenciamento na SEFAZ estadual.\n"
+            "Use o código entregue pelo assistente, ou um gateway fiscal (Focus NFe, PlugNotas, NFE.io)."
+        )
     elif tipo != "login_credenciais" and tipo != "nenhum":
         raise SystemExit(f"Tipo de autenticação não suportado pelo executor: {tipo}")
 

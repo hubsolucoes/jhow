@@ -1,5 +1,12 @@
 # Changelog do catálogo
 
+## 2026-09-18 — Lote 3 concluído
+
+- nfe-io (69), plugnotas (62), sefaz-nfe (43). Detalhes em `relatorios/lote-03.md`.
+- Catálogo: 10 sistemas concluídos, 596 endpoints detalhados, 257 executáveis.
+- Novo tipo de autenticação **`certificado_icp_brasil`** (SEFAZ, e futuramente CT-e, MDF-e, eSocial, EFD-Reinf): criado na especificação, aceito pelo validador e recusado com explicação pelo executor, que não faz assinatura XML.
+- Site do assistente publicado no repositório (chat em demonstração, com download de planilha). O campo de URL do backend foi retirado da tela por decisão do usuário, até o backend existir.
+
 ## 2026-09-17 — SyGeCom (ERP do cliente) e login por usuário e senha
 
 - **sygecom documentado** (índice 39): a hipótese de documentação fechada estava errada — a SyGeCom publica spec OpenAPI 3.0.1 aberta, com 79 operações. 16 endpoints detalhados (14 executáveis) e 63 catalogados.

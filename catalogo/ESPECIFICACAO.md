@@ -140,7 +140,7 @@ Regras:
     "expiracao_token": "", "renovacao": "", "ip_allowlist_obrigatorio": false
   },
   "execucao_auth": {
-    "tipo": "header_api_key | bearer | basic | oauth2_client_credentials | oauth2_refresh_token | mtls_oauth2 | login_credenciais | nenhum",
+    "tipo": "header_api_key | bearer | basic | oauth2_client_credentials | oauth2_refresh_token | mtls_oauth2 | login_credenciais | certificado_icp_brasil | nenhum",
     "header": "access_token",
     "prefixo": "",
     "usuario_basic_e_a_credencial": false,
@@ -215,6 +215,8 @@ Regras:
 ### 6.1 `execucao_auth` — receita de autenticação legível por máquina
 
 O executor do produto monta a chamada a partir deste bloco, sem ler texto livre.
+
+`certificado_icp_brasil` é o padrão das integrações com o governo (SEFAZ, CT-e, MDF-e, eSocial, EFD-Reinf): certificado A1/A3 no canal TLS **e** assinatura XML (XML-DSig) no próprio documento. Credenciais: `certificado_pem`, `chave_privada_pem`, `senha_certificado` e, quando o host varia por UF, `base_url`. Declare em `observacao` o elemento que precisa ser assinado. **O executor não executa esse tipo**: ele exige assinatura XML e, em geral, credenciamento estadual — os endpoints ficam com `seguro_para_executar: false` e o assistente entrega o código, sem executar.
 
 `login_credenciais` é o fluxo de ERPs que autenticam com usuário e senha e devolvem um token: preencha o sub-bloco `login` com o método, o caminho (relativo à base URL ou absoluto), o corpo — usando `{nome_da_credencial}` como marcador, substituído pelo valor vindo do cofre — e `campo_token`, o caminho em notação de ponto até o token na resposta. Só use este tipo quando não houver OAuth; o usuário do ERP deve ser dedicado à integração e com o menor conjunto de permissões. `credenciais_necessarias` é exatamente o que o cliente cadastra no cofre do backend: use nomes estáveis (`api_key`, `token`, `client_id`, `client_secret`, `refresh_token`, `access_token`, `certificado_pem`, `chave_privada_pem`, `senha_certificado`). Em padrões de arranjo e sistemas on-premise, onde o host não é fixo, entram também como credenciais de configuração: `base_url`, `token_url` e `escopos`. Nenhum valor real entra aqui.
 

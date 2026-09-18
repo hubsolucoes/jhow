@@ -1,0 +1,841 @@
+openapi: 3.1.0
+info:
+  title: SEFAZ - web services de NF-e e NFC-e (reconstruido)
+  version: '4.00'
+  summary: Descricao OpenAPI, reconstruida a partir da documentacao oficial, dos web services SOAP 1.2 de NF-e (modelo 55)
+    e NFC-e (modelo 65).
+  description: 'AVISO IMPORTANTE: a SEFAZ nao publica OpenAPI. Esta spec foi reconstruida a partir do Manual de Orientacao
+    do Contribuinte (MOC) 7.0 e das Notas Tecnicas vigentes, para servir de documentacao legivel por maquina. Os servicos
+    sao SOAP 1.2 (WS-I Basic Profile, Document/Literal), nao REST: cada operacao e um POST no caminho do arquivo .asmx (ou
+    endpoint equivalente) do autorizador, com um envelope soap12:Envelope no corpo.
+
+
+    NAO EXISTE BASE URL UNICA. Os servers abaixo usam o SVRS (NF-e modelo 55) como referencia. A URL real varia por UF do
+    emitente, por ambiente (producao/homologacao) e por modelo (55 x 65), e a tabela oficial de producao esta em https://www.nfe.fazenda.gov.br/portal/webServices.aspx?tipoConteudo=OUC/YVNWZfo=
+    . As URLs de homologacao ficam nos portais das SEFAZ estaduais e do SVRS. Operacoes do Ambiente Nacional (NFeDistribuicaoDFe,
+    manifestacao do destinatario e EPEC) e a consulta cadastro trazem servers proprios no nivel da operacao.
+
+
+    AUTENTICACAO: TLS 1.2 ou superior com autenticacao mutua, apresentando certificado ICP-Brasil (A1 ou A3) que contenha
+    o CNPJ no OID 2.16.76.1.3.3 ou o CPF no OID 2.16.76.1.3.1, com Extended Key Usage de autenticacao de cliente. Nao ha token,
+    header de API key nem OAuth. Alem disso, as mensagens de escrita precisam ir assinadas com XML-DSig sobre o elemento identificado
+    pelo atributo Id. Isso nao e representavel pelos securitySchemes do OpenAPI, entao esta declarado apenas em texto e na
+    extensao x-autenticacao.
+
+
+    O HTTP devolve 200 mesmo em rejeicao: o resultado de negocio vem nos campos cStat e xMotivo.'
+  contact:
+    name: Portal Nacional da Nota Fiscal Eletronica
+    url: https://www.nfe.fazenda.gov.br/portal/
+externalDocs:
+  description: Manual de Orientacao do Contribuinte (MOC) 7.0 e anexos
+  url: https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=ndIjl+iEFdE=
+x-autenticacao:
+  tipo: certificado ICP-Brasil em TLS mutuo (mTLS) + assinatura XML-DSig no documento
+  observacao: Sem OAuth, sem token, sem header de credencial. O certificado de transmissao e o de assinatura podem ser diferentes.
+  oid_cnpj: 2.16.76.1.3.3
+  oid_cpf: 2.16.76.1.3.1
+servers:
+- url: https://nfe.svrs.rs.gov.br
+  description: SVRS - NF-e modelo 55 - PRODUCAO (referencia; use a URL da UF do emitente)
+- url: https://nfe-homologacao.svrs.rs.gov.br
+  description: SVRS - NF-e modelo 55 - HOMOLOGACAO (sandbox)
+- url: https://nfce.svrs.rs.gov.br
+  description: SVRS - NFC-e modelo 65 - PRODUCAO
+- url: https://nfce-homologacao.svrs.rs.gov.br
+  description: SVRS - NFC-e modelo 65 - HOMOLOGACAO
+- url: https://nfe.fazenda.sp.gov.br
+  description: SEFAZ-SP - NF-e - PRODUCAO
+- url: https://homologacao.nfe.fazenda.sp.gov.br
+  description: SEFAZ-SP - NF-e - HOMOLOGACAO
+- url: https://www.sefazvirtual.fazenda.gov.br
+  description: SVAN e SVC-AN - PRODUCAO
+tags:
+- name: NotaFiscal
+  description: Autorizacao, consulta, eventos, inutilizacao e distribuicao de NF-e e NFC-e.
+- name: Pessoa
+  description: Consulta ao cadastro de contribuintes do ICMS.
+paths:
+  /ws/NfeAutorizacao/NFeAutorizacao4.asmx:
+    post:
+      operationId: sefaz-nfe__nota_fiscal__emitir
+      summary: NfeAutorizacao - metodo nfeAutorizacaoLote (schema enviNFe_v4.00.xsd)
+      description: 'Envia um lote com ate 50 NF-e (modelo 55) ou exatamente 1 NFC-e (modelo 65) para o autorizador pedir a
+        autorizacao de uso. O XML de cada nota ja vai assinado. Por padrao o processamento e assincrono: a resposta imediata
+        traz apenas cStat 103 e um numero de recibo (nRec) que depois e consultado no NfeRetAutorizacao. Com indSinc=1 e uma
+        unica NF-e no lote, o autorizador que implementa o modo sincrono devolve o protocolo na mesma conexao, sem gerar recibo.
+        Existe tambem o metodo alternativo NfeAutorizacaoLoteZip, que recebe a mesma mensagem enviNFe compactada em GZip e
+        codificada em Base64 no parametro nfeDadosMsgZip.
+
+
+        Quando usar: Sempre que a empresa precisar autorizar um documento fiscal novo. E a unica porta de entrada de NF-e
+        e NFC-e: nao existe rascunho nem pre-emissao no autorizador. Use o modo sincrono no varejo (NFC-e e balcao), onde
+        o caixa precisa da resposta na hora; use o modo assincrono para faturamento em lote.
+
+
+        Transporte: SOAP 1.2 sobre HTTPS com autenticacao mutua (certificado ICP-Brasil). O corpo e um envelope soap12:Envelope
+        com nfeCabecMsg (cUF e versaoDados) no Header e nfeDadosMsg no Body. O HTTP devolve sempre 200: o resultado de negocio
+        esta em cStat e xMotivo.
+
+
+        URL real deste servico: /ws/NfeAutorizacao/NFeAutorizacao4.asmx'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=LrBx7WT9PuA=
+      x-acao-canonica: emitir
+      x-entidade-canonica: NotaFiscal
+      x-url-real: /ws/NfeAutorizacao/NFeAutorizacao4.asmx
+      x-seguro-para-executar: false
+      requestBody:
+        required: true
+        content:
+          application/soap+xml:
+            schema:
+              type: string
+              contentMediaType: application/soap+xml
+              description: Envelope SOAP 1.2 completo. O conteudo de nfeDadosMsg segue o schema XSD indicado em x-schema-xsd.
+            example: '{"observacao": "Envelope SOAP 1.2 resumido; o elemento NFe completo segue o MOC Anexo I e vai assinado.",
+              "soap": "<soap12:Envelope xmlns:soap12=\"http://www.w3.org/2003/05/soap-envelope\"><soap12:Header><nfeCabecMsg
+              xmlns=\"http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4\"><cUF>43</cUF><versaoDados>4.00</versaoDados></nfeCabecMsg></soap12:Header><soap12:Body><nfeDadosMsg
+              xmlns=\"http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4\"><enviNFe versao=\"4.00\" xmlns=\"http://www.portalfiscal.inf.br/nfe\"><idLote>000000000000042</idLote><indSinc>1</indSinc><NFe><infNFe
+              versao=\"4.00\" Id=\"NFe43260900000000000191550010000000011000000015\">...</infNFe><Signature>...</Signature></NFe></enviNFe></nfeDadosMsg></soap12:Body></soap12:Envelope>"}'
+      responses:
+        '200':
+          description: Envelope SOAP 1.2 de resposta. cStat/xMotivo indicam sucesso ou rejeicao; consulte a lista de codigos
+            em erros[] do endpoints.json.
+          content:
+            application/soap+xml:
+              schema:
+                type: string
+                contentMediaType: application/soap+xml
+              example: '{"assincrono": {"retEnviNFe": {"tpAmb": "2", "verAplic": "RS20260101", "cStat": "103", "xMotivo":
+                "Lote recebido com sucesso", "cUF": "43", "dhRecbto": "2026-09-18T10:12:00-03:00", "infRec": {"nRec": "431000000000001"}}},
+                "sincrono": {"retEnviNFe": {"tpAmb": "2", "cStat": "104", "xMotivo": "Lote processado", "protNFe": {"infProt":
+                {"chNFe": "43260900000000000191550010000000011000000015", "nProt": "143260000000001", "cStat": "100", "xMotivo":
+                "Autorizado o uso da NF-e"}}}}}'
+        '500':
+          description: SOAP Fault. Costuma indicar payload malformado, versaoDados incompativel ou indisponibilidade do autorizador.
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/soap+xml; charset=utf-8
+        description: SOAP 1.2 usa application/soap+xml, nao text/xml.
+  /ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx:
+    post:
+      operationId: sefaz-nfe__nota_fiscal__consultar_status__lote
+      summary: NfeRetAutorizacao - metodo nfeRetAutorizacao (schema consReciNFe_v4.00.xsd)
+      description: 'Consulta o resultado do processamento de um lote enviado ao NfeAutorizacao no modo assincrono, usando
+        o numero do recibo (nRec) devolvido com cStat 103. A resposta traz o status do lote e, quando cStat=104 (lote processado),
+        um elemento protNFe por documento com chave de acesso, protocolo, cStat individual e digest value. Este web service
+        tambem serve de canal de comunicacao da SEFAZ com o emissor, pelos campos cMsg e xMsg.
+
+
+        Quando usar: Logo apos enviar um lote assincrono, respeitando a espera minima de 15 segundos prevista no MOC, e em
+        laco enquanto o retorno for cStat 105 (lote em processamento). Tambem e o caminho de recuperacao quando a conexao
+        caiu depois do POST de autorizacao e voce guardou o recibo.
+
+
+        Transporte: SOAP 1.2 sobre HTTPS com autenticacao mutua (certificado ICP-Brasil). O corpo e um envelope soap12:Envelope
+        com nfeCabecMsg (cUF e versaoDados) no Header e nfeDadosMsg no Body. O HTTP devolve sempre 200: o resultado de negocio
+        esta em cStat e xMotivo.
+
+
+        URL real deste servico: /ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=LrBx7WT9PuA=
+      x-acao-canonica: consultar_status
+      x-entidade-canonica: NotaFiscal
+      x-url-real: /ws/NfeRetAutorizacao/NFeRetAutorizacao4.asmx
+      x-seguro-para-executar: true
+      requestBody:
+        required: true
+        content:
+          application/soap+xml:
+            schema:
+              type: string
+              contentMediaType: application/soap+xml
+              description: Envelope SOAP 1.2 completo. O conteudo de nfeDadosMsg segue o schema XSD indicado em x-schema-xsd.
+            example: '{"soap_body": "<consReciNFe versao=\"4.00\" xmlns=\"http://www.portalfiscal.inf.br/nfe\"><tpAmb>2</tpAmb><nRec>431000000000001</nRec></consReciNFe>"}'
+      responses:
+        '200':
+          description: Envelope SOAP 1.2 de resposta. cStat/xMotivo indicam sucesso ou rejeicao; consulte a lista de codigos
+            em erros[] do endpoints.json.
+          content:
+            application/soap+xml:
+              schema:
+                type: string
+                contentMediaType: application/soap+xml
+              example: '{"retConsReciNFe": {"tpAmb": "2", "verAplic": "RS20260101", "nRec": "431000000000001", "cStat": "104",
+                "xMotivo": "Lote processado", "cUF": "43", "dhRecbto": "2026-09-18T10:12:20-03:00", "protNFe": [{"infProt":
+                {"chNFe": "43260900000000000191550010000000011000000015", "nProt": "143260000000001", "cStat": "100", "xMotivo":
+                "Autorizado o uso da NF-e", "digVal": "aBcDeFgHiJkLmNoPqRsTuVwXyZ01"}}]}}'
+        '500':
+          description: SOAP Fault. Costuma indicar payload malformado, versaoDados incompativel ou indisponibilidade do autorizador.
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/soap+xml; charset=utf-8
+        description: SOAP 1.2 usa application/soap+xml, nao text/xml.
+  /ws/NfeConsulta/NfeConsulta4.asmx:
+    post:
+      operationId: sefaz-nfe__nota_fiscal__consultar_status__protocolo
+      summary: NfeConsultaProtocolo - metodo nfeConsulta (schema consSitNFe_4.00.xsd)
+      description: 'Consulta a situacao atual de uma NF-e ou NFC-e na base do autorizador, exclusivamente pela chave de acesso
+        de 44 digitos. A resposta traz o cStat da consulta e, conforme o caso, o protocolo de autorizacao (protNFe), o protocolo
+        de cancelamento (retCancNFe) e a lista de eventos ja registrados para aquela chave (procEventoNFe), incluindo Carta
+        de Correcao e manifestacoes do destinatario.
+
+
+        Quando usar: E o servico de verdade de campo: use para confirmar se uma nota foi mesmo autorizada depois de uma falha
+        de rede, para descobrir se ja existe cancelamento ou CC-e antes de tentar um novo evento, e para conciliar o que o
+        ERP acha que emitiu com o que o Fisco registrou. Tambem e o caminho para recuperar o numero do protocolo, exigido
+        no evento de cancelamento.
+
+
+        Transporte: SOAP 1.2 sobre HTTPS com autenticacao mutua (certificado ICP-Brasil). O corpo e um envelope soap12:Envelope
+        com nfeCabecMsg (cUF e versaoDados) no Header e nfeDadosMsg no Body. O HTTP devolve sempre 200: o resultado de negocio
+        esta em cStat e xMotivo.
+
+
+        URL real deste servico: /ws/NfeConsulta/NfeConsulta4.asmx'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=LrBx7WT9PuA=
+      x-acao-canonica: consultar_status
+      x-entidade-canonica: NotaFiscal
+      x-url-real: /ws/NfeConsulta/NfeConsulta4.asmx
+      x-seguro-para-executar: true
+      requestBody:
+        required: true
+        content:
+          application/soap+xml:
+            schema:
+              type: string
+              contentMediaType: application/soap+xml
+              description: Envelope SOAP 1.2 completo. O conteudo de nfeDadosMsg segue o schema XSD indicado em x-schema-xsd.
+            example: '{"soap_body": "<consSitNFe versao=\"4.00\" xmlns=\"http://www.portalfiscal.inf.br/nfe\"><tpAmb>2</tpAmb><xServ>CONSULTAR</xServ><chNFe>43260900000000000191550010000000011000000015</chNFe></consSitNFe>"}'
+      responses:
+        '200':
+          description: Envelope SOAP 1.2 de resposta. cStat/xMotivo indicam sucesso ou rejeicao; consulte a lista de codigos
+            em erros[] do endpoints.json.
+          content:
+            application/soap+xml:
+              schema:
+                type: string
+                contentMediaType: application/soap+xml
+              example: '{"retConsSitNFe": {"tpAmb": "2", "cStat": "100", "xMotivo": "Autorizado o uso da NF-e", "cUF": "43",
+                "chNFe": "43260900000000000191550010000000011000000015", "protNFe": {"infProt": {"nProt": "143260000000001",
+                "cStat": "100", "xMotivo": "Autorizado o uso da NF-e", "dhRecbto": "2026-09-18T10:12:20-03:00"}}, "procEventoNFe":
+                [{"evento": {"infEvento": {"tpEvento": "110110", "nSeqEvento": "1"}}, "retEvento": {"infEvento": {"cStat":
+                "135", "nProt": "143260000000099"}}}]}}'
+        '500':
+          description: SOAP Fault. Costuma indicar payload malformado, versaoDados incompativel ou indisponibilidade do autorizador.
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/soap+xml; charset=utf-8
+        description: SOAP 1.2 usa application/soap+xml, nao text/xml.
+  /ws/NfeStatusServico/NfeStatusServico4.asmx:
+    post:
+      operationId: sefaz-nfe__nota_fiscal__consultar_status__servico
+      summary: NfeStatusServico - metodo nfeStatusServico (schema consStatServ_v4.00.xsd)
+      description: 'Consulta a disponibilidade do ambiente autorizador. Devolve cStat 107 (Servico em Operacao), 108 (Servico
+        Paralisado Momentaneamente) ou 109 (Servico Paralisado sem Previsao), o tempo medio de resposta dos ultimos 5 minutos
+        (tMed), a previsao de retorno (dhRetorno) e observacoes livres da UF (xObs).
+
+
+        Quando usar: Antes de abrir o caixa ou o turno de faturamento, e como sonda periodica para decidir entrada e saida
+        de contingencia. O MOC exige espera minima de 3 minutos entre consultas quando a aplicacao fica em laco permanente,
+        para nao sobrecarregar o autorizador.
+
+
+        Transporte: SOAP 1.2 sobre HTTPS com autenticacao mutua (certificado ICP-Brasil). O corpo e um envelope soap12:Envelope
+        com nfeCabecMsg (cUF e versaoDados) no Header e nfeDadosMsg no Body. O HTTP devolve sempre 200: o resultado de negocio
+        esta em cStat e xMotivo.
+
+
+        URL real deste servico: /ws/NfeStatusServico/NfeStatusServico4.asmx'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=LrBx7WT9PuA=
+      x-acao-canonica: consultar_status
+      x-entidade-canonica: NotaFiscal
+      x-url-real: /ws/NfeStatusServico/NfeStatusServico4.asmx
+      x-seguro-para-executar: true
+      requestBody:
+        required: true
+        content:
+          application/soap+xml:
+            schema:
+              type: string
+              contentMediaType: application/soap+xml
+              description: Envelope SOAP 1.2 completo. O conteudo de nfeDadosMsg segue o schema XSD indicado em x-schema-xsd.
+            example: '{"soap_body": "<consStatServ versao=\"4.00\" xmlns=\"http://www.portalfiscal.inf.br/nfe\"><tpAmb>2</tpAmb><cUF>43</cUF><xServ>STATUS</xServ></consStatServ>"}'
+      responses:
+        '200':
+          description: Envelope SOAP 1.2 de resposta. cStat/xMotivo indicam sucesso ou rejeicao; consulte a lista de codigos
+            em erros[] do endpoints.json.
+          content:
+            application/soap+xml:
+              schema:
+                type: string
+                contentMediaType: application/soap+xml
+              example: '{"retConsStatServ": {"tpAmb": "2", "verAplic": "RS20260101", "cStat": "107", "xMotivo": "Servico em
+                Operacao", "cUF": "43", "dhRecbto": "2026-09-18T09:00:00-03:00", "tMed": "1"}}'
+        '500':
+          description: SOAP Fault. Costuma indicar payload malformado, versaoDados incompativel ou indisponibilidade do autorizador.
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/soap+xml; charset=utf-8
+        description: SOAP 1.2 usa application/soap+xml, nao text/xml.
+  /ws/nfeinutilizacao/nfeinutilizacao4.asmx:
+    post:
+      operationId: sefaz-nfe__nota_fiscal__inutilizar
+      summary: NfeInutilizacao - metodo nfeInutilizacaoNF (schema inutNFe_v4.00.xsd)
+      description: 'Declara ao Fisco que uma faixa de numeracao de determinada serie nao sera utilizada, fechando o buraco
+        na sequencia. Processo sincrono e assinado digitalmente. Aceita ate 10.000 numeros por pedido e exige justificativa
+        de 15 a 255 caracteres. O retorno de sucesso e cStat 102 com numero de protocolo de inutilizacao.
+
+
+        Quando usar: Quando um numero foi consumido pelo sistema mas nunca chegou a ser autorizado (falha de impressao, erro
+        de sequencia, teste em producao) e a numeracao ficou com lacuna. E obrigacao acessoria: a maioria das UF exige a inutilizacao
+        ate o mes seguinte. Nao serve para anular nota autorizada, para isso e cancelamento.
+
+
+        Transporte: SOAP 1.2 sobre HTTPS com autenticacao mutua (certificado ICP-Brasil). O corpo e um envelope soap12:Envelope
+        com nfeCabecMsg (cUF e versaoDados) no Header e nfeDadosMsg no Body. O HTTP devolve sempre 200: o resultado de negocio
+        esta em cStat e xMotivo.
+
+
+        URL real deste servico: /ws/nfeinutilizacao/nfeinutilizacao4.asmx'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=LrBx7WT9PuA=
+      x-acao-canonica: inutilizar
+      x-entidade-canonica: NotaFiscal
+      x-url-real: /ws/nfeinutilizacao/nfeinutilizacao4.asmx
+      x-seguro-para-executar: false
+      requestBody:
+        required: true
+        content:
+          application/soap+xml:
+            schema:
+              type: string
+              contentMediaType: application/soap+xml
+              description: Envelope SOAP 1.2 completo. O conteudo de nfeDadosMsg segue o schema XSD indicado em x-schema-xsd.
+            example: '{"soap_body": "<inutNFe versao=\"4.00\" xmlns=\"http://www.portalfiscal.inf.br/nfe\"><infInut Id=\"ID43260000000000019155001000000101000000120\"><tpAmb>2</tpAmb><xServ>INUTILIZAR</xServ><cUF>43</cUF><ano>26</ano><CNPJ>00000000000191</CNPJ><mod>55</mod><serie>1</serie><nNFIni>101</nNFIni><nNFFin>120</nNFFin><xJust>Falha
+              de impressao com perda da sequencia de numeracao</xJust></infInut><Signature>...</Signature></inutNFe>"}'
+      responses:
+        '200':
+          description: Envelope SOAP 1.2 de resposta. cStat/xMotivo indicam sucesso ou rejeicao; consulte a lista de codigos
+            em erros[] do endpoints.json.
+          content:
+            application/soap+xml:
+              schema:
+                type: string
+                contentMediaType: application/soap+xml
+              example: '{"retInutNFe": {"infInut": {"tpAmb": "2", "cStat": "102", "xMotivo": "Inutilizacao de numero homologado",
+                "cUF": "43", "ano": "26", "CNPJ": "00000000000191", "mod": "55", "serie": "1", "nNFIni": "101", "nNFFin":
+                "120", "dhRecbto": "2026-09-18T11:00:00-03:00", "nProt": "143260000000200"}}}'
+        '500':
+          description: SOAP Fault. Costuma indicar payload malformado, versaoDados incompativel ou indisponibilidade do autorizador.
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/soap+xml; charset=utf-8
+        description: SOAP 1.2 usa application/soap+xml, nao text/xml.
+  /ws/recepcaoevento/recepcaoevento4.asmx:
+    post:
+      operationId: sefaz-nfe__nota_fiscal__cancelar
+      summary: NFeRecepcaoEvento - evento 110111 Cancelamento (schema envEventoCancNFe_v1.00.xsd)
+      description: 'Registra o evento de cancelamento de uma NF-e ou NFC-e ja autorizada, informando o protocolo de autorizacao
+        e uma justificativa de 15 a 255 caracteres. E sincrono e vai dentro do envelope generico de eventos (envEvento), que
+        aceita ate 20 eventos por lote. Sucesso devolve cStat 135 no evento, com protocolo proprio; algumas UF aceitam cancelamento
+        fora do prazo e devolvem cStat 155.
+
+
+        Quando usar: Quando a operacao nao vai acontecer e a nota foi autorizada ha menos de 24 horas (prazo nacional para
+        NF-e; a NFC-e tem prazo estadual bem menor). Passado o prazo, o autorizador rejeita com cStat 501 e a correcao so
+        pode ser feita por nota de devolucao ou ajuste.
+
+
+        Transporte: SOAP 1.2 sobre HTTPS com autenticacao mutua (certificado ICP-Brasil). O corpo e um envelope soap12:Envelope
+        com nfeCabecMsg (cUF e versaoDados) no Header e nfeDadosMsg no Body. O HTTP devolve sempre 200: o resultado de negocio
+        esta em cStat e xMotivo.
+
+
+        URL real deste servico: /ws/recepcaoevento/recepcaoevento4.asmx'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=LrBx7WT9PuA=
+      x-acao-canonica: cancelar
+      x-entidade-canonica: NotaFiscal
+      x-url-real: /ws/recepcaoevento/recepcaoevento4.asmx
+      x-seguro-para-executar: false
+      requestBody:
+        required: true
+        content:
+          application/soap+xml:
+            schema:
+              type: string
+              contentMediaType: application/soap+xml
+              description: Envelope SOAP 1.2 completo. O conteudo de nfeDadosMsg segue o schema XSD indicado em x-schema-xsd.
+            example: '{"soap_body": "<envEvento versao=\"1.00\" xmlns=\"http://www.portalfiscal.inf.br/nfe\"><idLote>1</idLote><evento
+              versao=\"1.00\"><infEvento Id=\"ID1101114326090000000000019155001000000001100000001501\"><cOrgao>43</cOrgao><tpAmb>2</tpAmb><CNPJ>00000000000191</CNPJ><chNFe>43260900000000000191550010000000011000000015</chNFe><dhEvento>2026-09-18T11:30:00-03:00</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento><verEvento>1.00</verEvento><detEvento
+              versao=\"1.00\"><descEvento>Cancelamento</descEvento><nProt>143260000000001</nProt><xJust>Pedido cancelado pelo
+              cliente antes do faturamento</xJust></detEvento></infEvento><Signature>...</Signature></evento></envEvento>"}'
+      responses:
+        '200':
+          description: Envelope SOAP 1.2 de resposta. cStat/xMotivo indicam sucesso ou rejeicao; consulte a lista de codigos
+            em erros[] do endpoints.json.
+          content:
+            application/soap+xml:
+              schema:
+                type: string
+                contentMediaType: application/soap+xml
+              example: '{"retEnvEvento": {"idLote": "1", "tpAmb": "2", "cOrgao": "43", "cStat": "128", "xMotivo": "Lote de
+                Evento Processado", "retEvento": [{"infEvento": {"cStat": "135", "xMotivo": "Evento registrado e vinculado
+                a NF-e", "chNFe": "43260900000000000191550010000000011000000015", "tpEvento": "110111", "xEvento": "Cancelamento
+                homologado", "nSeqEvento": "1", "dhRegEvento": "2026-09-18T11:30:05-03:00", "nProt": "143260000000300"}}]}}'
+        '500':
+          description: SOAP Fault. Costuma indicar payload malformado, versaoDados incompativel ou indisponibilidade do autorizador.
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/soap+xml; charset=utf-8
+        description: SOAP 1.2 usa application/soap+xml, nao text/xml.
+  /ws/recepcaoevento/recepcaoevento4.asmx#evento-110112:
+    post:
+      operationId: sefaz-nfe__nota_fiscal__cancelar__substituicao
+      summary: NFeRecepcaoEvento - evento 110112 Cancelamento por substituicao (schema envEventoCancSubst_v1.00.xsd)
+      description: 'Variante do cancelamento especifica para NFC-e: cancela a nota original apontando a chave de acesso da
+        NFC-e substituta que a corrige. Alem dos campos do cancelamento comum, exige cOrgaoAutor, tpAutor, verAplic e chNFeRef.
+        O prazo e de 7 dias (168 horas) contados da autorizacao, contra 24 horas do cancelamento comum.
+
+
+        Quando usar: No varejo, quando a NFC-e foi emitida errada e ja foi substituida por outra correta, dentro de 7 dias.
+        Serve para amarrar o par original/substituta no registro do Fisco, coisa que o cancelamento comum nao faz.
+
+
+        Transporte: SOAP 1.2 sobre HTTPS com autenticacao mutua (certificado ICP-Brasil). O corpo e um envelope soap12:Envelope
+        com nfeCabecMsg (cUF e versaoDados) no Header e nfeDadosMsg no Body. O HTTP devolve sempre 200: o resultado de negocio
+        esta em cStat e xMotivo.
+
+
+        URL real deste servico: /ws/recepcaoevento/recepcaoevento4.asmx
+
+        Observacao: no OpenAPI este caminho recebe um fragmento (#evento-...) apenas para diferenciar operacoes SOAP que compartilham
+        o mesmo arquivo .asmx; o fragmento nao e enviado na requisicao.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=LrBx7WT9PuA=
+      x-acao-canonica: cancelar
+      x-entidade-canonica: NotaFiscal
+      x-url-real: /ws/recepcaoevento/recepcaoevento4.asmx
+      x-seguro-para-executar: false
+      requestBody:
+        required: true
+        content:
+          application/soap+xml:
+            schema:
+              type: string
+              contentMediaType: application/soap+xml
+              description: Envelope SOAP 1.2 completo. O conteudo de nfeDadosMsg segue o schema XSD indicado em x-schema-xsd.
+            example: '{"soap_body": "<detEvento versao=\"1.00\"><descEvento>Cancelamento por Substituicao</descEvento><cOrgaoAutor>43</cOrgaoAutor><tpAutor>1</tpAutor><verAplic>ERP
+              1.0</verAplic><nProt>143260000000001</nProt><xJust>NFC-e substituida por documento com item corrigido</xJust><chNFeRef>43260900000000000191650010000000021000000023</chNFeRef></detEvento>"}'
+      responses:
+        '200':
+          description: Envelope SOAP 1.2 de resposta. cStat/xMotivo indicam sucesso ou rejeicao; consulte a lista de codigos
+            em erros[] do endpoints.json.
+          content:
+            application/soap+xml:
+              schema:
+                type: string
+                contentMediaType: application/soap+xml
+              example: '{"retEnvEvento": {"cStat": "128", "xMotivo": "Lote de Evento Processado", "retEvento": [{"infEvento":
+                {"cStat": "135", "xMotivo": "Evento registrado e vinculado a NF-e", "tpEvento": "110112", "xEvento": "Cancelamento
+                homologado", "nProt": "143260000000301"}}]}}'
+        '500':
+          description: SOAP Fault. Costuma indicar payload malformado, versaoDados incompativel ou indisponibilidade do autorizador.
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/soap+xml; charset=utf-8
+        description: SOAP 1.2 usa application/soap+xml, nao text/xml.
+  /ws/recepcaoevento/recepcaoevento4.asmx#evento-110110:
+    post:
+      operationId: sefaz-nfe__nota_fiscal__corrigir
+      summary: NFeRecepcaoEvento - evento 110110 Carta de Correcao Eletronica (schema envCCe_v9.99.xsd)
+      description: 'Registra a Carta de Correcao Eletronica (CC-e) sobre uma NF-e autorizada. O texto da correcao (xCorrecao,
+        de 15 a 1000 caracteres) e livre, e o campo xCondUso precisa conter literalmente as condicoes de uso previstas no
+        paragrafo 1-A do art. 7 do Convenio SINIEF s/n de 1970. Cada nova CC-e substitui integralmente a anterior, entao a
+        mais recente precisa conter todas as correcoes. O sequencial nSeqEvento vai de 1 a 20.
+
+
+        Quando usar: Para corrigir erro que nao mexe no valor do imposto, nem troca remetente ou destinatario, nem altera
+        data de emissao ou de saida: tipicamente descricao do produto, dados de transporte, informacoes complementares. Nao
+        existe CC-e para NFC-e: o autorizador rejeita com cStat 784.
+
+
+        Transporte: SOAP 1.2 sobre HTTPS com autenticacao mutua (certificado ICP-Brasil). O corpo e um envelope soap12:Envelope
+        com nfeCabecMsg (cUF e versaoDados) no Header e nfeDadosMsg no Body. O HTTP devolve sempre 200: o resultado de negocio
+        esta em cStat e xMotivo.
+
+
+        URL real deste servico: /ws/recepcaoevento/recepcaoevento4.asmx
+
+        Observacao: no OpenAPI este caminho recebe um fragmento (#evento-...) apenas para diferenciar operacoes SOAP que compartilham
+        o mesmo arquivo .asmx; o fragmento nao e enviado na requisicao.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=LrBx7WT9PuA=
+      x-acao-canonica: corrigir
+      x-entidade-canonica: NotaFiscal
+      x-url-real: /ws/recepcaoevento/recepcaoevento4.asmx
+      x-seguro-para-executar: false
+      requestBody:
+        required: true
+        content:
+          application/soap+xml:
+            schema:
+              type: string
+              contentMediaType: application/soap+xml
+              description: Envelope SOAP 1.2 completo. O conteudo de nfeDadosMsg segue o schema XSD indicado em x-schema-xsd.
+            example: '{"soap_body": "<detEvento versao=\"1.00\"><descEvento>Carta de Correcao</descEvento><xCorrecao>No campo
+              Informacoes Complementares, onde se le transportadora ALFA leia-se transportadora BETA</xCorrecao><xCondUso>A
+              Carta de Correcao e disciplinada pelo paragrafo 1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 e
+              pode ser utilizada para regularizacao de erro ocorrido na emissao de documento fiscal, desde que o erro nao
+              esteja relacionado com: I - as variaveis que determinam o valor do imposto tais como: base de calculo, aliquota,
+              diferenca de preco, quantidade, valor da operacao ou da prestacao; II - a correcao de dados cadastrais que implique
+              mudanca do remetente ou do destinatario; III - a data de emissao ou de saida.</xCondUso></detEvento>"}'
+      responses:
+        '200':
+          description: Envelope SOAP 1.2 de resposta. cStat/xMotivo indicam sucesso ou rejeicao; consulte a lista de codigos
+            em erros[] do endpoints.json.
+          content:
+            application/soap+xml:
+              schema:
+                type: string
+                contentMediaType: application/soap+xml
+              example: '{"retEnvEvento": {"cStat": "128", "xMotivo": "Lote de Evento Processado", "retEvento": [{"infEvento":
+                {"cStat": "135", "xMotivo": "Evento registrado e vinculado a NF-e", "tpEvento": "110110", "xEvento": "Carta
+                de Correcao registrada", "nSeqEvento": "1", "nProt": "143260000000400"}}]}}'
+        '500':
+          description: SOAP Fault. Costuma indicar payload malformado, versaoDados incompativel ou indisponibilidade do autorizador.
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/soap+xml; charset=utf-8
+        description: SOAP 1.2 usa application/soap+xml, nao text/xml.
+  /NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx:
+    post:
+      operationId: sefaz-nfe__nota_fiscal__manifestar
+      summary: NFeRecepcaoEvento (Ambiente Nacional) - eventos 210200, 210210, 210220 e 210240 (schema envConfRecebto_v9.99.xsd)
+      description: 'Registra a posicao do destinatario sobre uma NF-e emitida contra o seu CNPJ ou CPF. Sao quatro eventos:
+        210210 Ciencia da Emissao (nao conclusivo), 210200 Confirmacao da Operacao, 210220 Desconhecimento da Operacao e 210240
+        Operacao nao Realizada (exige justificativa). O evento vai ao Ambiente Nacional, assinado com certificado que tenha
+        o CNPJ base ou o CPF do destinatario.
+
+
+        Quando usar: Sempre que a empresa recebe mercadoria ou identifica uma nota emitida contra ela. Alem da obrigacao legal
+        em varias situacoes, a manifestacao e o que libera o download do XML completo pelo NFeDistribuicaoDFe: antes dela
+        o destinatario so enxerga o resumo da NF-e. A NT 2020.001 v1.60 reduziu o prazo da manifestacao conclusiva de 180
+        para 90 dias contados da autorizacao, e a Ciencia da Emissao tem prazo de 10 dias.
+
+
+        Transporte: SOAP 1.2 sobre HTTPS com autenticacao mutua (certificado ICP-Brasil). O corpo e um envelope soap12:Envelope
+        com nfeCabecMsg (cUF e versaoDados) no Header e nfeDadosMsg no Body. O HTTP devolve sempre 200: o resultado de negocio
+        esta em cStat e xMotivo.
+
+
+        URL real deste servico: /NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo= WTd7iuD21s=
+      x-acao-canonica: manifestar
+      x-entidade-canonica: NotaFiscal
+      x-url-real: /NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx
+      x-seguro-para-executar: false
+      requestBody:
+        required: true
+        content:
+          application/soap+xml:
+            schema:
+              type: string
+              contentMediaType: application/soap+xml
+              description: Envelope SOAP 1.2 completo. O conteudo de nfeDadosMsg segue o schema XSD indicado em x-schema-xsd.
+            example: '{"soap_body": "<detEvento versao=\"1.00\"><descEvento>Confirmacao da Operacao</descEvento></detEvento>"}'
+      responses:
+        '200':
+          description: Envelope SOAP 1.2 de resposta. cStat/xMotivo indicam sucesso ou rejeicao; consulte a lista de codigos
+            em erros[] do endpoints.json.
+          content:
+            application/soap+xml:
+              schema:
+                type: string
+                contentMediaType: application/soap+xml
+              example: '{"retEnvEvento": {"cStat": "128", "xMotivo": "Lote de Evento Processado", "retEvento": [{"infEvento":
+                {"cStat": "135", "xMotivo": "Evento registrado e vinculado a NF-e", "tpEvento": "210200", "xEvento": "Confirmacao
+                de Operacao registrada", "nProt": "891260000000001"}}]}}'
+        '500':
+          description: SOAP Fault. Costuma indicar payload malformado, versaoDados incompativel ou indisponibilidade do autorizador.
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/soap+xml; charset=utf-8
+        description: SOAP 1.2 usa application/soap+xml, nao text/xml.
+      servers: &id001
+      - url: https://www.nfe.fazenda.gov.br
+        description: Ambiente Nacional - producao (confirmado no Portal Nacional e no portal SPED MG)
+      - url: https://hom.nfe.fazenda.gov.br
+        description: Ambiente Nacional - homologacao (confirmado no portal SPED MG)
+  /NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx#evento-110140:
+    post:
+      operationId: sefaz-nfe__nota_fiscal__emitir__epec
+      summary: NFeRecepcaoEvento (Ambiente Nacional) - evento 110140 EPEC, Evento Previo de Emissao em Contingencia
+      description: 'Registra no Ambiente Nacional, com leiaute minimo, a intencao de emitir uma NF-e em contingencia quando
+        a empresa nao consegue transmitir para o autorizador da UF. O XML do EPEC leva UF, CNPJ e IE do emitente, chave de
+        acesso, UF e CNPJ/CPF do destinatario e os valores totais da nota. Autorizado o evento (protocolo iniciado por 891),
+        a empresa pode imprimir o DANFE em papel comum com a expressao exigida pelo MOC e circular a mercadoria.
+
+
+        Quando usar: Quando o autorizador da UF esta indisponivel (cStat 108/109 ou falha de rede) e a SEFAZ Virtual de Contingencia
+        nao foi ativada para aquela UF. A NF-e precisa ser gerada com tpEmis=4 e numero diferente de qualquer nota ja transmitida
+        com outro tpEmis. Cessado o problema, a NF-e correspondente tem de ser transmitida ao autorizador de origem dentro
+        do prazo da legislacao.
+
+
+        Transporte: SOAP 1.2 sobre HTTPS com autenticacao mutua (certificado ICP-Brasil). O corpo e um envelope soap12:Envelope
+        com nfeCabecMsg (cUF e versaoDados) no Header e nfeDadosMsg no Body. O HTTP devolve sempre 200: o resultado de negocio
+        esta em cStat e xMotivo.
+
+
+        URL real deste servico: /NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx
+
+        Observacao: no OpenAPI este caminho recebe um fragmento (#evento-...) apenas para diferenciar operacoes SOAP que compartilham
+        o mesmo arquivo .asmx; o fragmento nao e enviado na requisicao.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://portalsped.fazenda.mg.gov.br/spedmg/nfe/webservices/
+      x-acao-canonica: emitir
+      x-entidade-canonica: NotaFiscal
+      x-url-real: /NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx
+      x-seguro-para-executar: false
+      requestBody:
+        required: true
+        content:
+          application/soap+xml:
+            schema:
+              type: string
+              contentMediaType: application/soap+xml
+              description: Envelope SOAP 1.2 completo. O conteudo de nfeDadosMsg segue o schema XSD indicado em x-schema-xsd.
+            example: '{"soap_body": "<detEvento versao=\"1.00\"><descEvento>EPEC</descEvento><cOrgaoAutor>43</cOrgaoAutor><tpAutor>1</tpAutor><verAplic>ERP
+              1.0</verAplic><dhEmi>2026-09-18T12:00:00-03:00</dhEmi><tpNF>1</tpNF><IE>0000000000</IE><dest><UF>SP</UF><CNPJ>00000000000191</CNPJ><vNF>1500.00</vNF><vICMS>270.00</vICMS><vST>0.00</vST></dest></detEvento>"}'
+      responses:
+        '200':
+          description: Envelope SOAP 1.2 de resposta. cStat/xMotivo indicam sucesso ou rejeicao; consulte a lista de codigos
+            em erros[] do endpoints.json.
+          content:
+            application/soap+xml:
+              schema:
+                type: string
+                contentMediaType: application/soap+xml
+              example: '{"retEnvEvento": {"cStat": "128", "xMotivo": "Lote de Evento Processado", "retEvento": [{"infEvento":
+                {"cStat": "135", "xMotivo": "Evento registrado e vinculado a NF-e", "tpEvento": "110140", "nProt": "891260000000123",
+                "chNFePend": ["43260900000000000191550010000000094000000097"]}}]}}'
+        '500':
+          description: SOAP Fault. Costuma indicar payload malformado, versaoDados incompativel ou indisponibilidade do autorizador.
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/soap+xml; charset=utf-8
+        description: SOAP 1.2 usa application/soap+xml, nao text/xml.
+      servers: *id001
+  /NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx:
+    post:
+      operationId: sefaz-nfe__nota_fiscal__listar
+      summary: NFeDistribuicaoDFe - metodo nfeDistDFeInteresse (schema distDFeInt_v9.99.xsd), versao 1.00
+      description: 'Servico do Ambiente Nacional que entrega ao interessado os documentos fiscais eletronicos e resumos que
+        nao foram gerados por ele: NF-e emitidas contra o seu CNPJ, eventos de cancelamento, Carta de Correcao, resumos de
+        eventos de CT-e e MDF-e e outros. Aceita tres modos: distNSU (lote a partir do ultimo NSU conhecido), consNSU (um
+        NSU especifico, para fechar lacuna) e consChNFe (uma NF-e por chave de acesso). Devolve ate 50 documentos por chamada,
+        cada um em docZip compactado em GZip e codificado em Base64, com o atributo schema identificando o tipo.
+
+
+        Quando usar: E o unico mecanismo de notificacao do ecossistema NF-e: nao ha webhook. Use em rotina agendada para descobrir
+        notas recebidas de fornecedores, alimentar contas a pagar e entrada de mercadoria, e disparar a manifestacao do destinatario.
+        Tambem serve para montar base analitica de compras a partir do XML oficial.
+
+
+        Transporte: SOAP 1.2 sobre HTTPS com autenticacao mutua (certificado ICP-Brasil). O corpo e um envelope soap12:Envelope
+        com nfeCabecMsg (cUF e versaoDados) no Header e nfeDadosMsg no Body. O HTTP devolve sempre 200: o resultado de negocio
+        esta em cStat e xMotivo.
+
+
+        URL real deste servico: /NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=LrBx7WT9PuA=
+      x-acao-canonica: listar
+      x-entidade-canonica: NotaFiscal
+      x-url-real: /NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx
+      x-seguro-para-executar: true
+      requestBody:
+        required: true
+        content:
+          application/soap+xml:
+            schema:
+              type: string
+              contentMediaType: application/soap+xml
+              description: Envelope SOAP 1.2 completo. O conteudo de nfeDadosMsg segue o schema XSD indicado em x-schema-xsd.
+            example: '{"soap_body": "<distDFeInt versao=\"1.01\" xmlns=\"http://www.portalfiscal.inf.br/nfe\"><tpAmb>1</tpAmb><cUFAutor>43</cUFAutor><CNPJ>00000000000191</CNPJ><distNSU><ultNSU>000000000000000</ultNSU></distNSU></distDFeInt>"}'
+      responses:
+        '200':
+          description: Envelope SOAP 1.2 de resposta. cStat/xMotivo indicam sucesso ou rejeicao; consulte a lista de codigos
+            em erros[] do endpoints.json.
+          content:
+            application/soap+xml:
+              schema:
+                type: string
+                contentMediaType: application/soap+xml
+              example: '{"retDistDFeInt": {"tpAmb": "1", "cStat": "138", "xMotivo": "Documento localizado para o destinatario",
+                "ultNSU": "000000000001240", "maxNSU": "000000000001999", "loteDistDFeInt": {"docZip": [{"@NSU": "000000000001239",
+                "@schema": "resNFe_v1.01.xsd"}, {"@NSU": "000000000001240", "@schema": "procNFe_v4.00.xsd"}]}}}'
+        '500':
+          description: SOAP Fault. Costuma indicar payload malformado, versaoDados incompativel ou indisponibilidade do autorizador.
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/soap+xml; charset=utf-8
+        description: SOAP 1.2 usa application/soap+xml, nao text/xml.
+      servers:
+      - url: https://www1.nfe.fazenda.gov.br
+        description: Ambiente Nacional - producao (Relacao de Servicos Web do Portal Nacional)
+      - url: https://hom1.nfe.fazenda.gov.br
+        description: 'Ambiente Nacional - homologacao (INFERIDO: nao publicado na Relacao de Servicos Web; confirmar antes
+          de usar)'
+  /ws/cadconsultacadastro/cadconsultacadastro4.asmx:
+    post:
+      operationId: sefaz-nfe__pessoa__obter__cadastro_icms
+      summary: NfeConsultaCadastro - metodo consultaCadastro (schema consCad_v2.00.xsd)
+      description: 'Consulta o cadastro de contribuintes do ICMS de uma unidade federada por CNPJ, IE ou CPF. Devolve situacao
+        cadastral (habilitado ou nao), indicadores de credenciamento para NF-e e CT-e, razao social, nome fantasia, regime
+        de apuracao, CNAE, datas de inicio de atividade, ultima alteracao e baixa, IE unica e endereco. Contribuinte com inscricao
+        unica pode devolver varios estabelecimentos (cStat 112).
+
+
+        Quando usar: Antes de faturar para um cliente novo ou para higienizar a base de clientes e fornecedores, evitando
+        rejeicoes por IE invalida ou destinatario nao contribuinte. O servico e oferecido obrigatoriamente pelas UF que autorizam
+        documentos fiscais eletronicos, mas o MOC avisa que a disponibilidade dele e menor que a dos demais web services.
+
+
+        Transporte: SOAP 1.2 sobre HTTPS com autenticacao mutua (certificado ICP-Brasil). O corpo e um envelope soap12:Envelope
+        com nfeCabecMsg (cUF e versaoDados) no Header e nfeDadosMsg no Body. O HTTP devolve sempre 200: o resultado de negocio
+        esta em cStat e xMotivo.
+
+
+        URL real deste servico: /ws/cadconsultacadastro/cadconsultacadastro4.asmx'
+      tags:
+      - Pessoa
+      x-confianca: verificado
+      x-fonte-url: https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=LrBx7WT9PuA=
+      x-acao-canonica: obter
+      x-entidade-canonica: Pessoa
+      x-url-real: /ws/cadconsultacadastro/cadconsultacadastro4.asmx
+      x-seguro-para-executar: true
+      requestBody:
+        required: true
+        content:
+          application/soap+xml:
+            schema:
+              type: string
+              contentMediaType: application/soap+xml
+              description: Envelope SOAP 1.2 completo. O conteudo de nfeDadosMsg segue o schema XSD indicado em x-schema-xsd.
+            example: '{"soap_body": "<ConsCad versao=\"2.00\" xmlns=\"http://www.portalfiscal.inf.br/nfe\"><infCons><xServ>CONS-CAD</xServ><UF>RS</UF><CNPJ>00000000000191</CNPJ></infCons></ConsCad>"}'
+      responses:
+        '200':
+          description: Envelope SOAP 1.2 de resposta. cStat/xMotivo indicam sucesso ou rejeicao; consulte a lista de codigos
+            em erros[] do endpoints.json.
+          content:
+            application/soap+xml:
+              schema:
+                type: string
+                contentMediaType: application/soap+xml
+              example: '{"retConsCad": {"infCons": {"cStat": "111", "xMotivo": "Consulta cadastro com uma ocorrencia", "UF":
+                "RS", "CNPJ": "00000000000191", "dhCons": "2026-09-18T14:00:00-03:00", "infCad": [{"IE": "0000000000", "CNPJ":
+                "00000000000191", "UF": "RS", "cSit": "1", "indCredNFe": "1", "indCredCTe": "0", "xNome": "EMPRESA EXEMPLO
+                LTDA", "CNAE": "4711302", "dIniAtiv": "2010-01-04", "Ender": {"xLgr": "RUA EXEMPLO", "nro": "100", "xBairro":
+                "CENTRO", "cMun": "4314902", "xMun": "PORTO ALEGRE", "CEP": "90000000"}}]}}}'
+        '500':
+          description: SOAP Fault. Costuma indicar payload malformado, versaoDados incompativel ou indisponibilidade do autorizador.
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+          enum:
+          - application/soap+xml; charset=utf-8
+        description: SOAP 1.2 usa application/soap+xml, nao text/xml.
+      servers:
+      - url: https://cad.svrs.rs.gov.br
+        description: SVRS consulta cadastro - producao (host proprio, diferente dos demais servicos do SVRS)
+      - url: https://cad-homologacao.svrs.rs.gov.br
+        description: 'SVRS consulta cadastro - homologacao (INFERIDO: nao confirmado em fonte oficial nesta consulta)'
