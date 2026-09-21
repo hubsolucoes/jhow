@@ -1,5 +1,20 @@
 # Changelog do catálogo
 
+## 2026-09-21 — Passagem do projeto
+
+- O proprietário assume a captação de clientes; a parte técnica passa para outro funcionário.
+- `COMECE-AQUI.md` na raiz do repositório: produto, estado atual, mapa do repositório, como rodar, processo de lotes com modelo de instrução para agentes, decisões tomadas, pendências priorizadas e cuidados.
+- `scripts/gerar_indice.py` e `relatorios/indice-sistemas.md`: visão única dos 10 sistemas, com índice, endpoints, autenticação, armadilhas e lacunas.
+- Manifest: lote P1 (SyGeCom) marcado como concluído.
+
+## 2026-09-18 — Site ligado à IA e ao Sagi
+
+- Site passa a consultar o modelo no servidor (`ANTHROPIC_API_KEY` ou `OPENAI_API_KEY` em variável de ambiente) com o conhecimento gerado do catálogo.
+- Escopo do piloto restrito ao Sagi (SyGeCom): 14 consultas executáveis.
+- Executor no servidor faz login no Sagi, pagina e devolve as linhas; credenciais pedidas em formulário, mantidas na memória do navegador e nunca enviadas ao modelo.
+- Dados fictícios removidos do site.
+- Repositório tornado público a pedido do proprietário, após varredura sem nenhuma chave no histórico.
+
 ## 2026-09-18 — Lote 3 concluído
 
 - nfe-io (69), plugnotas (62), sefaz-nfe (43). Detalhes em `relatorios/lote-03.md`.

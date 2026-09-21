@@ -5,7 +5,7 @@
   "aguardando_aprovacao": false,
   "aprovado_em": "2026-09-14",
   "criado_em": "2026-09-14",
-  "atualizado_em": "2026-09-18",
+  "atualizado_em": "2026-09-21",
   "legenda_status": {
     "pendente": "ainda não iniciado",
     "em_andamento": "lote em execução",
@@ -124,8 +124,9 @@
       "sistemas": [
         "sygecom"
       ],
-      "status": "em_andamento",
-      "motivo": "pedido do usuário em 2026-09-17: piloto de teste do executor"
+      "status": "concluido",
+      "motivo": "pedido do usuário em 2026-09-17: piloto de teste do executor",
+      "concluido_em": "2026-09-17"
     },
     {
       "lote": 3,
@@ -2837,5 +2838,9 @@
     }
   ],
   "bloqueios": [],
-  "taxonomia_versao": "1.2.0"
+  "taxonomia_versao": "1.2.0",
+  "responsaveis": {
+    "desde": "2026-09-21",
+    "observacao": "Projeto técnico passa para outro funcionário; o proprietário fica com a captação de clientes. Ver COMECE-AQUI.md na raiz do repositório."
+  }
 }
