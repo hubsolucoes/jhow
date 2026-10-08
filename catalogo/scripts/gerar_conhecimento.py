@@ -21,6 +21,65 @@ def curto(texto, limite=LIMITE_DESCRICAO):
     return texto if len(texto) <= limite else texto[: limite - 1].rstrip() + "…"
 
 
+ENUMS_VISIVEIS = {"tipo", "status", "status_pedido"}
+
+
+def planejar_filtros(endpoint, paginacao):
+    """Decide, a partir dos parâmetros documentados, o que o site pergunta e o que envia sozinho.
+
+    - Período (par de datas inicial/final), data de referência e filial viram campos do formulário.
+    - Enums de tipo e situação viram listas de opções.
+    - Parâmetros OBRIGATÓRIOS com padrão documentado são enviados sozinhos (ex.: codfor=0, "todos").
+      Padrões de parâmetros opcionais NÃO são enviados: alguns restringem o resultado
+      (ex.: ecommerce=true em produtos).
+    """
+    params_pag = {paginacao.get("param_pagina"), paginacao.get("param_tamanho"), paginacao.get("param_cursor")}
+    campos, fixos, offset_base = [], {}, 0
+
+    for p in endpoint.get("parametros", []):
+        nome, local = p.get("nome", ""), p.get("local")
+        descricao = str(p.get("descricao") or "").lower()
+        if local == "path":
+            # parâmetro no próprio endereço (ex.: /saldo/fornecedores/{id}): sempre perguntado
+            campos.append({"nome": nome, "rotulo": curto(p.get("descricao"), 60) or nome, "tipo": "texto",
+                           "papel": "caminho", "obrigatorio": True, "padrao": "",
+                           "dica": "Obrigatório: faz parte do endereço da consulta."})
+            continue
+        if local != "query":
+            continue
+        if nome in params_pag:
+            if paginacao.get("tipo") == "offset" and nome == paginacao.get("param_pagina") and "base 1" in descricao:
+                offset_base = 1
+            continue
+        baixo = nome.lower()
+        obrigatorio = bool(p.get("obrigatorio"))
+        padrao = p.get("default")
+
+        if p.get("tipo") == "date" and any(t in baixo for t in ("inicial", "inicio")):
+            campos.append({"nome": nome, "rotulo": "Data inicial", "tipo": "data", "papel": "periodo_inicio",
+                           "obrigatorio": obrigatorio})
+        elif p.get("tipo") == "date" and any(t in baixo for t in ("final", "fim")):
+            campos.append({"nome": nome, "rotulo": "Data final", "tipo": "data", "papel": "periodo_fim",
+                           "obrigatorio": obrigatorio})
+        elif p.get("tipo") == "date":
+            campos.append({"nome": nome, "rotulo": "Data de referência", "tipo": "data", "papel": "data",
+                           "obrigatorio": obrigatorio})
+        elif baixo == "filial":
+            campos.append({"nome": nome, "rotulo": "Filial", "tipo": "texto", "papel": "filial",
+                           "obrigatorio": obrigatorio, "padrao": padrao if padrao not in (None, "") else "",
+                           "dica": curto(p.get("descricao"), 90)})
+        elif p.get("enum") and (baixo in ENUMS_VISIVEIS or (obrigatorio and padrao in (None, ""))):
+            campos.append({"nome": nome, "rotulo": "Tipo" if baixo == "tipo" else "Situação", "tipo": "opcao",
+                           "papel": "opcao", "obrigatorio": obrigatorio,
+                           "opcoes": [str(o) for o in p["enum"]],
+                           "padrao": str(padrao) if padrao not in (None, "") else "",
+                           "dica": curto(p.get("descricao"), 90)})
+        elif obrigatorio and padrao not in (None, ""):
+            fixos[nome] = padrao
+
+    return campos, fixos, offset_base
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     # --sistemas slug1,slug2 limita o conhecimento (útil para pilotos)
@@ -73,11 +132,18 @@ def main():
                 base["paginacao"] = (ex.get("paginacao") or {}).get("tipo")
                 consultas.append(base)
                 # receita completa para o executor do servidor
+                paginacao = ex.get("paginacao") or {}
+                campos_filtro, padroes_fixos, offset_base = planejar_filtros(e, paginacao)
+                if offset_base:
+                    paginacao = {**paginacao, "offset_base": offset_base}
+                base["campos_filtro"] = campos_filtro
                 execucao[s["slug"]]["endpoints"][e["id"]] = {
                     "metodo": e["metodo"], "path": e["path"],
                     "lista_em": ex.get("lista_em"), "campo_total": ex.get("campo_total"),
-                    "paginacao": ex.get("paginacao"),
+                    "paginacao": paginacao,
                     "filtros": ex.get("filtros_recomendados") or [],
+                    "campos_filtro": campos_filtro,
+                    "padroes_fixos": padroes_fixos,
                     "colunas": ex.get("colunas_sugeridas") or [],
                     "titulo": curto(e.get("nome_fornecedor") or e.get("descricao"), 80),
                 }

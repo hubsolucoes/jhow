@@ -27,10 +27,26 @@ type ReceitaEndpoint = {
     param_cursor?: string | null;
     campo_proximo?: string | null;
     fim?: string | null;
+    /** 1 quando o deslocamento começa em 1 (ex.: movimentos do Sagi). */
+    offset_base?: number;
   };
   filtros: { parametro: string; descricao: string }[];
+  campos_filtro?: CampoFiltro[];
+  /** Parâmetros obrigatórios enviados sempre com o padrão documentado (ex.: codfor=0). */
+  padroes_fixos?: Record<string, string | number | boolean>;
   colunas: Coluna[];
   titulo: string;
+};
+
+export type CampoFiltro = {
+  nome: string;
+  rotulo: string;
+  tipo: "data" | "texto" | "opcao";
+  papel: "periodo_inicio" | "periodo_fim" | "data" | "filial" | "opcao" | "caminho";
+  obrigatorio: boolean;
+  padrao?: string;
+  opcoes?: string[];
+  dica?: string;
 };
 
 type ReceitaAuth = {
@@ -305,6 +321,35 @@ export async function consultarSistema(data: Entrada) {
     ).replace(/\/$/, "");
     if (!base) throw new Error("Endereço da API não informado.");
 
+    // filtros: valida obrigatórios antes de autenticar, para não gastar login à toa
+    const campos = receita.campos_filtro ?? [];
+    const informados = Object.fromEntries(
+      Object.entries(data.filtros ?? {}).filter(([, v]) => String(v ?? "").trim() !== ""),
+    );
+    const faltando = campos
+      .filter((c) => c.obrigatorio && !informados[c.nome])
+      .map((c) => c.rotulo);
+    if (faltando.length > 0) {
+      throw new Error(`Preencha os filtros obrigatórios: ${faltando.join(", ")}.`);
+    }
+    const inicio = campos.find((c) => c.papel === "periodo_inicio");
+    const fim = campos.find((c) => c.papel === "periodo_fim");
+    if (inicio && fim && informados[inicio.nome] && informados[fim.nome]) {
+      if (String(informados[inicio.nome]) > String(informados[fim.nome])) {
+        throw new Error("A data inicial é posterior à data final.");
+      }
+    }
+
+    // parâmetros de caminho (ex.: /saldo/fornecedores/{id}) saem da query e entram no endereço
+    let caminho = receita.path;
+    for (const c of campos.filter((c) => c.papel === "caminho")) {
+      caminho = caminho.replace(`{${c.nome}}`, encodeURIComponent(String(informados[c.nome])));
+      delete informados[c.nome];
+    }
+    const consultaBase: Record<string, string> = {};
+    for (const [k, v] of Object.entries(receita.padroes_fixos ?? {})) consultaBase[k] = String(v);
+    for (const [k, v] of Object.entries(informados)) consultaBase[k] = String(v);
+
     const cabecalhos = await autenticar(sistema.auth, data.credenciais, base);
 
     const maximo = Math.min(data.maximo ?? 1000, 5000);
@@ -315,9 +360,9 @@ export async function consultarSistema(data: Entrada) {
     let cursor: string | number | null = null;
 
     while (pagina < MAXIMO_PAGINAS) {
-      const parametros = new URLSearchParams(data.filtros ?? {});
+      const parametros = new URLSearchParams(consultaBase);
       if (pag.tipo === "offset" && pag.param_pagina && pag.param_tamanho) {
-        parametros.set(pag.param_pagina, String(linhas.length));
+        parametros.set(pag.param_pagina, String(linhas.length + (pag.offset_base ?? 0)));
         parametros.set(pag.param_tamanho, String(tamanho));
       } else if (pag.tipo === "page" && pag.param_pagina && pag.param_tamanho) {
         parametros.set(pag.param_pagina, String(pagina + 1));
@@ -331,7 +376,7 @@ export async function consultarSistema(data: Entrada) {
       }
 
       const consulta = parametros.toString();
-      const resposta = await comLimite(base + receita.path + (consulta ? `?${consulta}` : ""), {
+      const resposta = await comLimite(base + caminho + (consulta ? `?${consulta}` : ""), {
         method: receita.metodo,
         headers: cabecalhos,
       });

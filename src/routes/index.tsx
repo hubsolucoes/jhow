@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Download, KeyRound, Loader2, Send, Sparkles, Trash2 } from "lucide-react";
+import {
+  Download,
+  KeyRound,
+  Loader2,
+  Send,
+  SlidersHorizontal,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +24,7 @@ import {
   type Consulta,
   type Mensagem,
 } from "@/lib/assistente";
+import type { CampoFiltro } from "@/lib/executor.servidor";
 import { perguntarAoAssistente } from "@/lib/assistente.servidor";
 import { executarConsultaReal } from "@/lib/executor.servidor";
 import conhecimento from "@/lib/conhecimento.json";
@@ -98,58 +107,154 @@ function Texto({ conteudo }: { conteudo: string }) {
   );
 }
 
-function FormularioCredenciais({
+const doisDigitos = (n: number) => String(n).padStart(2, "0");
+/** Data local em AAAA-MM-DD (toISOString usaria UTC e viraria o dia à noite no Brasil). */
+const dataLocal = (d: Date) =>
+  `${d.getFullYear()}-${doisDigitos(d.getMonth() + 1)}-${doisDigitos(d.getDate())}`;
+
+function padraoDoCampo(c: CampoFiltro): string {
+  const hoje = new Date();
+  if (c.papel === "periodo_inicio") {
+    return dataLocal(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  }
+  if (c.papel === "periodo_fim") return dataLocal(hoje);
+  return c.padrao ?? "";
+}
+
+/** Resumo legível dos filtros, para o chat e para a aba Informações da planilha. */
+function resumirFiltros(consulta: Consulta, filtros: Record<string, string>): string {
+  return (consulta.campos_filtro ?? [])
+    .filter((c) => filtros[c.nome])
+    .map((c) => {
+      const v = filtros[c.nome] ?? "";
+      return `${c.rotulo}: ${c.tipo === "data" ? v.split("-").reverse().join("/") : v}`;
+    })
+    .join(" · ");
+}
+
+function FormularioConsulta({
   consulta,
-  valores,
+  credenciais,
+  pedirCredenciais,
   aoConfirmar,
   ocupado,
 }: {
   consulta: Consulta;
-  valores: Record<string, string>;
-  aoConfirmar: (credenciais: Record<string, string>, consulta: Consulta) => void;
+  credenciais: Record<string, string>;
+  pedirCredenciais: boolean;
+  aoConfirmar: (
+    cred: Record<string, string>,
+    filtros: Record<string, string>,
+    consulta: Consulta,
+  ) => void;
   ocupado: boolean;
 }) {
-  const [campos, setCampos] = useState<Record<string, string>>(() => {
-    const inicial: Record<string, string> = {};
-    for (const c of CREDENCIAIS) inicial[c.nome] = valores[c.nome] ?? c.default ?? "";
-    return inicial;
-  });
+  const camposFiltro = consulta.campos_filtro ?? [];
+  const [filtros, setFiltros] = useState<Record<string, string>>(() =>
+    Object.fromEntries(camposFiltro.map((c) => [c.nome, padraoDoCampo(c)])),
+  );
+  const [cred, setCred] = useState<Record<string, string>>(() =>
+    Object.fromEntries(CREDENCIAIS.map((c) => [c.nome, credenciais[c.nome] ?? c.default ?? ""])),
+  );
 
-  const faltando = CREDENCIAIS.some((c) => !campos[c.nome]?.trim());
+  const inicio = camposFiltro.find((c) => c.papel === "periodo_inicio");
+  const fim = camposFiltro.find((c) => c.papel === "periodo_fim");
+  const dataInicio = inicio ? (filtros[inicio.nome] ?? "") : "";
+  const dataFim = fim ? (filtros[fim.nome] ?? "") : "";
+  const periodoInvertido = dataInicio !== "" && dataFim !== "" && dataInicio > dataFim;
+  const faltaFiltro = camposFiltro.some((c) => c.obrigatorio && !filtros[c.nome]?.trim());
+  const faltaCredencial = pedirCredenciais && CREDENCIAIS.some((c) => !cred[c.nome]?.trim());
 
   return (
     <Card className="mt-3 gap-0 border-border/60 p-3">
-      <div className="flex items-center gap-2">
-        <KeyRound className="size-4 text-muted-foreground" />
-        <p className="text-sm font-medium">Credenciais do seu usuário de integração</p>
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Ficam só neste navegador, são usadas apenas nesta consulta e não são enviadas à IA.
-      </p>
       <form
-        className="mt-3 space-y-3"
+        className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
-          aoConfirmar(campos, consulta);
+          aoConfirmar(pedirCredenciais ? cred : credenciais, filtros, consulta);
         }}
       >
-        {CREDENCIAIS.map((c) => (
-          <div key={c.nome} className="space-y-1">
-            <Label htmlFor={`cred-${c.nome}`} className="text-xs">
-              {c.rotulo}
-            </Label>
-            <Input
-              id={`cred-${c.nome}`}
-              type={c.segredo ? "password" : "text"}
-              autoComplete={c.segredo ? "current-password" : "off"}
-              value={campos[c.nome] ?? ""}
-              onChange={(e) => setCampos((atual) => ({ ...atual, [c.nome]: e.target.value }))}
-              placeholder={c.default ?? ""}
-            />
-            <p className="text-[11px] leading-snug text-muted-foreground">{c.onde_obter}</p>
-          </div>
-        ))}
-        <Button type="submit" size="sm" disabled={faltando || ocupado}>
+        {camposFiltro.length > 0 && (
+          <fieldset className="space-y-3">
+            <legend className="flex items-center gap-2 text-sm font-medium">
+              <SlidersHorizontal className="size-4 text-muted-foreground" />
+              Filtros da consulta
+            </legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {camposFiltro.map((c) => (
+                <div key={c.nome} className="space-y-1">
+                  <Label htmlFor={`filtro-${c.nome}`} className="text-xs">
+                    {c.rotulo}
+                    {c.obrigatorio ? " *" : ""}
+                  </Label>
+                  {c.tipo === "opcao" ? (
+                    <select
+                      id={`filtro-${c.nome}`}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={filtros[c.nome] ?? ""}
+                      onChange={(e) => setFiltros((f) => ({ ...f, [c.nome]: e.target.value }))}
+                    >
+                      {!c.obrigatorio && <option value="">Todas</option>}
+                      {(c.opcoes ?? []).map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Input
+                      id={`filtro-${c.nome}`}
+                      type={c.tipo === "data" ? "date" : "text"}
+                      value={filtros[c.nome] ?? ""}
+                      onChange={(e) => setFiltros((f) => ({ ...f, [c.nome]: e.target.value }))}
+                      placeholder={c.papel === "filial" ? "TODAS ou o código da filial" : ""}
+                    />
+                  )}
+                  {c.dica && c.tipo !== "data" && (
+                    <p className="text-[11px] leading-snug text-muted-foreground">{c.dica}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+            {periodoInvertido && (
+              <p className="text-xs text-destructive">A data inicial é posterior à data final.</p>
+            )}
+          </fieldset>
+        )}
+
+        {pedirCredenciais && (
+          <fieldset className="space-y-3">
+            <legend className="flex items-center gap-2 text-sm font-medium">
+              <KeyRound className="size-4 text-muted-foreground" />
+              Credenciais do seu usuário de integração
+            </legend>
+            <p className="text-xs text-muted-foreground">
+              Ficam só neste navegador, são usadas apenas na consulta e não são enviadas à IA.
+            </p>
+            {CREDENCIAIS.map((c) => (
+              <div key={c.nome} className="space-y-1">
+                <Label htmlFor={`cred-${c.nome}`} className="text-xs">
+                  {c.rotulo}
+                </Label>
+                <Input
+                  id={`cred-${c.nome}`}
+                  type={c.segredo ? "password" : "text"}
+                  autoComplete={c.segredo ? "current-password" : "off"}
+                  value={cred[c.nome] ?? ""}
+                  onChange={(e) => setCred((atual) => ({ ...atual, [c.nome]: e.target.value }))}
+                  placeholder={c.default ?? ""}
+                />
+                <p className="text-[11px] leading-snug text-muted-foreground">{c.onde_obter}</p>
+              </div>
+            ))}
+          </fieldset>
+        )}
+
+        <Button
+          type="submit"
+          size="sm"
+          disabled={faltaFiltro || faltaCredencial || periodoInvertido || ocupado}
+        >
           Consultar o Sagi
         </Button>
       </form>
@@ -210,40 +315,54 @@ function Index() {
       ...atual,
       mensagem("cliente", `Pode executar: ${consulta.descricao.slice(0, 60)}`),
     ]);
-    if (temCredenciais) {
-      void executar(credenciais, consulta);
-    } else {
-      setMensagens((atual) => [
-        ...atual,
-        mensagem(
-          "assistente",
-          "Para consultar o Sagi eu preciso das credenciais do usuário de integração. Preencha abaixo — elas ficam só no seu navegador.",
-          { pedirCredenciais: consulta },
-        ),
-      ]);
+    const temFiltros = (consulta.campos_filtro ?? []).length > 0;
+    if (temCredenciais && !temFiltros) {
+      void executar(credenciais, {}, consulta);
+      return;
     }
+    const partes = [
+      temFiltros ? "escolha os filtros" : "",
+      temCredenciais
+        ? ""
+        : "informe as credenciais do usuário de integração (ficam só no seu navegador)",
+    ].filter(Boolean);
+    const frase = partes.join(" e ");
+    setMensagens((atual) => [
+      ...atual,
+      mensagem("assistente", frase.charAt(0).toUpperCase() + frase.slice(1) + ".", {
+        formulario: consulta,
+      }),
+    ]);
   }
 
-  async function executar(cred: Record<string, string>, consulta: Consulta) {
+  async function executar(
+    cred: Record<string, string>,
+    filtros: Record<string, string>,
+    consulta: Consulta,
+  ) {
     setCredenciais(cred);
     setOcupado(true);
+    const resumo = resumirFiltros(consulta, filtros);
     try {
       const resultado = await executarConsultaReal({
-        data: { endpointId: consulta.id, credenciais: cred, maximo: 1000 },
+        data: { endpointId: consulta.id, credenciais: cred, filtros, maximo: 1000 },
       });
-      const planilha = planilhaDaConsulta(consulta, resultado);
+      const planilha = planilhaDaConsulta(consulta, resultado, resumo);
       setMensagens((atual) => [
         ...atual,
         mensagem(
           "assistente",
           resultado.linhas.length > 0
             ? `Pronto. ${resultado.linhas.length} registros de **${resultado.titulo}**.` +
+                (resumo ? `\nFiltros: ${resumo}.` : "") +
                 (resultado.aviso
                   ? `
 
 Observação: ${resultado.aviso}`
                   : "")
-            : `A consulta funcionou, mas o Sagi não devolveu nenhum registro para **${resultado.titulo}**. Talvez falte um filtro (filial, data) ou o usuário não tenha acesso a esses dados.`,
+            : `A consulta funcionou, mas o Sagi não devolveu nenhum registro para **${resultado.titulo}**` +
+                (resumo ? ` com os filtros ${resumo}` : "") +
+                ". Tente ampliar o período ou trocar a filial — ou o usuário de integração não tem acesso a esses dados.",
           resultado.linhas.length > 0 ? { planilha } : {},
         ),
       ]);
@@ -349,12 +468,15 @@ Observação: ${resultado.aviso}`
                   </div>
                 )}
 
-                {m.pedirCredenciais && (
-                  <FormularioCredenciais
-                    consulta={m.pedirCredenciais}
-                    valores={credenciais}
+                {m.formulario && (
+                  <FormularioConsulta
+                    consulta={m.formulario}
+                    credenciais={credenciais}
+                    pedirCredenciais={!temCredenciais}
                     ocupado={ocupado}
-                    aoConfirmar={(cred, consulta) => void executar(cred, consulta)}
+                    aoConfirmar={(cred, filtros, consulta) =>
+                      void executar(cred, filtros, consulta)
+                    }
                   />
                 )}
 

@@ -1,3 +1,4 @@
+import type { CampoFiltro } from "./executor.servidor";
 import type { DadosPlanilha } from "./planilha";
 
 export type Consulta = {
@@ -14,6 +15,7 @@ export type Consulta = {
   colunas?: string[];
   paginacao?: string;
   fonte?: string;
+  campos_filtro?: CampoFiltro[];
 };
 
 export type Mensagem = {
@@ -22,7 +24,8 @@ export type Mensagem = {
   texto: string;
   propostas?: Consulta[];
   planilha?: DadosPlanilha;
-  pedirCredenciais?: Consulta;
+  /** Formulário de filtros e, se faltarem, credenciais para executar a consulta. */
+  formulario?: Consulta;
 };
 
 const identificador = () => Math.random().toString(36).slice(2, 10);
@@ -55,6 +58,7 @@ export function planilhaDaConsulta(
     linhas: Record<string, string | number>[];
     aviso?: string | null;
   },
+  filtrosAplicados = "",
 ): DadosPlanilha {
   return {
     nomeArquivo: `${consulta.id.replace(/\./g, "_")}.xlsx`,
@@ -68,6 +72,7 @@ export function planilhaDaConsulta(
       { rotulo: "Registros", valor: String(resultado.linhas.length) },
       { rotulo: "Consultado em", valor: new Date().toLocaleString("pt-BR") },
       { rotulo: "Documentação", valor: consulta.fonte ?? "" },
+      { rotulo: "Filtros aplicados", valor: filtrosAplicados || "nenhum" },
       ...(resultado.aviso ? [{ rotulo: "Ajuste de colunas", valor: resultado.aviso }] : []),
       {
         rotulo: "Observação",
