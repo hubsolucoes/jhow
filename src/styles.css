@@ -321,22 +321,7 @@
   }
   .fluxo-celula {
     fill: var(--border);
-  }
-  .fluxo-celula-anima {
     animation: celula-acende 1.6s ease-in-out infinite;
-  }
-  .fluxo-controle {
-    display: flex;
-    margin: 0.25rem auto 0;
-    align-items: center;
-    gap: 0.35rem;
-    border-radius: var(--radius);
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    color: var(--muted-foreground);
-  }
-  .fluxo-controle:hover {
-    color: var(--foreground);
   }
   @keyframes celula-acende {
     0%,

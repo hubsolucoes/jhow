@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { Pause, Play } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 /**
  * Faixa animada do topo da landing: perguntas correm por uma linha curva até a grade
  * do Stagium e saem do outro lado como planilhas .xlsx.
- * Roda sempre (pedido do cliente); o botão abaixo da faixa permite pausar.
+ * Roda sempre, por decisão do cliente (sem botão de pausa).
  */
 
 const PERGUNTAS = [
@@ -45,8 +44,6 @@ const LINHAS_GRADE = 3;
 export function FluxoPlanilhas() {
   const entrada = useRef<SVGTextPathElement>(null);
   const saida = useRef<SVGTextPathElement>(null);
-  const decorrido = useRef(0); // segundos de animação acumulados entre pausas
-  const [tocando, setTocando] = useState(true);
 
   useEffect(() => {
     const trilhas = [entrada.current, saida.current].filter(
@@ -62,27 +59,21 @@ export function FluxoPlanilhas() {
         t.setAttribute("startOffset", String(((segundos * VELOCIDADE) % ciclo) - ciclo));
       });
 
-    if (decorrido.current === 0) decorrido.current = 8; // começa com a faixa já preenchida
-    posicionar(decorrido.current);
-    if (!tocando) return;
-
     let quadro = 0;
-    let anterior = performance.now();
+    const inicio = performance.now() - 8000; // começa com a faixa já preenchida
     const passo = (agora: number) => {
-      decorrido.current += (agora - anterior) / 1000;
-      anterior = agora;
-      posicionar(decorrido.current);
+      posicionar((agora - inicio) / 1000);
       quadro = requestAnimationFrame(passo);
     };
     quadro = requestAnimationFrame(passo);
     return () => cancelAnimationFrame(quadro);
-  }, [tocando]);
+  }, []);
 
   const textoEntrada = Array(REPETICOES).fill(PERGUNTAS.join(VAO) + VAO).join("");
 
   return (
-    <div className="fluxo">
-      <svg aria-hidden viewBox="0 0 1440 320" preserveAspectRatio="xMidYMid slice">
+    <div className="fluxo" aria-hidden>
+      <svg viewBox="0 0 1440 320" preserveAspectRatio="xMidYMid slice">
         <defs>
           <path id="fluxo-entrada" d={CAMINHO_ENTRADA} />
           <path id="fluxo-saida" d={CAMINHO_SAIDA} />
@@ -121,17 +112,13 @@ export function FluxoPlanilhas() {
                 width="10"
                 height="8"
                 rx="1"
-                className={tocando ? "fluxo-celula fluxo-celula-anima" : "fluxo-celula"}
+                className="fluxo-celula"
                 style={{ animationDelay: `${c * 0.18 + l * 0.06}s` }}
               />
             )),
           )}
         </g>
       </svg>
-      <button type="button" className="fluxo-controle" onClick={() => setTocando((t) => !t)}>
-        {tocando ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-        {tocando ? "Pausar animação" : "Animar"}
-      </button>
     </div>
   );
 }
