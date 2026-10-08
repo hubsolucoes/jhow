@@ -39,7 +39,10 @@ Nunca coloque a chave em arquivo do repositório: ele sincroniza com o GitHub.
 
 | Parte | Onde |
 |---|---|
-| Interface do chat | `src/routes/index.tsx` |
+| Landing page (`/`) | `src/routes/index.tsx` |
+| Interface do chat (`/chat`) | `src/routes/chat.tsx` |
+| Grade de planilha (proposta, prévia, landing) | `src/components/grade-planilha.tsx` |
+| Contato comercial (WhatsApp) | `src/lib/contato.ts` |
 | Conversa com a IA (servidor) | `src/lib/assistente.servidor.ts` |
 | Execução na API do cliente (servidor) | `src/lib/executor.servidor.ts` |
 | Conhecimento gerado do catálogo | `src/lib/conhecimento.json` |

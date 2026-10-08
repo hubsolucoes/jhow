@@ -239,6 +239,49 @@
     text-align: right !important;
   }
 
+  /* Tabela de texto corrido no mesmo estilo de grade (landing: como funciona). */
+  .grade-texto {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    white-space: normal;
+  }
+  .grade-texto th,
+  .grade-texto td {
+    max-width: none;
+    padding: 0.85rem 1rem;
+    vertical-align: top;
+  }
+  .grade-texto .grade-linha {
+    width: 2.75rem;
+  }
+
+  /* Landing */
+  .titulo-hero {
+    font-size: clamp(2.5rem, 4.4vw, 4.1rem);
+    line-height: 1.02;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+    font-variation-settings: "CASL" 0.35, "MONO" 0;
+  }
+  .titulo-secao {
+    font-size: clamp(1.75rem, 3.2vw, 2.5rem);
+    line-height: 1.1;
+    font-weight: 750;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+    font-variation-settings: "CASL" 0.35, "MONO" 0;
+  }
+  .link-pergunta {
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.3em;
+  }
+  .link-pergunta:hover {
+    text-decoration-color: var(--marca);
+    background: color-mix(in oklab, var(--marca) 28%, transparent);
+  }
   /* O único movimento automático: as linhas da prévia entram de cima para baixo. */
   @media (prefers-reduced-motion: no-preference) {
     .grade-preenche tbody tr {

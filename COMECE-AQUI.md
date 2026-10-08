@@ -40,7 +40,9 @@ jhow/
 ├── COMECE-AQUI.md              ← este arquivo
 ├── README.md                   ← o site: como ligar a IA, segurança, estrutura
 ├── src/                        ← site (TanStack Start + React, publicado pelo Lovable)
-│   ├── routes/index.tsx        ← tela do chat
+│   ├── routes/index.tsx        ← landing page (stagium.lovable.app)
+│   ├── routes/chat.tsx         ← tela do chat (/chat)
+│   ├── lib/contato.ts          ← número do WhatsApp da landing
 │   └── lib/
 │       ├── assistente.servidor.ts  ← conversa com a IA (servidor)
 │       ├── executor.servidor.ts    ← consulta a API do cliente (servidor)
