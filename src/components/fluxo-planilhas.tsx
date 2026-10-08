@@ -4,7 +4,7 @@ import { Pause, Play } from "lucide-react";
 /**
  * Faixa animada do topo da landing: perguntas correm por uma linha curva até a grade
  * do Stagium e saem do outro lado como planilhas .xlsx.
- * Quem pede menos movimento no sistema vê a faixa parada, com um botão para animar.
+ * Roda sempre (pedido do cliente); o botão abaixo da faixa permite pausar.
  */
 
 const PERGUNTAS = [
@@ -46,11 +46,7 @@ export function FluxoPlanilhas() {
   const entrada = useRef<SVGTextPathElement>(null);
   const saida = useRef<SVGTextPathElement>(null);
   const decorrido = useRef(0); // segundos de animação acumulados entre pausas
-  const [tocando, setTocando] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    setTocando(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  }, []);
+  const [tocando, setTocando] = useState(true);
 
   useEffect(() => {
     const trilhas = [entrada.current, saida.current].filter(
@@ -132,16 +128,10 @@ export function FluxoPlanilhas() {
           )}
         </g>
       </svg>
-      {tocando !== null && (
-        <button
-          type="button"
-          className="fluxo-controle"
-          onClick={() => setTocando((t) => !t)}
-        >
-          {tocando ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-          {tocando ? "Pausar animação" : "Animar"}
-        </button>
-      )}
+      <button type="button" className="fluxo-controle" onClick={() => setTocando((t) => !t)}>
+        {tocando ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+        {tocando ? "Pausar animação" : "Animar"}
+      </button>
     </div>
   );
 }

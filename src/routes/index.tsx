@@ -8,7 +8,7 @@ import { linkWhatsApp } from "@/lib/contato";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Stagium — não exporte, só pergunte" },
+      { title: "Stagium — não exporte, só peça" },
       {
         name: "description",
         content:
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "Stagium" },
       {
         property: "og:description",
-        content: "Não exporte, só pergunte. A IA que transforma perguntas em planilhas do Sagi.",
+        content: "Não exporte, só peça. A IA que transforma perguntas em planilhas do Sagi.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -145,7 +145,7 @@ function Landing() {
             <h1 className="titulo-hero">
               Não exporte,
               <br />
-              <em>só pergunte.</em>
+              <em>só peça.</em>
             </h1>
             <p className="mx-auto mt-9 max-w-[34ch] text-lg leading-relaxed sm:text-xl">
               A IA que lê o seu Sagi e transforma perguntas em planilhas prontas.

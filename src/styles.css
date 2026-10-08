@@ -280,6 +280,12 @@
     margin-top: 0.5rem;
     padding-bottom: 0.75rem;
   }
+  /* Em telas largas a faixa sobe: a volta das perguntas fica ao lado do subtítulo. */
+  @media (min-width: 1024px) {
+    .fluxo {
+      margin-top: -9vw;
+    }
+  }
   /* Altura acompanha a largura (proporção do desenho), para não cortar a volta em telas largas. */
   .fluxo svg {
     display: block;
