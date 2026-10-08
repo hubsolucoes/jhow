@@ -1,19 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import {
-  Download,
-  KeyRound,
-  Loader2,
-  Send,
-  SlidersHorizontal,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
+import { ArrowUp, Download, KeyRound, Loader2, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,7 +19,7 @@ import { perguntarAoAssistente } from "@/lib/assistente.servidor";
 import { executarConsultaReal } from "@/lib/executor.servidor";
 import conhecimento from "@/lib/conhecimento.json";
 import { interpretarPeriodo, type PeriodoInterpretado } from "@/lib/periodo";
-import { baixarPlanilha } from "@/lib/planilha";
+import { baixarPlanilha, type DadosPlanilha } from "@/lib/planilha";
 
 const CONSULTAS = conhecimento.consultas as Consulta[];
 const CREDENCIAIS = (
@@ -94,7 +84,7 @@ function Texto({ conteudo }: { conteudo: string }) {
               return (
                 <code
                   key={j}
-                  className="rounded bg-background/60 px-1.5 py-0.5 font-mono text-[0.85em]"
+                  className="mono rounded-sm bg-muted px-1 py-0.5 text-[0.85em]"
                 >
                   {parte.slice(1, -1)}
                 </code>
@@ -137,6 +127,113 @@ function resumirFiltros(consulta: Consulta, filtros: Record<string, string>): st
     .join(" · ");
 }
 
+/** Letra da coluna como no Excel: A, B, …, Z, AA, AB… */
+function letraDaColuna(indice: number): string {
+  let letra = "";
+  for (let n = indice + 1; n > 0; n = Math.floor((n - 1) / 26)) {
+    letra = String.fromCharCode(65 + ((n - 1) % 26)) + letra;
+  }
+  return letra;
+}
+
+/**
+ * Pedaço de planilha: letras das colunas, números das linhas e a linha de títulos.
+ * Sem linhas de dados, mostra uma linha vazia (é a proposta, antes de consultar).
+ */
+function Grade({
+  descricao,
+  titulos,
+  chaves = [],
+  linhas = [],
+}: {
+  descricao: string;
+  titulos: string[];
+  chaves?: string[];
+  linhas?: Record<string, string | number>[];
+}) {
+  return (
+    <div className="grade-rolagem">
+      <table className={linhas.length > 0 ? "grade grade-preenche" : "grade"}>
+        <caption className="sr-only">{descricao}</caption>
+        <thead>
+          <tr>
+            <th className="grade-linha" aria-hidden />
+            {titulos.map((_, c) => (
+              <th key={c} className="grade-letra" aria-hidden>
+                {letraDaColuna(c)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th className="grade-linha mono">1</th>
+            {titulos.map((t) => (
+              <th key={t} scope="col" className="grade-titulo">
+                {t}
+              </th>
+            ))}
+          </tr>
+          {linhas.length === 0 ? (
+            <tr>
+              <th className="grade-linha mono">2</th>
+              {titulos.map((t) => (
+                <td key={t} className="grade-vazia" />
+              ))}
+            </tr>
+          ) : (
+            linhas.map((linha, l) => (
+              <tr key={l} style={{ "--i": l } as React.CSSProperties}>
+                <th className="grade-linha mono">{l + 2}</th>
+                {chaves.map((k) => {
+                  const valor = linha[k];
+                  return (
+                    <td
+                      key={k}
+                      title={valor === undefined ? "" : String(valor)}
+                      className={typeof valor === "number" ? "mono grade-numero" : "mono"}
+                    >
+                      {typeof valor === "number" ? valor.toLocaleString("pt-BR") : (valor ?? "")}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const LINHAS_NA_PREVIA = 6;
+
+function PreviaPlanilha({ planilha, aoBaixar }: { planilha: DadosPlanilha; aoBaixar: () => void }) {
+  const restantes = planilha.linhas.length - LINHAS_NA_PREVIA;
+  return (
+    <div className="mt-4 overflow-hidden rounded-md border bg-card">
+      <p className="px-4 pt-3 pb-2 text-sm font-semibold">{planilha.titulo}</p>
+      <Grade
+        descricao={`Primeiras linhas de ${planilha.titulo}`}
+        titulos={planilha.colunas.map((c) => c.titulo)}
+        chaves={planilha.colunas.map((c) => c.chave)}
+        linhas={planilha.linhas.slice(0, LINHAS_NA_PREVIA)}
+      />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+        <Button size="sm" onClick={aoBaixar}>
+          <Download className="mr-2 size-4" />
+          Baixar planilha (.xlsx)
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          {restantes > 0
+            ? `Mostrando ${LINHAS_NA_PREVIA} de ${planilha.linhas.length.toLocaleString("pt-BR")} linhas. A planilha traz todas.`
+            : `${planilha.linhas.length} ${planilha.linhas.length === 1 ? "linha" : "linhas"}, ${planilha.colunas.length} colunas.`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function FormularioConsulta({
   consulta,
   credenciais,
@@ -173,9 +270,9 @@ function FormularioConsulta({
   const faltaCredencial = pedirCredenciais && CREDENCIAIS.some((c) => !cred[c.nome]?.trim());
 
   return (
-    <Card className="mt-3 gap-0 border-border/60 p-3">
+    <div className="mt-4 rounded-md border bg-card p-4">
       <form
-        className="space-y-4"
+        className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
           aoConfirmar(pedirCredenciais ? cred : credenciais, filtros, consulta);
@@ -203,7 +300,7 @@ function FormularioConsulta({
                   {c.tipo === "opcao" ? (
                     <select
                       id={`filtro-${c.nome}`}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
                       value={filtros[c.nome] ?? ""}
                       onChange={(e) => setFiltros((f) => ({ ...f, [c.nome]: e.target.value }))}
                     >
@@ -271,7 +368,7 @@ function FormularioConsulta({
           Consultar o Sagi
         </Button>
       </form>
-    </Card>
+    </div>
   );
 }
 
@@ -279,6 +376,7 @@ function Index() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([BOAS_VINDAS]);
   const [pergunta, setPergunta] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [etapa, setEtapa] = useState("");
   const [iaLigada, setIaLigada] = useState(true);
   const [credenciais, setCredenciais] = useState<Record<string, string>>({});
   const fim = useRef<HTMLDivElement>(null);
@@ -295,6 +393,7 @@ function Index() {
 
     setMensagens((atual) => [...atual, mensagem("cliente", limpo)]);
     setPergunta("");
+    setEtapa("Procurando a consulta certa no catálogo do Sagi…");
     setOcupado(true);
 
     try {
@@ -360,6 +459,7 @@ function Index() {
     consulta: Consulta,
   ) {
     setCredenciais(cred);
+    setEtapa("Consultando o Sagi e montando a planilha…");
     setOcupado(true);
     const resumo = resumirFiltros(consulta, filtros);
     try {
@@ -407,82 +507,80 @@ Observação: ${resultado.aviso}`
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-background">
-      <header className="border-b bg-card/60 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-4">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Sparkles className="size-5" />
+    <main className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="border-b">
+        <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-x-5 gap-y-3 px-4 py-5">
+          <h1 className="marca-celula">Stagium</h1>
+          <p className="order-last w-full text-sm text-muted-foreground sm:order-none sm:w-auto sm:flex-1">
+            Pergunte o que precisa do Sagi e receba a planilha pronta.
+          </p>
+          <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+            {temCredenciais && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => {
+                  setCredenciais({});
+                  toast.success("Credenciais esquecidas");
+                }}
+              >
+                Esquecer credenciais
+              </Button>
+            )}
+            <span className="flex items-center gap-1.5">
+              <span
+                className={`size-2 rounded-full ${iaLigada ? "bg-emerald-600" : "bg-muted-foreground/50"}`}
+                aria-hidden
+              />
+              {iaLigada ? "IA conectada" : "IA desligada"}
+            </span>
           </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-semibold text-foreground">Stagium</h1>
-            <p className="truncate text-sm text-muted-foreground">
-              Pergunte o que precisa do seu ERP e receba a planilha pronta
-            </p>
-          </div>
-          {temCredenciais && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setCredenciais({});
-                toast.success("Credenciais esquecidas");
-              }}
-            >
-              <Trash2 className="mr-1 size-4" />
-              Esquecer credenciais
-            </Button>
-          )}
-          <Badge variant={iaLigada ? "default" : "secondary"} className="hidden sm:inline-flex">
-            {iaLigada ? "IA + catálogo" : "IA desligada"}
-          </Badge>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-        <div className="flex flex-col gap-4">
-          {mensagens.map((m) => (
-            <div
-              key={m.id}
-              className={m.autor === "cliente" ? "flex justify-end" : "flex justify-start"}
-            >
-              <div
-                className={
-                  m.autor === "cliente"
-                    ? "max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-3 text-sm text-primary-foreground"
-                    : "max-w-[92%] rounded-2xl rounded-bl-sm bg-muted px-4 py-3 text-sm text-foreground"
-                }
-              >
-                <div className="space-y-1 leading-relaxed">
+      <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+        <div className="flex flex-col gap-7">
+          {mensagens.map((m) =>
+            m.autor === "cliente" ? (
+              <div key={m.id} className="flex justify-end">
+                <div className="max-w-[80%] rounded-md bg-primary px-4 py-2.5 text-[0.9375rem] leading-relaxed text-primary-foreground">
+                  <Texto conteudo={m.texto} />
+                </div>
+              </div>
+            ) : (
+              <div key={m.id} className="max-w-full">
+                <div className="max-w-[65ch] space-y-1 text-[0.9375rem] leading-relaxed">
                   <Texto conteudo={m.texto} />
                 </div>
 
                 {m.propostas && m.propostas.length > 0 && (
-                  <div className="mt-3 flex flex-col gap-2">
+                  <div className="mt-4 flex flex-col gap-3">
                     {m.propostas.map((consulta, indice) => (
-                      <Card key={consulta.id} className="gap-0 border-border/60 p-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline">{consulta.entidade}</Badge>
-                          <code className="text-xs text-muted-foreground">
+                      <div key={consulta.id} className="overflow-hidden rounded-md border bg-card">
+                        <div className="px-4 pt-3 pb-3">
+                          <p className="text-sm leading-snug font-medium">{consulta.descricao}</p>
+                          <p className="mono mt-1 text-xs text-muted-foreground">
                             {consulta.metodo} {consulta.path}
-                          </code>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">{consulta.descricao}</p>
-                        {consulta.colunas && consulta.colunas.length > 0 && (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Colunas: {consulta.colunas.join(", ")}
                           </p>
+                        </div>
+                        {consulta.colunas && consulta.colunas.length > 0 && (
+                          <Grade
+                            descricao={`Colunas que a planilha vai trazer: ${consulta.colunas.join(", ")}`}
+                            titulos={consulta.colunas}
+                          />
                         )}
-                        <div className="mt-3">
+                        <div className="px-4 py-3">
                           <Button
                             size="sm"
-                            variant={indice === 0 ? "default" : "secondary"}
+                            variant={indice === 0 ? "default" : "outline"}
                             disabled={ocupado}
                             onClick={() => aprovar(consulta, m.periodo)}
                           >
                             Executar esta consulta
                           </Button>
                         </div>
-                      </Card>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -500,36 +598,23 @@ Observação: ${resultado.aviso}`
                   />
                 )}
 
-                {m.planilha && (
-                  <Card className="mt-3 gap-0 border-border/60 p-3">
-                    <p className="text-sm font-medium">{m.planilha.titulo}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {m.planilha.linhas.length} linhas · {m.planilha.colunas.length} colunas
-                    </p>
-                    <div className="mt-3">
-                      <Button size="sm" onClick={() => void baixar(m)}>
-                        <Download className="mr-2 size-4" />
-                        Baixar planilha (.xlsx)
-                      </Button>
-                    </div>
-                  </Card>
-                )}
+                {m.planilha && <PreviaPlanilha planilha={m.planilha} aoBaixar={() => void baixar(m)} />}
               </div>
-            </div>
-          ))}
+            ),
+          )}
 
           {ocupado && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
               <Loader2 className="size-4 animate-spin" />
-              Trabalhando…
-            </div>
+              {etapa}
+            </p>
           )}
           <div ref={fim} />
         </div>
       </div>
 
-      <div className="sticky bottom-0 border-t bg-card/80 backdrop-blur">
-        <div className="mx-auto w-full max-w-3xl px-4 py-4">
+      <div className="sticky bottom-0 border-t bg-background/95 backdrop-blur">
+        <div className="mx-auto w-full max-w-3xl px-4 pt-3 pb-4">
           {mensagens.length <= 1 && (
             <div className="mb-3 flex flex-wrap gap-2">
               {SUGESTOES.map((s) => (
@@ -537,6 +622,7 @@ Observação: ${resultado.aviso}`
                   key={s}
                   variant="outline"
                   size="sm"
+                  className="bg-card"
                   onClick={() => void enviar(s)}
                   disabled={ocupado}
                 >
@@ -546,7 +632,7 @@ Observação: ${resultado.aviso}`
             </div>
           )}
           <form
-            className="flex items-end gap-2"
+            className="flex items-end gap-2 rounded-md border border-input bg-card p-1.5 focus-within:border-foreground"
             onSubmit={(e) => {
               e.preventDefault();
               void enviar(pergunta);
@@ -561,24 +647,24 @@ Observação: ${resultado.aviso}`
                   void enviar(pergunta);
                 }
               }}
-              placeholder="O que você precisa do Sagi? Ex.: movimentos de estoque da matriz"
+              placeholder="O que você precisa do Sagi?"
               aria-label="Sua pergunta"
               rows={1}
-              className="max-h-40 min-h-11 resize-none"
+              className="max-h-40 min-h-10 resize-none border-0 bg-transparent px-2.5 py-2 text-[0.9375rem] shadow-none focus-visible:ring-0 focus-visible:shadow-none focus-visible:outline-none"
             />
             <Button
               type="submit"
               size="icon"
-              className="size-11 shrink-0"
+              className="size-10 shrink-0"
               disabled={ocupado || !pergunta.trim()}
             >
-              <Send className="size-4" />
-              <span className="sr-only">Enviar</span>
+              <ArrowUp className="size-4" />
+              <span className="sr-only">Enviar pergunta</span>
             </Button>
           </form>
           <p className="mt-2 text-xs text-muted-foreground">
-            O assistente só executa consultas de leitura e pede aprovação antes de cada uma. Nunca
-            digite senha no campo de conversa.
+            Só consultas de leitura, sempre com a sua aprovação. Nunca digite senha aqui na
+            conversa: as credenciais vão no formulário.
           </p>
         </div>
       </div>
