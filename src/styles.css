@@ -277,9 +277,14 @@
   }
   /* Faixa animada do topo */
   .fluxo {
-    position: relative;
-    height: clamp(220px, 24vw, 340px);
     margin-top: 0.5rem;
+    padding-bottom: 0.75rem;
+  }
+  /* Altura acompanha a largura (proporção do desenho), para não cortar a volta em telas largas. */
+  .fluxo svg {
+    display: block;
+    width: 100%;
+    height: max(220px, 22.3vw);
   }
   .fluxo-pergunta {
     font-size: 19px;
@@ -315,11 +320,8 @@
     animation: celula-acende 1.6s ease-in-out infinite;
   }
   .fluxo-controle {
-    position: absolute;
-    left: 50%;
-    bottom: 0.25rem;
-    transform: translateX(-50%);
-    display: inline-flex;
+    display: flex;
+    margin: 0.25rem auto 0;
     align-items: center;
     gap: 0.35rem;
     border-radius: var(--radius);

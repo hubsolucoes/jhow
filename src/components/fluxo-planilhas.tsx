@@ -86,7 +86,7 @@ export function FluxoPlanilhas() {
 
   return (
     <div className="fluxo">
-      <svg aria-hidden viewBox="0 0 1440 320" preserveAspectRatio="xMidYMid slice" className="h-full w-full">
+      <svg aria-hidden viewBox="0 0 1440 320" preserveAspectRatio="xMidYMid slice">
         <defs>
           <path id="fluxo-entrada" d={CAMINHO_ENTRADA} />
           <path id="fluxo-saida" d={CAMINHO_SAIDA} />
