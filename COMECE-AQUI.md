@@ -47,6 +47,8 @@ jhow/
 │       ├── assistente.servidor.ts  ← conversa com a IA (servidor)
 │       ├── executor.servidor.ts    ← consulta a API do cliente (servidor)
 │       ├── conhecimento.json       ← gerado do catálogo — NÃO editar à mão
+│       ├── cofre-local.ts          ← credenciais salvas com PIN (só no navegador)
+│       ├── consultas-salvas.ts     ← consultas salvas, período relativo
 │       └── planilha.ts             ← monta o .xlsx no navegador
 └── catalogo/                   ← o ativo principal
     ├── ESPECIFICACAO.md        ← regras de como documentar um sistema (LEIA)
@@ -136,6 +138,8 @@ O trabalho é feito com **Claude Code**, um agente por sistema, em lotes de trê
 | 17–18/09 | Novos tipos de autenticação: `login_credenciais` (ERPs com usuário e senha, 17/09) e `certificado_icp_brasil` (SEFAZ e afins, que o executor recusa, 18/09) |
 | 18/09 | Site restrito ao Sagi para o piloto |
 | 18/09 | Repositório tornado **público** a pedido do proprietário |
+| 08/10 | Produto passa a se chamar **Stagium**; site em stagium.lovable.app (landing na raiz, chat em /chat) |
+| 08/10 | Credenciais podem ser salvas **no navegador, criptografadas com PIN**; consultas salvas com período relativo |
 
 ## 7. Pendências, em ordem de prioridade
 
@@ -143,7 +147,7 @@ O trabalho é feito com **Claude Code**, um agente por sistema, em lotes de trê
 2. **Configurar `ANTHROPIC_API_KEY`** no Lovable (Settings → Environment variables) com a chave nova.
 3. **Rodar o piloto do Sagi com credencial real.** O cliente precisa criar um usuário de integração em *Menu Úteis > Controle de Usuários e Senhas > Cadastro de Usuários*, com e-mail preenchido e **"Bloquear Acesso ao SAGI Mobile" desmarcada**. As perguntas a enviar à SyGeCom estão em `catalogo/sistemas/sygecom/perguntas-ao-fornecedor.md` (URL de homologação, host da instalação, limite de requisições, autorização de uso).
 4. ~~Filtros no executor do site~~ **Feito em 08/10:** período, data de referência, filial e tipo/situação aparecem num formulário na conversa; o catálogo gera os filtros de cada consulta (`gerar_conhecimento.py`). O período também é lido da pergunta ("agosto", "semana passada", "de 01/08 a 15/08", "primeiro trimestre") por regras em `src/lib/periodo.ts`, sem depender do modelo.
-5. **Cofre de credenciais no servidor.** Hoje a credencial fica na memória do navegador. Para cliente com auditoria (financeiro, saúde), o cofre precisa existir antes.
+5. **Cofre de credenciais no servidor.** Hoje a credencial fica na memória do navegador ou, se o cliente quiser, salva no próprio navegador com PIN (`src/lib/cofre-local.ts`). Para usar em vários computadores, ou para cliente com auditoria (financeiro, saúde), o cofre no servidor com login precisa existir antes.
 6. **Endpoint `POST /sql-query` do Sagi:** decidir se o assistente pode usar. É o mais poderoso para relatório e o mais sensível em proteção de dados.
 7. **Taxonomia v1.3**, proposta no Lote 3 e pendente de decisão: `Disponibilidade`, `CertificadoDigital`, `AssinaturaDistribuicao`, ações `testar` e `sincronizar`.
 8. **Revisar Focus NFe, PlugNotas e NFE.io** para os códigos de rejeição de 4 posições da reforma tributária (NT 2025.002-RTC).

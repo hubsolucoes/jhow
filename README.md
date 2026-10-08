@@ -17,6 +17,12 @@ do usuário de integração, consulta a API e devolve a planilha (.xlsx).
 - As credenciais do cliente ficam **na memória do navegador**, enquanto a aba estiver aberta.
   Vão ao servidor apenas no momento da consulta e **nunca** são enviadas ao modelo de IA,
   gravadas em disco ou registradas em log. O botão "Esquecer credenciais" limpa na hora.
+- Se o cliente marcar **"Lembrar neste navegador"**, as credenciais são guardadas
+  criptografadas (AES-GCM, chave derivada de um PIN por PBKDF2) no `localStorage` daquele
+  computador. O PIN não é guardado; 5 PINs errados apagam o pacote. Nada disso vai ao servidor.
+  É proteção de uso diário, não substitui o cofre no servidor com login (pendência no guia).
+- **Consultas salvas** guardam só a consulta, os filtros e um nome, também no navegador.
+  Períodos como "mês passado" e "este mês" são recalculados a cada execução.
 - O cliente **nunca** deve digitar senha no campo de conversa — só no formulário.
 - O assistente executa **somente leitura**. Nenhuma operação cria, altera ou cancela nada.
 - Para o Sagi, crie um usuário dedicado à integração em *Menu Úteis > Controle de Usuários e
@@ -47,6 +53,8 @@ Nunca coloque a chave em arquivo do repositório: ele sincroniza com o GitHub.
 | Execução na API do cliente (servidor) | `src/lib/executor.servidor.ts` |
 | Conhecimento gerado do catálogo | `src/lib/conhecimento.json` |
 | Geração da planilha no navegador | `src/lib/planilha.ts` |
+| Credenciais salvas com PIN (navegador) | `src/lib/cofre-local.ts` |
+| Consultas salvas e período relativo | `src/lib/consultas-salvas.ts` |
 | Catálogo completo das APIs | `catalogo/` |
 
 Para regerar o conhecimento (hoje limitado ao Sagi):

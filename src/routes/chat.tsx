@@ -1,12 +1,28 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Download, KeyRound, Loader2, SlidersHorizontal } from "lucide-react";
+import {
+  ArrowUp,
+  Bookmark,
+  BookmarkCheck,
+  Download,
+  KeyRound,
+  Loader2,
+  SlidersHorizontal,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Grade } from "@/components/grade-planilha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import {
   BOAS_VINDAS,
@@ -21,6 +37,21 @@ import { executarConsultaReal } from "@/lib/executor.servidor";
 import conhecimento from "@/lib/conhecimento.json";
 import { interpretarPeriodo, type PeriodoInterpretado } from "@/lib/periodo";
 import { baixarPlanilha, type DadosPlanilha } from "@/lib/planilha";
+import {
+  PIN_MINIMO,
+  abrirCredenciais,
+  apagarCredenciaisSalvas,
+  salvarCredenciais,
+  temCredenciaisSalvas,
+} from "@/lib/cofre-local";
+import {
+  apagarConsultaSalva,
+  filtrosParaExecutar,
+  listarConsultasSalvas,
+  prepararParaSalvar,
+  salvarConsulta,
+  type ConsultaSalva,
+} from "@/lib/consultas-salvas";
 
 const CONSULTAS = conhecimento.consultas as Consulta[];
 const CREDENCIAIS = (
@@ -130,10 +161,37 @@ function resumirFiltros(consulta: Consulta, filtros: Record<string, string>): st
     .join(" · ");
 }
 
+const dataBr = (iso: string) => iso.split("-").reverse().join("/");
+
+/** Período de uma consulta salva, como aparece na lista. */
+function descreverPeriodo(consulta: Consulta | undefined, salva: ConsultaSalva): string {
+  if (salva.periodo) return `Período: ${salva.periodo} (recalculado a cada vez)`;
+  const campos = consulta?.campos_filtro ?? [];
+  const inicio = campos.find((c) => c.papel === "periodo_inicio");
+  const fim = campos.find((c) => c.papel === "periodo_fim");
+  if (inicio && fim && salva.filtros[inicio.nome] && salva.filtros[fim.nome]) {
+    return `Período fixo: ${dataBr(salva.filtros[inicio.nome]!)} a ${dataBr(salva.filtros[fim.nome]!)}`;
+  }
+  return "";
+}
+
 const LINHAS_NA_PREVIA = 6;
 
-function PreviaPlanilha({ planilha, aoBaixar }: { planilha: DadosPlanilha; aoBaixar: () => void }) {
+function PreviaPlanilha({
+  planilha,
+  aoBaixar,
+  nomeSugerido,
+  aoSalvar,
+}: {
+  planilha: DadosPlanilha;
+  aoBaixar: () => void;
+  nomeSugerido?: string;
+  aoSalvar?: (nome: string) => boolean;
+}) {
   const restantes = planilha.linhas.length - LINHAS_NA_PREVIA;
+  const [nomeando, setNomeando] = useState(false);
+  const [nome, setNome] = useState(nomeSugerido ?? "");
+  const [salva, setSalva] = useState(false);
   return (
     <div className="mt-4 overflow-hidden rounded-md border bg-card">
       <p className="px-4 pt-3 pb-2 text-sm font-semibold">{planilha.titulo}</p>
@@ -148,12 +206,55 @@ function PreviaPlanilha({ planilha, aoBaixar }: { planilha: DadosPlanilha; aoBai
           <Download className="mr-2 size-4" />
           Baixar planilha (.xlsx)
         </Button>
+        {aoSalvar && !salva && !nomeando && (
+          <Button size="sm" variant="outline" onClick={() => setNomeando(true)}>
+            <Bookmark className="mr-2 size-4" />
+            Salvar esta consulta
+          </Button>
+        )}
+        {salva && (
+          <span className="flex items-center gap-1.5 text-sm">
+            <BookmarkCheck className="size-4" />
+            Consulta salva
+          </span>
+        )}
         <p className="text-xs text-muted-foreground">
           {restantes > 0
             ? `Mostrando ${LINHAS_NA_PREVIA} de ${planilha.linhas.length.toLocaleString("pt-BR")} linhas. A planilha traz todas.`
             : `${planilha.linhas.length} ${planilha.linhas.length === 1 ? "linha" : "linhas"}, ${planilha.colunas.length} colunas.`}
         </p>
       </div>
+      {nomeando && aoSalvar && (
+        <form
+          className="flex flex-wrap items-end gap-2 border-t px-4 py-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (nome.trim() && aoSalvar(nome.trim())) {
+              setSalva(true);
+              setNomeando(false);
+            }
+          }}
+        >
+          <div className="min-w-0 flex-1 space-y-1">
+            <Label htmlFor={`nome-${planilha.nomeArquivo}`} className="text-xs">
+              Nome da consulta
+            </Label>
+            <Input
+              id={`nome-${planilha.nomeArquivo}`}
+              value={nome}
+              maxLength={80}
+              autoFocus
+              onChange={(e) => setNome(e.target.value)}
+            />
+          </div>
+          <Button type="submit" size="sm" disabled={!nome.trim()}>
+            Salvar
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setNomeando(false)}>
+            Cancelar
+          </Button>
+        </form>
+      )}
     </div>
   );
 }
@@ -162,14 +263,21 @@ function FormularioConsulta({
   consulta,
   credenciais,
   pedirCredenciais,
+  credenciaisSalvas,
+  aoMudarCofre,
   periodoSugerido,
+  filtrosIniciais,
   aoConfirmar,
   ocupado,
 }: {
   consulta: Consulta;
   credenciais: Record<string, string>;
   pedirCredenciais: boolean;
+  /** Há credenciais criptografadas neste navegador (pede só o PIN). */
+  credenciaisSalvas: boolean;
+  aoMudarCofre: () => void;
   periodoSugerido?: PeriodoInterpretado;
+  filtrosIniciais?: Record<string, string>;
   aoConfirmar: (
     cred: Record<string, string>,
     filtros: Record<string, string>,
@@ -179,11 +287,21 @@ function FormularioConsulta({
 }) {
   const camposFiltro = consulta.campos_filtro ?? [];
   const [filtros, setFiltros] = useState<Record<string, string>>(() =>
-    Object.fromEntries(camposFiltro.map((c) => [c.nome, padraoDoCampo(c, periodoSugerido)])),
+    Object.fromEntries(
+      camposFiltro.map((c) => [c.nome, filtrosIniciais?.[c.nome] ?? padraoDoCampo(c, periodoSugerido)]),
+    ),
   );
   const [cred, setCred] = useState<Record<string, string>>(() =>
     Object.fromEntries(CREDENCIAIS.map((c) => [c.nome, credenciais[c.nome] ?? c.default ?? ""])),
   );
+
+  const [usarOutras, setUsarOutras] = useState(false);
+  const [pin, setPin] = useState("");
+  const [lembrar, setLembrar] = useState(false);
+  const [pinNovo, setPinNovo] = useState("");
+  const [erroPin, setErroPin] = useState("");
+  const [abrindo, setAbrindo] = useState(false);
+  const modoPin = pedirCredenciais && credenciaisSalvas && !usarOutras;
 
   const inicio = camposFiltro.find((c) => c.papel === "periodo_inicio");
   const fim = camposFiltro.find((c) => c.papel === "periodo_fim");
@@ -191,7 +309,38 @@ function FormularioConsulta({
   const dataFim = fim ? (filtros[fim.nome] ?? "") : "";
   const periodoInvertido = dataInicio !== "" && dataFim !== "" && dataInicio > dataFim;
   const faltaFiltro = camposFiltro.some((c) => c.obrigatorio && !filtros[c.nome]?.trim());
-  const faltaCredencial = pedirCredenciais && CREDENCIAIS.some((c) => !cred[c.nome]?.trim());
+  const faltaCredencial = modoPin
+    ? pin.length < PIN_MINIMO
+    : pedirCredenciais &&
+      (CREDENCIAIS.some((c) => !cred[c.nome]?.trim()) || (lembrar && pinNovo.length < PIN_MINIMO));
+
+  async function confirmar() {
+    setErroPin("");
+    if (!pedirCredenciais) {
+      aoConfirmar(credenciais, filtros, consulta);
+      return;
+    }
+    setAbrindo(true);
+    try {
+      if (modoPin) {
+        aoConfirmar(await abrirCredenciais(pin), filtros, consulta);
+        return;
+      }
+      if (lembrar) {
+        await salvarCredenciais(cred, pinNovo);
+        aoMudarCofre();
+        toast.success("Credenciais salvas neste navegador", {
+          description: "Da próxima vez, é só digitar o PIN.",
+        });
+      }
+      aoConfirmar(cred, filtros, consulta);
+    } catch (erro) {
+      setErroPin(erro instanceof Error ? erro.message : "Não consegui abrir as credenciais.");
+      aoMudarCofre();
+    } finally {
+      setAbrindo(false);
+    }
+  }
 
   return (
     <div className="mt-4 rounded-md border bg-card p-4">
@@ -199,7 +348,7 @@ function FormularioConsulta({
         className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
-          aoConfirmar(pedirCredenciais ? cred : credenciais, filtros, consulta);
+          void confirmar();
         }}
       >
         {camposFiltro.length > 0 && (
@@ -256,14 +405,42 @@ function FormularioConsulta({
           </fieldset>
         )}
 
-        {pedirCredenciais && (
+        {modoPin && (
+          <fieldset className="space-y-3">
+            <legend className="flex items-center gap-2 text-sm font-medium">
+              <KeyRound className="size-4 text-muted-foreground" />
+              Credenciais salvas neste navegador
+            </legend>
+            <div className="max-w-xs space-y-1">
+              <Label htmlFor={`pin-${consulta.id}`} className="text-xs">
+                PIN
+              </Label>
+              <Input
+                id={`pin-${consulta.id}`}
+                type="password"
+                autoComplete="off"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              className="text-xs underline underline-offset-4"
+              onClick={() => setUsarOutras(true)}
+            >
+              Usar outras credenciais
+            </button>
+          </fieldset>
+        )}
+
+        {pedirCredenciais && !modoPin && (
           <fieldset className="space-y-3">
             <legend className="flex items-center gap-2 text-sm font-medium">
               <KeyRound className="size-4 text-muted-foreground" />
               Credenciais do seu usuário de integração
             </legend>
             <p className="text-xs text-muted-foreground">
-              Ficam só neste navegador, são usadas apenas na consulta e não são enviadas à IA.
+              Usadas apenas na consulta e nunca enviadas à IA.
             </p>
             {CREDENCIAIS.map((c) => (
               <div key={c.nome} className="space-y-1">
@@ -281,13 +458,42 @@ function FormularioConsulta({
                 <p className="text-[11px] leading-snug text-muted-foreground">{c.onde_obter}</p>
               </div>
             ))}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="size-4 accent-[var(--foreground)]"
+                checked={lembrar}
+                onChange={(e) => setLembrar(e.target.checked)}
+              />
+              Lembrar neste navegador
+            </label>
+            {lembrar && (
+              <div className="max-w-xs space-y-1">
+                <Label htmlFor={`pin-novo-${consulta.id}`} className="text-xs">
+                  Crie um PIN (mínimo {PIN_MINIMO} caracteres)
+                </Label>
+                <Input
+                  id={`pin-novo-${consulta.id}`}
+                  type="password"
+                  autoComplete="new-password"
+                  value={pinNovo}
+                  onChange={(e) => setPinNovo(e.target.value)}
+                />
+                <p className="text-[11px] leading-snug text-muted-foreground">
+                  As credenciais ficam criptografadas só neste computador. Para usar, você digita o
+                  PIN; ele não fica guardado. Use só em computador de uso próprio.
+                </p>
+              </div>
+            )}
           </fieldset>
         )}
+
+        {erroPin && <p className="text-sm text-destructive">{erroPin}</p>}
 
         <Button
           type="submit"
           size="sm"
-          disabled={faltaFiltro || faltaCredencial || periodoInvertido || ocupado}
+          disabled={faltaFiltro || faltaCredencial || periodoInvertido || ocupado || abrindo}
         >
           Consultar o Sagi
         </Button>
@@ -304,9 +510,18 @@ function Index() {
   const [etapa, setEtapa] = useState("");
   const [iaLigada, setIaLigada] = useState(true);
   const [credenciais, setCredenciais] = useState<Record<string, string>>({});
+  const [credenciaisSalvas, setCredenciaisSalvas] = useState(false);
+  const [salvas, setSalvas] = useState<ConsultaSalva[]>([]);
+  const [painelAberto, setPainelAberto] = useState(false);
   const fim = useRef<HTMLDivElement>(null);
 
   const temCredenciais = CREDENCIAIS.every((c) => credenciais[c.nome]);
+
+  // O navegador só existe no cliente: lê o que estiver salvo depois de montar.
+  useEffect(() => {
+    setCredenciaisSalvas(temCredenciaisSalvas());
+    setSalvas(listarConsultasSalvas());
+  }, []);
 
   useEffect(() => {
     fim.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -366,7 +581,9 @@ function Index() {
       temFiltros ? "escolha os filtros" : "",
       temCredenciais
         ? ""
-        : "informe as credenciais do usuário de integração (ficam só no seu navegador)",
+        : credenciaisSalvas
+          ? "digite o PIN das credenciais salvas"
+          : "informe as credenciais do usuário de integração",
     ].filter(Boolean);
     const frase = partes.join(" e ");
     setMensagens((atual) => [
@@ -407,7 +624,9 @@ Observação: ${resultado.aviso}`
             : `A consulta funcionou, mas o Sagi não devolveu nenhum registro para **${resultado.titulo}**` +
                 (resumo ? ` com os filtros ${resumo}` : "") +
                 ". Tente ampliar o período ou trocar a filial — ou o usuário de integração não tem acesso a esses dados.",
-          resultado.linhas.length > 0 ? { planilha } : {},
+          resultado.linhas.length > 0
+            ? { planilha, execucao: { consultaId: consulta.id, filtros } }
+            : {},
         ),
       ]);
     } catch (erro) {
@@ -417,6 +636,60 @@ Observação: ${resultado.aviso}`
     } finally {
       setOcupado(false);
     }
+  }
+
+  function salvarDaMensagem(m: Mensagem, nome: string): boolean {
+    const consulta = CONSULTAS.find((c) => c.id === m.execucao?.consultaId);
+    if (!consulta || !m.execucao) return false;
+    try {
+      const preparado = prepararParaSalvar(consulta.campos_filtro ?? [], m.execucao.filtros);
+      salvarConsulta({ nome, consultaId: consulta.id, ...preparado });
+      setSalvas(listarConsultasSalvas());
+      toast.success("Consulta salva", {
+        description: preparado.periodo
+          ? `O período "${preparado.periodo}" é recalculado a cada vez.`
+          : "Abra em Minhas consultas para rodar de novo.",
+      });
+      return true;
+    } catch (erro) {
+      toast.error("Não consegui salvar", {
+        description: erro instanceof Error ? erro.message : "falha desconhecida",
+      });
+      return false;
+    }
+  }
+
+  function rodarSalva(salva: ConsultaSalva) {
+    const consulta = CONSULTAS.find((c) => c.id === salva.consultaId);
+    if (!consulta) {
+      toast.error("Esta consulta não existe mais no catálogo", { description: salva.nome });
+      return;
+    }
+    setPainelAberto(false);
+    const filtros = filtrosParaExecutar(consulta.campos_filtro ?? [], salva);
+    setMensagens((atual) => [...atual, mensagem("cliente", `Rodar consulta salva: **${salva.nome}**`)]);
+    if (temCredenciais) {
+      void executar(credenciais, filtros, consulta);
+      return;
+    }
+    setMensagens((atual) => [
+      ...atual,
+      mensagem(
+        "assistente",
+        credenciaisSalvas
+          ? "Digite o PIN das credenciais salvas para rodar."
+          : "Informe as credenciais do usuário de integração para rodar.",
+        { formulario: consulta, filtrosIniciais: filtros },
+      ),
+    ]);
+  }
+
+  function nomeSugerido(m: Mensagem): string {
+    const consulta = CONSULTAS.find((c) => c.id === m.execucao?.consultaId);
+    if (!consulta || !m.execucao || !m.planilha) return "";
+    const titulo = m.planilha.titulo.split(" — ")[0] ?? m.planilha.titulo;
+    const { periodo } = prepararParaSalvar(consulta.campos_filtro ?? [], m.execucao.filtros);
+    return periodo ? `${titulo} (${periodo})` : titulo;
   }
 
   async function baixar(m: Mensagem) {
@@ -440,18 +713,26 @@ Observação: ${resultado.aviso}`
               Stagium
             </Link>
           </h1>
-          <p className="order-last w-full text-sm text-muted-foreground sm:order-none sm:w-auto sm:flex-1">
-            Pergunte o que precisa do Sagi e receba a planilha pronta.
-          </p>
           <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
-            {temCredenciais && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setPainelAberto(true)}
+            >
+              <Bookmark className="mr-1 size-3.5" />
+              Minhas consultas{salvas.length > 0 ? ` (${salvas.length})` : ""}
+            </Button>
+            {(temCredenciais || credenciaisSalvas) && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-7 px-2 text-xs"
                 onClick={() => {
                   setCredenciais({});
-                  toast.success("Credenciais esquecidas");
+                  apagarCredenciaisSalvas();
+                  setCredenciaisSalvas(false);
+                  toast.success("Credenciais apagadas deste navegador");
                 }}
               >
                 Esquecer credenciais
@@ -519,7 +800,10 @@ Observação: ${resultado.aviso}`
                     consulta={m.formulario}
                     credenciais={credenciais}
                     pedirCredenciais={!temCredenciais}
+                    credenciaisSalvas={credenciaisSalvas}
+                    aoMudarCofre={() => setCredenciaisSalvas(temCredenciaisSalvas())}
                     {...(m.periodo ? { periodoSugerido: m.periodo } : {})}
+                    {...(m.filtrosIniciais ? { filtrosIniciais: m.filtrosIniciais } : {})}
                     ocupado={ocupado}
                     aoConfirmar={(cred, filtros, consulta) =>
                       void executar(cred, filtros, consulta)
@@ -527,7 +811,15 @@ Observação: ${resultado.aviso}`
                   />
                 )}
 
-                {m.planilha && <PreviaPlanilha planilha={m.planilha} aoBaixar={() => void baixar(m)} />}
+                {m.planilha && (
+                  <PreviaPlanilha
+                    planilha={m.planilha}
+                    aoBaixar={() => void baixar(m)}
+                    {...(m.execucao
+                      ? { nomeSugerido: nomeSugerido(m), aoSalvar: (nome: string) => salvarDaMensagem(m, nome) }
+                      : {})}
+                  />
+                )}
               </div>
             ),
           )}
@@ -546,6 +838,18 @@ Observação: ${resultado.aviso}`
         <div className="mx-auto w-full max-w-3xl px-4 pt-3 pb-4">
           {mensagens.length <= 1 && (
             <div className="mb-3 flex flex-wrap gap-2">
+              {salvas.slice(0, 4).map((salva) => (
+                <Button
+                  key={salva.id}
+                  size="sm"
+                  className="max-w-full"
+                  onClick={() => rodarSalva(salva)}
+                  disabled={ocupado}
+                >
+                  <Bookmark className="mr-1.5 size-3.5" />
+                  <span className="truncate">{salva.nome}</span>
+                </Button>
+              ))}
               {SUGESTOES.map((s) => (
                 <Button
                   key={s}
@@ -597,6 +901,65 @@ Observação: ${resultado.aviso}`
           </p>
         </div>
       </div>
+      <Sheet open={painelAberto} onOpenChange={setPainelAberto}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Minhas consultas</SheetTitle>
+            <SheetDescription>
+              Salvas neste navegador. As credenciais nunca ficam aqui.
+            </SheetDescription>
+          </SheetHeader>
+          {salvas.length === 0 ? (
+            <p className="mt-6 text-sm text-muted-foreground">
+              Nenhuma consulta salva ainda. Depois de gerar uma planilha, use “Salvar esta
+              consulta” para rodar de novo com um clique.
+            </p>
+          ) : (
+            <ul className="mt-6 divide-y border-y">
+              {salvas.map((salva) => {
+                const consulta = CONSULTAS.find((c) => c.id === salva.consultaId);
+                const periodo = descreverPeriodo(consulta, salva);
+                const outros = consulta
+                  ? resumirFiltros(
+                      consulta,
+                      Object.fromEntries(
+                        Object.entries(salva.filtros).filter(
+                          ([k]) =>
+                            !(consulta.campos_filtro ?? []).some(
+                              (c) => c.nome === k && c.tipo === "data",
+                            ),
+                        ),
+                      ),
+                    )
+                  : "";
+                return (
+                  <li key={salva.id} className="py-4">
+                    <p className="font-medium">{salva.nome}</p>
+                    {periodo && <p className="mt-1 text-xs text-muted-foreground">{periodo}</p>}
+                    {outros && <p className="mt-0.5 text-xs text-muted-foreground">{outros}</p>}
+                    <div className="mt-3 flex gap-2">
+                      <Button size="sm" disabled={ocupado} onClick={() => rodarSalva(salva)}>
+                        Rodar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          apagarConsultaSalva(salva.id);
+                          setSalvas(listarConsultasSalvas());
+                        }}
+                      >
+                        <Trash2 className="mr-1.5 size-3.5" />
+                        Apagar
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </SheetContent>
+      </Sheet>
     </main>
   );
 }

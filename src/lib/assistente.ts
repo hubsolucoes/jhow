@@ -29,6 +29,10 @@ export type Mensagem = {
   formulario?: Consulta;
   /** Período reconhecido na pergunta do cliente, para preencher o formulário. */
   periodo?: PeriodoInterpretado;
+  /** Filtros já definidos (consulta salva), para preencher o formulário. */
+  filtrosIniciais?: Record<string, string>;
+  /** O que foi executado para gerar a planilha, para poder salvar a consulta. */
+  execucao?: { consultaId: string; filtros: Record<string, string> };
 };
 
 const identificador = () => Math.random().toString(36).slice(2, 10);
@@ -47,7 +51,9 @@ export const BOAS_VINDAS = mensagem(
 
 Me diga o que você precisa, em português. Por exemplo: "produtos cadastrados", "movimentos de estoque da matriz", "pedidos de compra" ou "notas recebidas".
 
-Quando você aprovar a consulta, eu peço as credenciais do seu usuário de integração — elas ficam só no seu navegador e são usadas apenas naquela consulta.`,
+Quando você aprovar a consulta, eu peço as credenciais do seu usuário de integração. Elas nunca passam pela IA e, se você quiser, ficam salvas neste navegador, protegidas por um PIN.
+
+Gostou de uma consulta? Salve-a junto da planilha e rode de novo em **Minhas consultas**.`,
 );
 
 /** Monta os dados da planilha a partir do que a API devolveu. */
