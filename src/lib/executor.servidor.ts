@@ -81,6 +81,62 @@ async function comLimite(url: string, init: RequestInit) {
   }
 }
 
+/** Nomes usuais do campo de token, normalizados (minúsculas, sem _ ou -). */
+const NOMES_DE_TOKEN = new Set([
+  "token",
+  "accesstoken",
+  "jwt",
+  "idtoken",
+  "bearer",
+  "authorization",
+]);
+const normalizarChave = (chave: string) => chave.toLowerCase().replace(/[_-]/g, "");
+
+/**
+ * Procura o token na resposta do login.
+ * Tenta o caminho do catálogo e, se não achar, varre a resposta atrás dos nomes usuais —
+ * sistemas brasileiros variam muito aqui (token na raiz, dentro de `data`, dentro de `user[0]`).
+ */
+function procurarToken(
+  corpo: unknown,
+  caminhoPreferido: string | null,
+  profundidade = 0,
+): string | null {
+  if (profundidade === 0 && caminhoPreferido) {
+    const direto = valor(corpo, caminhoPreferido);
+    if (typeof direto === "string" && direto.length > 10) return direto;
+  }
+  if (profundidade > 4 || corpo === null || typeof corpo !== "object") return null;
+
+  if (Array.isArray(corpo)) {
+    for (const item of corpo.slice(0, 5)) {
+      const achado = procurarToken(item, null, profundidade + 1);
+      if (achado) return achado;
+    }
+    return null;
+  }
+
+  const registro = corpo as Record<string, unknown>;
+  for (const [chave, v] of Object.entries(registro)) {
+    if (typeof v === "string" && v.length > 10 && NOMES_DE_TOKEN.has(normalizarChave(chave))) {
+      return v;
+    }
+  }
+  for (const v of Object.values(registro)) {
+    const achado = procurarToken(v, null, profundidade + 1);
+    if (achado) return achado;
+  }
+  return null;
+}
+
+/** Nomes dos campos da resposta, para diagnóstico — sem os valores. */
+function camposDe(corpo: unknown): string {
+  if (Array.isArray(corpo)) return `lista com ${corpo.length} item(ns)`;
+  if (corpo && typeof corpo === "object")
+    return Object.keys(corpo as object).join(", ") || "nenhum";
+  return typeof corpo;
+}
+
 /** Troca usuário e senha pelo token, conforme a receita do catálogo. */
 async function autenticar(auth: ReceitaAuth, credenciais: Record<string, string>, base: string) {
   const cabecalhos: Record<string, string> = {
@@ -109,9 +165,30 @@ async function autenticar(auth: ReceitaAuth, credenciais: Record<string, string>
     if (!resposta.ok) {
       throw new Error(`O login respondeu HTTP ${resposta.status}.`);
     }
-    const token = valor(await resposta.json(), auth.login.campo_token);
-    if (!token) throw new Error("O login não devolveu token.");
-    cabecalhos["Authorization"] = (auth.login.prefixo ?? "Bearer ") + String(token);
+    const texto = await resposta.text();
+    let dadosLogin: unknown = null;
+    try {
+      dadosLogin = JSON.parse(texto);
+    } catch {
+      throw new Error(
+        `O login respondeu HTTP ${resposta.status}, mas o conteúdo não é JSON (começa com "${texto.slice(0, 60)}"). ` +
+          "Confira o endereço da API: um endereço errado costuma devolver página HTML.",
+      );
+    }
+
+    // alguns sistemas devolvem o token em cabeçalho, não no corpo
+    const doCabecalho = resposta.headers.get("authorization") ?? resposta.headers.get("x-token");
+    const token = procurarToken(dadosLogin, auth.login.campo_token) ?? doCabecalho;
+
+    if (!token) {
+      throw new Error(
+        `O login funcionou (HTTP ${resposta.status}), mas não encontrei o token na resposta. ` +
+          `Campos recebidos: ${camposDe(dadosLogin)}. ` +
+          "Mande essa lista para quem cuida do catálogo: é só ajustar o nome do campo do token.",
+      );
+    }
+    cabecalhos["Authorization"] =
+      (auth.login.prefixo ?? "Bearer ") + String(token).replace(/^Bearer\s+/i, "");
     return cabecalhos;
   }
 
