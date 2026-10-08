@@ -129,6 +129,85 @@ function procurarToken(
   return null;
 }
 
+type Registro = Record<string, unknown>;
+
+const ehRegistro = (v: unknown): v is Registro =>
+  v !== null && typeof v === "object" && !Array.isArray(v);
+
+/**
+ * Encontra a lista de registros na resposta.
+ * Usa o caminho do catálogo; se ele apontar para um "envelope" (ex.: { data: [...] })
+ * em vez da lista, procura dentro dele o primeiro array de objetos.
+ */
+function extrairLista(corpo: unknown, listaEm: string | null): Registro[] {
+  const alvo = valor(corpo, listaEm);
+  const candidatos = [alvo, corpo];
+  for (const c of candidatos) {
+    if (Array.isArray(c)) return c.filter(ehRegistro);
+    if (ehRegistro(c)) {
+      const interno = Object.values(c).find(
+        (v) => Array.isArray(v) && v.length > 0 && v.every(ehRegistro),
+      );
+      if (Array.isArray(interno)) return interno as Registro[];
+    }
+  }
+  return ehRegistro(alvo) ? [alvo] : [];
+}
+
+const normalizarCampo = (nome: string) => nome.toLowerCase().replace(/[_\-\s]/g, "");
+
+/** Lê o campo pelo caminho exato; se não existir, tenta ignorando maiúsculas e separadores. */
+function valorFlexivel(registro: Registro, caminho: string): unknown {
+  const exato = valor(registro, caminho);
+  if (exato !== undefined || caminho.includes(".")) return exato;
+  const alvo = normalizarCampo(caminho);
+  const chave = Object.keys(registro).find((k) => normalizarCampo(k) === alvo);
+  return chave === undefined ? undefined : registro[chave];
+}
+
+type ColunaSaida = { titulo: string; caminho: string };
+
+/**
+ * Decide as colunas da planilha sem nunca descartar dado:
+ * mantém as colunas do catálogo que trouxeram valor e acrescenta os campos reais
+ * da resposta que nenhuma coluna cobriu. Devolve um aviso quando o catálogo não bateu.
+ */
+function resolverColunas(
+  documentadas: ColunaSaida[],
+  registros: Registro[],
+): { colunas: ColunaSaida[]; aviso: string | null } {
+  if (registros.length === 0) return { colunas: documentadas, aviso: null };
+
+  const amostra = registros.slice(0, 50);
+  const temValor = (caminho: string) =>
+    amostra.some((r) => {
+      const v = valorFlexivel(r, caminho);
+      return v !== undefined && v !== null && v !== "";
+    });
+
+  const usadas = documentadas.filter((c) => temValor(c.caminho));
+  const faltantes = documentadas.filter((c) => !usadas.includes(c)).map((c) => c.caminho);
+
+  const reais = Array.from(new Set(amostra.flatMap((r) => Object.keys(r))));
+  const cobertos = new Set(
+    usadas.map((c) => normalizarCampo(c.caminho.split(".")[0] ?? c.caminho)),
+  );
+  const extras = reais
+    .filter((k) => !cobertos.has(normalizarCampo(k)))
+    .map((k) => ({ titulo: k, caminho: k }));
+
+  const colunas = [...usadas, ...extras];
+  let aviso: string | null = null;
+  if (usadas.length === 0) {
+    aviso =
+      `Nenhuma coluna do catálogo bateu com a resposta; usei os campos reais (${reais.join(", ")}). ` +
+      "Envie esta lista para ajustar o catálogo.";
+  } else if (faltantes.length > 0) {
+    aviso = `Colunas do catálogo sem valor na resposta: ${faltantes.join(", ")}.`;
+  }
+  return { colunas, aviso };
+}
+
 /** Nomes dos campos da resposta, para diagnóstico — sem os valores. */
 function camposDe(corpo: unknown): string {
   if (Array.isArray(corpo)) return `lista com ${corpo.length} item(ns)`;
@@ -269,9 +348,8 @@ export async function consultarSistema(data: Entrada) {
       if (resposta.status === 204) break;
 
       const corpo = await resposta.json();
-      const lote = valor(corpo, receita.lista_em);
-      const itens = Array.isArray(lote) ? lote : lote ? [lote] : [];
-      linhas.push(...(itens as Record<string, unknown>[]));
+      const itens = extrairLista(corpo, receita.lista_em);
+      linhas.push(...itens);
 
       if (pag.tipo === "nenhuma" || itens.length === 0 || linhas.length >= maximo) break;
       if (pag.fim === "pagina_incompleta" && itens.length < tamanho) break;
@@ -288,19 +366,19 @@ export async function consultarSistema(data: Entrada) {
       await new Promise((r) => setTimeout(r, 350));
     }
 
-    const colunas = receita.colunas.length
-      ? receita.colunas
-      : Object.keys(linhas[0] ?? {}).map((k) => ({ titulo: k, caminho: k }));
+    const registros = linhas.slice(0, maximo);
+    const { colunas, aviso } = resolverColunas(receita.colunas, registros);
 
     return {
       titulo: receita.titulo,
       metodo: receita.metodo,
       path: receita.path,
+      aviso,
       colunas: colunas.map((c) => ({ titulo: c.titulo, chave: c.caminho })),
-      linhas: linhas.slice(0, maximo).map((linha) => {
+      linhas: registros.map((linha) => {
         const saida: Record<string, string | number> = {};
         for (const c of colunas) {
-          const v = valor(linha, c.caminho);
+          const v = valorFlexivel(linha, c.caminho);
           saida[c.caminho] =
             v === null || v === undefined
               ? ""

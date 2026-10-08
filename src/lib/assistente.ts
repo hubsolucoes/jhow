@@ -53,6 +53,7 @@ export function planilhaDaConsulta(
     path: string;
     colunas: { titulo: string; chave: string }[];
     linhas: Record<string, string | number>[];
+    aviso?: string | null;
   },
 ): DadosPlanilha {
   return {
@@ -67,6 +68,7 @@ export function planilhaDaConsulta(
       { rotulo: "Registros", valor: String(resultado.linhas.length) },
       { rotulo: "Consultado em", valor: new Date().toLocaleString("pt-BR") },
       { rotulo: "Documentação", valor: consulta.fonte ?? "" },
+      ...(resultado.aviso ? [{ rotulo: "Ajuste de colunas", valor: resultado.aviso }] : []),
       {
         rotulo: "Observação",
         valor:

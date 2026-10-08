@@ -237,7 +237,12 @@ function Index() {
         mensagem(
           "assistente",
           resultado.linhas.length > 0
-            ? `Pronto. ${resultado.linhas.length} registros de **${resultado.titulo}**.`
+            ? `Pronto. ${resultado.linhas.length} registros de **${resultado.titulo}**.` +
+                (resultado.aviso
+                  ? `
+
+Observação: ${resultado.aviso}`
+                  : "")
             : `A consulta funcionou, mas o Sagi não devolveu nenhum registro para **${resultado.titulo}**. Talvez falte um filtro (filial, data) ou o usuário não tenha acesso a esses dados.`,
           resultado.linhas.length > 0 ? { planilha } : {},
         ),
