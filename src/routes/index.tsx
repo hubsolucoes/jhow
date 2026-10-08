@@ -1,14 +1,14 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { FileSpreadsheet, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 
-import { Grade } from "@/components/grade-planilha";
+import { FluxoPlanilhas } from "@/components/fluxo-planilhas";
 import { Button } from "@/components/ui/button";
 import { linkWhatsApp } from "@/lib/contato";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Stagium — pergunte ao Sagi e receba a planilha" },
+      { title: "Stagium — não exporte, só pergunte" },
       {
         name: "description",
         content:
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "Stagium" },
       {
         property: "og:description",
-        content: "Pergunte em português. Receba a planilha do Sagi.",
+        content: "Não exporte, só pergunte. A IA que transforma perguntas em planilhas do Sagi.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -25,17 +25,6 @@ export const Route = createFileRoute("/")({
   }),
   component: Landing,
 });
-
-/** Exemplo do topo da página. Dados fictícios, só para mostrar o formato. */
-const EXEMPLO_COLUNAS = ["Data", "Fornecedor", "Produto", "Peso (kg)"];
-const EXEMPLO_LINHAS: Record<string, string | number>[] = [
-  ["02/09/2026", "Cooperativa Recicla Sul", "Sucata de alumínio", 1840],
-  ["02/09/2026", "Aparas Bom Jesus", "Papelão ondulado", 3125],
-  ["03/09/2026", "Metais Andrade", "Sucata de cobre", 412],
-  ["04/09/2026", "Cooperativa Recicla Sul", "PET cristal", 1290],
-  ["05/09/2026", "Aparas Bom Jesus", "Papel branco", 2675],
-  ["05/09/2026", "Ferro Velho São Jorge", "Sucata mista", 5960],
-].map((linha) => Object.fromEntries(EXEMPLO_COLUNAS.map((c, i) => [c, linha[i]!])));
 
 const ETAPAS: { voce: string; stagium: string }[] = [
   {
@@ -103,11 +92,21 @@ const GARANTIAS: { titulo: string; texto: string }[] = [
   },
 ];
 
-function BotoesContato({ invertido = false }: { invertido?: boolean }) {
+function BotoesContato({ invertido = false, centro = false }: { invertido?: boolean; centro?: boolean }) {
   const whatsapp = linkWhatsApp();
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button asChild size="lg" className={invertido ? "bg-marca text-foreground hover:bg-marca/85" : ""}>
+    <div className={`flex flex-wrap items-center gap-3 ${centro ? "justify-center" : ""}`}>
+      <Button
+        asChild
+        size="lg"
+        className={
+          invertido
+            ? "bg-marca text-foreground hover:bg-marca/85"
+            : centro
+              ? "border-[1.5px] border-foreground bg-marca text-foreground hover:bg-marca/80"
+              : ""
+        }
+      >
         <Link to="/chat">Testar agora</Link>
       </Button>
       {whatsapp && (
@@ -140,44 +139,25 @@ function Landing() {
       </header>
 
       <main>
-        {/* Topo: a pergunta virando planilha */}
-        <section className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pt-14 pb-20 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:pt-20 lg:pb-28">
-          <div className="max-w-xl">
-            <h1 className="titulo-hero">Pergunte em português. Receba a planilha do Sagi.</h1>
-            <p className="mt-6 max-w-[52ch] text-lg leading-relaxed text-muted-foreground">
-              O Stagium conhece a API do Sagi (SyGeCom). Você diz o que precisa, confere o que ele
-              vai buscar, aprova e baixa o .xlsx com todas as linhas, sem exportar nada na mão.
+        {/* Topo: perguntas entram, planilhas saem */}
+        <section className="overflow-hidden">
+          <div className="mx-auto w-full max-w-4xl px-4 pt-14 text-center sm:px-6 sm:pt-16">
+            <h1 className="titulo-hero">
+              Não exporte,
+              <br />
+              <em>só pergunte.</em>
+            </h1>
+            <p className="mx-auto mt-9 max-w-[34ch] text-lg leading-relaxed sm:text-xl">
+              A IA que lê o seu Sagi e transforma perguntas em planilhas prontas.
             </p>
             <div className="mt-8">
-              <BotoesContato />
+              <BotoesContato centro />
             </div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Hoje com o Sagi (SyGeCom). Só leitura, sempre com a sua aprovação.
+            </p>
           </div>
-
-          <figure className="min-w-0">
-            <div className="rounded-md border bg-card">
-              <div className="flex justify-end px-4 pt-4">
-                <p className="max-w-[85%] rounded-md bg-primary px-4 py-2.5 text-[0.9375rem] text-primary-foreground">
-                  Cargas entregues pelos fornecedores em setembro
-                </p>
-              </div>
-              <p className="px-4 pt-4 pb-3 text-sm text-muted-foreground">
-                Consulta aprovada. Primeiras linhas:
-              </p>
-              <Grade
-                descricao="Exemplo de planilha de cargas entregues por fornecedores"
-                titulos={EXEMPLO_COLUNAS}
-                chaves={EXEMPLO_COLUNAS}
-                linhas={EXEMPLO_LINHAS}
-              />
-              <p className="flex items-center gap-2 px-4 py-3 text-sm font-medium">
-                <FileSpreadsheet className="size-4 text-muted-foreground" />
-                cargas_fornecedores_setembro.xlsx
-              </p>
-            </div>
-            <figcaption className="mt-2 text-xs text-muted-foreground">
-              Exemplo com dados fictícios.
-            </figcaption>
-          </figure>
+          <FluxoPlanilhas />
         </section>
 
         {/* Como funciona: a divisão de tarefas, etapa por etapa */}
