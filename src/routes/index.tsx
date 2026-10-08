@@ -28,6 +28,7 @@ import type { CampoFiltro } from "@/lib/executor.servidor";
 import { perguntarAoAssistente } from "@/lib/assistente.servidor";
 import { executarConsultaReal } from "@/lib/executor.servidor";
 import conhecimento from "@/lib/conhecimento.json";
+import { interpretarPeriodo, type PeriodoInterpretado } from "@/lib/periodo";
 import { baixarPlanilha } from "@/lib/planilha";
 
 const CONSULTAS = conhecimento.consultas as Consulta[];
@@ -112,7 +113,11 @@ const doisDigitos = (n: number) => String(n).padStart(2, "0");
 const dataLocal = (d: Date) =>
   `${d.getFullYear()}-${doisDigitos(d.getMonth() + 1)}-${doisDigitos(d.getDate())}`;
 
-function padraoDoCampo(c: CampoFiltro): string {
+function padraoDoCampo(c: CampoFiltro, sugerido?: PeriodoInterpretado): string {
+  if (sugerido) {
+    if (c.papel === "periodo_inicio") return sugerido.inicio;
+    if (c.papel === "periodo_fim" || c.papel === "data") return sugerido.fim;
+  }
   const hoje = new Date();
   if (c.papel === "periodo_inicio") {
     return dataLocal(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
@@ -136,12 +141,14 @@ function FormularioConsulta({
   consulta,
   credenciais,
   pedirCredenciais,
+  periodoSugerido,
   aoConfirmar,
   ocupado,
 }: {
   consulta: Consulta;
   credenciais: Record<string, string>;
   pedirCredenciais: boolean;
+  periodoSugerido?: PeriodoInterpretado;
   aoConfirmar: (
     cred: Record<string, string>,
     filtros: Record<string, string>,
@@ -151,7 +158,7 @@ function FormularioConsulta({
 }) {
   const camposFiltro = consulta.campos_filtro ?? [];
   const [filtros, setFiltros] = useState<Record<string, string>>(() =>
-    Object.fromEntries(camposFiltro.map((c) => [c.nome, padraoDoCampo(c)])),
+    Object.fromEntries(camposFiltro.map((c) => [c.nome, padraoDoCampo(c, periodoSugerido)])),
   );
   const [cred, setCred] = useState<Record<string, string>>(() =>
     Object.fromEntries(CREDENCIAIS.map((c) => [c.nome, credenciais[c.nome] ?? c.default ?? ""])),
@@ -180,6 +187,12 @@ function FormularioConsulta({
               <SlidersHorizontal className="size-4 text-muted-foreground" />
               Filtros da consulta
             </legend>
+            {periodoSugerido && camposFiltro.some((c) => c.tipo === "data") && (
+              <p className="text-xs text-muted-foreground">
+                Período preenchido a partir da sua pergunta: <b>{periodoSugerido.descricao}</b>.
+                Ajuste se precisar.
+              </p>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               {camposFiltro.map((c) => (
                 <div key={c.nome} className="space-y-1">
@@ -294,9 +307,14 @@ function Index() {
 
       setIaLigada(resposta.origem === "ia");
       const propostas = CONSULTAS.filter((c) => resposta.resposta.includes(c.id));
+      const periodo = interpretarPeriodo(limpo);
       setMensagens((atual) => [
         ...atual,
-        mensagem("assistente", resposta.resposta, propostas.length > 0 ? { propostas } : {}),
+        mensagem(
+          "assistente",
+          resposta.resposta,
+          propostas.length > 0 ? { propostas, ...(periodo ? { periodo } : {}) } : {},
+        ),
       ]);
     } catch (erro) {
       const motivo = erro instanceof Error ? erro.message : "falha desconhecida";
@@ -310,7 +328,7 @@ function Index() {
     }
   }
 
-  function aprovar(consulta: Consulta) {
+  function aprovar(consulta: Consulta, periodo?: PeriodoInterpretado) {
     setMensagens((atual) => [
       ...atual,
       mensagem("cliente", `Pode executar: ${consulta.descricao.slice(0, 60)}`),
@@ -331,6 +349,7 @@ function Index() {
       ...atual,
       mensagem("assistente", frase.charAt(0).toUpperCase() + frase.slice(1) + ".", {
         formulario: consulta,
+        ...(periodo ? { periodo } : {}),
       }),
     ]);
   }
@@ -458,7 +477,7 @@ Observação: ${resultado.aviso}`
                             size="sm"
                             variant={indice === 0 ? "default" : "secondary"}
                             disabled={ocupado}
-                            onClick={() => aprovar(consulta)}
+                            onClick={() => aprovar(consulta, m.periodo)}
                           >
                             Executar esta consulta
                           </Button>
@@ -473,6 +492,7 @@ Observação: ${resultado.aviso}`
                     consulta={m.formulario}
                     credenciais={credenciais}
                     pedirCredenciais={!temCredenciais}
+                    {...(m.periodo ? { periodoSugerido: m.periodo } : {})}
                     ocupado={ocupado}
                     aoConfirmar={(cred, filtros, consulta) =>
                       void executar(cred, filtros, consulta)

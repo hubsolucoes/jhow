@@ -1,4 +1,5 @@
 import type { CampoFiltro } from "./executor.servidor";
+import type { PeriodoInterpretado } from "./periodo";
 import type { DadosPlanilha } from "./planilha";
 
 export type Consulta = {
@@ -26,6 +27,8 @@ export type Mensagem = {
   planilha?: DadosPlanilha;
   /** Formulário de filtros e, se faltarem, credenciais para executar a consulta. */
   formulario?: Consulta;
+  /** Período reconhecido na pergunta do cliente, para preencher o formulário. */
+  periodo?: PeriodoInterpretado;
 };
 
 const identificador = () => Math.random().toString(36).slice(2, 10);
