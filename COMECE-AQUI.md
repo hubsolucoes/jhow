@@ -8,7 +8,7 @@ Leia este arquivo inteiro antes de mexer em qualquer coisa. Ele leva uns 15 minu
 
 ## 1. O que é o produto
 
-Um **assistente de IA em chat** para empresas brasileiras. O cliente pergunta em português o que precisa do sistema que usa ("cobranças pagas em agosto", "movimentos de estoque da matriz"); o assistente:
+O produto se chama **Stagium** (nome definido em 08/10/2026). É um **assistente de IA em chat** para empresas brasileiras. O cliente pergunta em português o que precisa do sistema que usa ("cobranças pagas em agosto", "movimentos de estoque da matriz"); o assistente:
 
 1. encontra no catálogo a consulta certa na API daquele sistema;
 2. mostra o que vai consultar e pede aprovação;

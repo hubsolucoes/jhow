@@ -43,7 +43,7 @@ export function mensagem(
 
 export const BOAS_VINDAS = mensagem(
   "assistente",
-  `Olá. Eu conheço a API do **Sagi (SyGeCom)** e posso trazer os dados da sua operação em planilha.
+  `Olá, eu sou o **Stagium**. Conheço a API do **Sagi (SyGeCom)** e trago os dados da sua operação em planilha.
 
 Me diga o que você precisa, em português. Por exemplo: "produtos cadastrados", "movimentos de estoque da matriz", "pedidos de compra" ou "notas recebidas".
 

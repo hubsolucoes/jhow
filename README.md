@@ -1,4 +1,4 @@
-# JHOW — Assistente Sagi (SyGeCom)
+# Stagium — assistente de dados (piloto: Sagi/SyGeCom)
 
 Chat em que o cliente pede, em português, a informação que precisa do **Sagi (SyGeCom)**.
 O assistente encontra a consulta certa no catálogo, pede aprovação, solicita as credenciais

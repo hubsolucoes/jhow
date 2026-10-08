@@ -61,13 +61,13 @@ const SUGESTOES = [
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Assistente Sagi — consulte seu ERP e receba a planilha" },
+      { title: "Stagium — consulte seu ERP e receba a planilha" },
       {
         name: "description",
         content:
           "Pergunte em português o que precisa do Sagi (SyGeCom). O assistente encontra a consulta certa, executa na API e devolve a planilha pronta.",
       },
-      { property: "og:title", content: "Assistente Sagi" },
+      { property: "og:title", content: "Stagium" },
       { property: "og:description", content: "Pergunte, aprove e receba os dados em planilha." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -414,7 +414,7 @@ Observação: ${resultado.aviso}`
             <Sparkles className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-semibold text-foreground">Assistente Sagi</h1>
+            <h1 className="truncate text-base font-semibold text-foreground">Stagium</h1>
             <p className="truncate text-sm text-muted-foreground">
               Pergunte o que precisa do seu ERP e receba a planilha pronta
             </p>
