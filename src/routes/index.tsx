@@ -45,83 +45,37 @@ const ETAPAS: { voce: string; stagium: string }[] = [
   },
 ];
 
-type GrupoExemplos = { area: string; perguntas: string[] };
-
-/** Exemplos por sistema: cada um abre o chat já no sistema certo, com a pergunta escrita. */
-const EXEMPLOS: { sistema: string; nome: string; grupos: GrupoExemplos[] }[] = [
+/** Exemplos que valem para qualquer ERP; na conversa o cliente diz qual sistema usa. */
+const EXEMPLOS: { area: string; perguntas: string[] }[] = [
   {
-    sistema: "sygecom",
-    nome: "Sagi (SyGeCom)",
-    grupos: [
-      {
-        area: "Estoque e cargas",
-        perguntas: [
-          "Movimentos de estoque de setembro",
-          "Cargas entregues pelos fornecedores no mês passado",
-          "Produtos com saldo em estoque",
-        ],
-      },
-      {
-        area: "Compras, vendas e contratos",
-        perguntas: [
-          "Pedidos de compra deste mês",
-          "Pedidos de venda de agosto",
-          "Contratos comerciais",
-        ],
-      },
-      {
-        area: "Financeiro",
-        perguntas: ["Pagamentos a fornecedores no mês passado", "Saldo de um fornecedor"],
-      },
-      {
-        area: "Coleta e documentos",
-        perguntas: ["Ordens de coleta da semana passada", "MTRs emitidos em setembro"],
-      },
-      {
-        area: "Cadastros",
-        perguntas: [
-          "Clientes cadastrados",
-          "Fornecedores cadastrados",
-          "Filiais que eu posso acessar",
-        ],
-      },
+    area: "Financeiro",
+    perguntas: [
+      "Contas a receber em aberto deste mês",
+      "Contas a pagar desta semana",
+      "Pagamentos a fornecedores no mês passado",
     ],
   },
   {
-    sistema: "nomus",
-    nome: "Nomus",
-    grupos: [
-      {
-        area: "Financeiro",
-        perguntas: [
-          "Contas a receber em aberto deste mês",
-          "Contas a pagar desta semana",
-          "Recebimentos do mês passado",
-        ],
-      },
-      {
-        area: "Vendas e compras",
-        perguntas: [
-          "Pedidos de venda de setembro",
-          "Pedidos de compra deste mês",
-          "Propostas deste mês",
-        ],
-      },
-      {
-        area: "Produção e estoque",
-        perguntas: [
-          "Ordens de produção desta semana",
-          "Movimentações de estoque do mês passado",
-          "Produtos cadastrados",
-        ],
-      },
-      {
-        area: "Fiscal",
-        perguntas: [
-          "Notas fiscais emitidas em setembro",
-          "NF-e recebidas de fornecedores no mês passado",
-        ],
-      },
+    area: "Vendas e compras",
+    perguntas: [
+      "Pedidos de venda de setembro",
+      "Pedidos de compra deste mês",
+      "Clientes cadastrados",
+    ],
+  },
+  {
+    area: "Estoque e produção",
+    perguntas: [
+      "Movimentações de estoque do mês passado",
+      "Produtos cadastrados",
+      "Ordens de produção desta semana",
+    ],
+  },
+  {
+    area: "Fiscal",
+    perguntas: [
+      "Notas fiscais emitidas em setembro",
+      "Notas recebidas de fornecedores no mês passado",
     ],
   },
 ];
@@ -266,34 +220,29 @@ function Landing() {
           <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
             <h2 className="titulo-secao">O que você pode pedir</h2>
             <p className="mt-3 max-w-[60ch] text-muted-foreground">
-              Escolha um exemplo do sistema da sua empresa para abrir a conversa com a pergunta já
-              escrita. Mude o período ou a empresa como quiser.
+              Escolha um exemplo para abrir a conversa com a pergunta já escrita. Lá você diz qual
+              ERP a sua empresa usa e ajusta o período como quiser.
             </p>
-            {EXEMPLOS.map((sis) => (
-              <div key={sis.sistema} className="mt-12">
-                <h3 className="border-b pb-2 text-lg font-semibold">{sis.nome}</h3>
-                <div className="mt-6 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
-                  {sis.grupos.map((grupo) => (
-                    <div key={grupo.area}>
-                      <h4 className="text-sm font-semibold text-muted-foreground">{grupo.area}</h4>
-                      <ul className="mt-3 space-y-2">
-                        {grupo.perguntas.map((p) => (
-                          <li key={p}>
-                            <Link
-                              to="/chat"
-                              search={{ pergunta: p, sistema: sis.sistema }}
-                              className="link-pergunta text-[0.9375rem]"
-                            >
-                              {p}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+            <div className="mt-10 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+              {EXEMPLOS.map((grupo) => (
+                <div key={grupo.area}>
+                  <h3 className="text-sm font-semibold">{grupo.area}</h3>
+                  <ul className="mt-3 space-y-2">
+                    {grupo.perguntas.map((p) => (
+                      <li key={p}>
+                        <Link
+                          to="/chat"
+                          search={{ pergunta: p }}
+                          className="link-pergunta text-[0.9375rem]"
+                        >
+                          {p}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </section>
 
