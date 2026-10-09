@@ -256,14 +256,11 @@ function camposDe(corpo: unknown): string {
 /** Dica extra quando o sistema recusa a credencial (o que costuma dar errado em cada um). */
 const DICAS_CREDENCIAL: Record<string, string> = {
   sygecom:
-    " Confira se a opção 'Bloquear Acesso ao SAGI Mobile' está desmarcada no cadastro do usuário de integração.",
+    " No Sagi, veja também se a opção 'Bloquear Acesso ao SAGI Mobile' está desmarcada no cadastro do usuário de integração.",
 };
 
 const credencialRecusada = (slug: string) =>
-  new Error(
-    "Credenciais recusadas pelo sistema. Confira os dados do usuário de integração." +
-      (DICAS_CREDENCIAL[slug] ?? ""),
-  );
+  new Error("Credenciais recusadas pelo sistema." + (DICAS_CREDENCIAL[slug] ?? ""));
 
 /** Monta os cabeçalhos de autenticação conforme a receita do catálogo. */
 async function autenticar(

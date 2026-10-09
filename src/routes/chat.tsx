@@ -795,7 +795,25 @@ Observação: ${resultado.aviso}`
     } catch (erro) {
       const motivo = erro instanceof Error ? erro.message : "falha desconhecida";
       toast.error(`Não consegui consultar o ${nomeDo(consulta.slug)}`, { description: motivo });
-      setMensagens((atual) => [...atual, mensagem("assistente", `Não deu certo: ${motivo}`)]);
+      // Esquece os segredos desta conversa para o formulário pedi-los de novo, em vez de
+      // repetir a tentativa com os mesmos; mantém o que não é segredo (ex.: endereço da API).
+      const semSegredos = Object.fromEntries(
+        credenciaisDo(consulta.slug)
+          .filter((c) => !c.segredo && cred[c.nome])
+          .map((c) => [c.nome, cred[c.nome]!]),
+      );
+      setCredPorSistema((atual) => ({ ...atual, [consulta.slug]: semSegredos }));
+      setMensagens((atual) => [
+        ...atual,
+        mensagem(
+          "assistente",
+          `Não deu certo: ${motivo}\n\n**Confira as credenciais e tente novamente.** Deixei o formulário abaixo com os mesmos filtros.` +
+            (cofres[consulta.slug]
+              ? " Se as credenciais salvas estiverem desatualizadas, clique em “Usar outras credenciais” e salve as novas."
+              : ""),
+          { formulario: consulta, filtrosIniciais: filtros },
+        ),
+      ]);
     } finally {
       setOcupado(false);
       setPaginando(false);
