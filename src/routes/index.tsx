@@ -12,12 +12,12 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Pergunte em português o que precisa do Sagi (SyGeCom). O Stagium encontra a consulta certa, pede sua aprovação, lê os dados pela API e devolve a planilha .xlsx.",
+          "Pergunte em português o que precisa do ERP da sua empresa (hoje Sagi e Nomus). O Stagium encontra a consulta certa, pede sua aprovação, lê os dados pela API e devolve a planilha .xlsx.",
       },
       { property: "og:title", content: "Stagium" },
       {
         property: "og:description",
-        content: "Não exporte, só peça. A IA que transforma perguntas em planilhas do Sagi.",
+        content: "Não exporte, só peça. A IA que transforma perguntas em planilhas do seu ERP.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/")({
 const ETAPAS: { voce: string; stagium: string }[] = [
   {
     voce: "Pergunta o que precisa, do jeito que pediria a um analista.",
-    stagium: "Procura, na documentação da API do Sagi, a consulta que responde.",
+    stagium: "Procura, na documentação da API do seu ERP, a consulta que responde.",
   },
   {
     voce: "Confere a proposta: o que será buscado e quais colunas virão.",
@@ -37,7 +37,7 @@ const ETAPAS: { voce: string; stagium: string }[] = [
   },
   {
     voce: "Aprova e informa o usuário de integração, num formulário à parte.",
-    stagium: "Consulta a API do Sagi, só para leitura, e percorre todas as páginas.",
+    stagium: "Consulta a API do seu ERP, só para leitura, e percorre todas as páginas.",
   },
   {
     voce: "Baixa a planilha.",
@@ -45,36 +45,90 @@ const ETAPAS: { voce: string; stagium: string }[] = [
   },
 ];
 
-const EXEMPLOS: { area: string; perguntas: string[] }[] = [
+type GrupoExemplos = { area: string; perguntas: string[] };
+
+/** Exemplos por sistema: cada um abre o chat já no sistema certo, com a pergunta escrita. */
+const EXEMPLOS: { sistema: string; nome: string; grupos: GrupoExemplos[] }[] = [
   {
-    area: "Estoque e cargas",
-    perguntas: [
-      "Movimentos de estoque de setembro",
-      "Cargas entregues pelos fornecedores no mês passado",
-      "Produtos com saldo em estoque",
+    sistema: "sygecom",
+    nome: "Sagi (SyGeCom)",
+    grupos: [
+      {
+        area: "Estoque e cargas",
+        perguntas: [
+          "Movimentos de estoque de setembro",
+          "Cargas entregues pelos fornecedores no mês passado",
+          "Produtos com saldo em estoque",
+        ],
+      },
+      {
+        area: "Compras, vendas e contratos",
+        perguntas: [
+          "Pedidos de compra deste mês",
+          "Pedidos de venda de agosto",
+          "Contratos comerciais",
+        ],
+      },
+      {
+        area: "Financeiro",
+        perguntas: ["Pagamentos a fornecedores no mês passado", "Saldo de um fornecedor"],
+      },
+      {
+        area: "Coleta e documentos",
+        perguntas: ["Ordens de coleta da semana passada", "MTRs emitidos em setembro"],
+      },
+      {
+        area: "Cadastros",
+        perguntas: [
+          "Clientes cadastrados",
+          "Fornecedores cadastrados",
+          "Filiais que eu posso acessar",
+        ],
+      },
     ],
   },
   {
-    area: "Compras, vendas e contratos",
-    perguntas: ["Pedidos de compra deste mês", "Pedidos de venda de agosto", "Contratos comerciais"],
-  },
-  {
-    area: "Financeiro",
-    perguntas: ["Pagamentos a fornecedores no mês passado", "Saldo de um fornecedor"],
-  },
-  {
-    area: "Coleta e documentos",
-    perguntas: ["Ordens de coleta da semana passada", "MTRs emitidos em setembro"],
-  },
-  {
-    area: "Cadastros",
-    perguntas: ["Clientes cadastrados", "Fornecedores cadastrados", "Filiais que eu posso acessar"],
+    sistema: "nomus",
+    nome: "Nomus",
+    grupos: [
+      {
+        area: "Financeiro",
+        perguntas: [
+          "Contas a receber em aberto deste mês",
+          "Contas a pagar desta semana",
+          "Recebimentos do mês passado",
+        ],
+      },
+      {
+        area: "Vendas e compras",
+        perguntas: [
+          "Pedidos de venda de setembro",
+          "Pedidos de compra deste mês",
+          "Propostas deste mês",
+        ],
+      },
+      {
+        area: "Produção e estoque",
+        perguntas: [
+          "Ordens de produção desta semana",
+          "Movimentações de estoque do mês passado",
+          "Produtos cadastrados",
+        ],
+      },
+      {
+        area: "Fiscal",
+        perguntas: [
+          "Notas fiscais emitidas em setembro",
+          "NF-e recebidas de fornecedores no mês passado",
+        ],
+      },
+    ],
   },
 ];
 
 const GARANTIAS: { titulo: string; texto: string }[] = [
   {
-    titulo: "Não altera nada no Sagi",
+    titulo: "Não altera nada no seu ERP",
     texto: "Não emite, não cria e não cancela. O Stagium só usa consultas de leitura.",
   },
   {
@@ -92,7 +146,13 @@ const GARANTIAS: { titulo: string; texto: string }[] = [
   },
 ];
 
-function BotoesContato({ invertido = false, centro = false }: { invertido?: boolean; centro?: boolean }) {
+function BotoesContato({
+  invertido = false,
+  centro = false,
+}: {
+  invertido?: boolean;
+  centro?: boolean;
+}) {
   const whatsapp = linkWhatsApp();
   return (
     <div className={`flex flex-wrap items-center gap-3 ${centro ? "justify-center" : ""}`}>
@@ -114,7 +174,11 @@ function BotoesContato({ invertido = false, centro = false }: { invertido?: bool
           asChild
           size="lg"
           variant="outline"
-          className={invertido ? "border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white" : "bg-card"}
+          className={
+            invertido
+              ? "border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white"
+              : "bg-card"
+          }
         >
           <a href={whatsapp} target="_blank" rel="noreferrer">
             <MessageCircle className="mr-2 size-4" />
@@ -148,13 +212,13 @@ function Landing() {
               <em>só peça.</em>
             </h1>
             <p className="mx-auto mt-9 max-w-[34ch] text-lg leading-relaxed sm:text-xl">
-              A IA que lê o seu Sagi e transforma perguntas em planilhas prontas.
+              A IA que lê o seu ERP e transforma perguntas em planilhas prontas.
             </p>
             <div className="mt-8">
               <BotoesContato centro />
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              Hoje com o Sagi (SyGeCom). Só leitura, sempre com a sua aprovação.
+              Hoje com Sagi (SyGeCom) e Nomus. Só leitura, sempre com a sua aprovação.
             </p>
           </div>
           <FluxoPlanilhas />
@@ -202,29 +266,34 @@ function Landing() {
           <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6">
             <h2 className="titulo-secao">O que você pode pedir</h2>
             <p className="mt-3 max-w-[60ch] text-muted-foreground">
-              Escolha um exemplo para abrir a conversa com a pergunta já escrita. Mude o período ou
-              a filial como quiser.
+              Escolha um exemplo do sistema da sua empresa para abrir a conversa com a pergunta já
+              escrita. Mude o período ou a filial como quiser.
             </p>
-            <div className="mt-10 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-              {EXEMPLOS.map((grupo) => (
-                <div key={grupo.area}>
-                  <h3 className="text-sm font-semibold">{grupo.area}</h3>
-                  <ul className="mt-3 space-y-2">
-                    {grupo.perguntas.map((p) => (
-                      <li key={p}>
-                        <Link
-                          to="/chat"
-                          search={{ pergunta: p }}
-                          className="link-pergunta text-[0.9375rem]"
-                        >
-                          {p}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+            {EXEMPLOS.map((sis) => (
+              <div key={sis.sistema} className="mt-12">
+                <h3 className="border-b pb-2 text-lg font-semibold">{sis.nome}</h3>
+                <div className="mt-6 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+                  {sis.grupos.map((grupo) => (
+                    <div key={grupo.area}>
+                      <h4 className="text-sm font-semibold text-muted-foreground">{grupo.area}</h4>
+                      <ul className="mt-3 space-y-2">
+                        {grupo.perguntas.map((p) => (
+                          <li key={p}>
+                            <Link
+                              to="/chat"
+                              search={{ pergunta: p, sistema: sis.sistema }}
+                              className="link-pergunta text-[0.9375rem]"
+                            >
+                              {p}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -251,7 +320,8 @@ function Landing() {
             </h2>
             <p className="mt-4 max-w-[58ch] leading-relaxed text-primary-foreground/75">
               Escolha uma informação que a sua equipe pede toda semana e peça ao Stagium. Hoje ele
-              trabalha com o Sagi (SyGeCom); se a sua empresa usa outro sistema, conte qual.
+              trabalha com o Sagi (SyGeCom) e o Nomus; se a sua empresa usa outro sistema, conte
+              qual.
             </p>
             <div className="mt-8">
               <BotoesContato invertido />

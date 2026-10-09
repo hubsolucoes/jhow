@@ -5,7 +5,7 @@
   "aguardando_aprovacao": false,
   "aprovado_em": "2026-09-14",
   "criado_em": "2026-09-14",
-  "atualizado_em": "2026-09-21",
+  "atualizado_em": "2026-10-09",
   "legenda_status": {
     "pendente": "ainda não iniciado",
     "em_andamento": "lote em execução",
@@ -127,6 +127,17 @@
       "status": "concluido",
       "motivo": "pedido do usuário em 2026-09-17: piloto de teste do executor",
       "concluido_em": "2026-09-17"
+    },
+    {
+      "lote": "P2",
+      "onda": 4,
+      "tema": "Adiantado — ERP industrial (Nomus)",
+      "sistemas": [
+        "nomus"
+      ],
+      "status": "concluido",
+      "motivo": "pedido do usuário em 2026-10-09: documentar o Nomus fora da ordem da fila",
+      "concluido_em": "2026-10-09"
     },
     {
       "lote": 3,
@@ -581,7 +592,6 @@
         "quod",
         "certisign",
         "contmatic",
-        "nomus",
         "esl-cloud",
         "skyhub",
         "totvs-rh",
@@ -597,7 +607,10 @@
         "olist"
       ],
       "status": "pendente",
-      "observacao": "Será quebrado em lotes de 3 quando chegar a vez; ordem interna revisada com o aprendizado das ondas anteriores."
+      "observacao": "Será quebrado em lotes de 3 quando chegar a vez; ordem interna revisada com o aprendizado das ondas anteriores.",
+      "retirados": [
+        "nomus — adiantado para o lote P2 e concluído em 2026-10-09"
+      ]
     }
   ],
   "sistemas": [
@@ -2688,6 +2701,52 @@
         "sem rate limit publicado",
         "sem webhooks: tudo por consulta periódica"
       ]
+    },
+    {
+      "slug": "nomus",
+      "nome": "Nomus ERP (Nomus ERP Industrial e Nomus Start Industrial)",
+      "categoria": "erp_nacional",
+      "onda": 4,
+      "lote": "P2",
+      "prioridade": null,
+      "prioridade_observacao": "Veio da cauda longa (lote 43), que não tinha prioridade estimada.",
+      "status": "concluido",
+      "adiantado_fora_da_ordem": true,
+      "justificativa_inclusao": "Pedido do usuário em 2026-10-09: ERP industrial, documentado antes da vez na fila.",
+      "hipoteses_a_validar": [
+        "CONFIRMADA (2026-10-09): documentação pública — coleção Postman com 191 requisições (api.nomus.com.br redireciona para ela) e 17 artigos na seção API REST da Central de Ajuda.",
+        "CONFIRMADA: autenticação por chave fixa no header Authorization: Basic, obtida na Configuração Geral do ERP; sem OAuth.",
+        "PENDENTE: se a chave exibida no ERP já está em Base64 ou precisa ser convertida."
+      ],
+      "resultado": {
+        "endpoints_detalhados": 35,
+        "endpoints_catalogados": 159,
+        "faq": 17,
+        "indice_integrabilidade": 29,
+        "bloqueio_para_o_piloto": "credencial: chave de integração REST e URL base do ERP do cliente; executor precisa paginar sem parâmetro de tamanho e esperar 20 s entre chamadas",
+        "data": "2026-10-09"
+      },
+      "concluido_em": "2026-10-09",
+      "endpoints_detalhados": 35,
+      "endpoints_catalogados": 159,
+      "faq": 17,
+      "indice_integrabilidade": 29,
+      "validador": "0 erros, 0 avisos",
+      "execucao": {
+        "completo_em": "2026-10-09",
+        "endpoints_executaveis": 31,
+        "endpoints_total": 35
+      },
+      "conferencia_orquestrador": null,
+      "pendencias": [
+        "confirmar formato da chave no header (como está ou em Base64)",
+        "limite publicado de 1 requisição a cada 20 s: executor do site espera 350 ms e aborta no 429",
+        "executor do site só pagina tipo page quando há param_tamanho; Nomus tem página fixa de 50 sem parâmetro",
+        "filtros de período e empresa são expressões no parâmetro query, que o gerador de formulário não reconhece",
+        "sem sandbox: base de testes só no ERP Industrial, sem procedimento publicado",
+        "sem termos de uso de API: uso em produto de terceiro precisa de posição escrita da Nomus",
+        "sem webhooks: tudo por consulta periódica"
+      ]
     }
   ],
   "cauda_longa_sem_ficha_individual_ainda": [
@@ -2717,10 +2776,6 @@
       "slug": "contmatic",
       "categoria": "vertical_contabil",
       "risco": "possível sem_api"
-    },
-    {
-      "slug": "nomus",
-      "categoria": "erp_nacional"
     },
     {
       "slug": "esl-cloud",

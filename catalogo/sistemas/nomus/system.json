@@ -1,0 +1,541 @@
+{
+  "slug": "nomus",
+  "nome": "Nomus ERP (Nomus ERP Industrial e Nomus Start Industrial)",
+  "categoria": "erp_nacional",
+  "fornecedor": {
+    "razao_social": "Nomus Consultoria e Desenvolvimento em Tecnologia de Gestão Ltda EPP",
+    "pais": "BR",
+    "site": "https://www.nomus.com.br",
+    "cnpj": null,
+    "observacao": "Razão social tirada da política de privacidade do site; o CNPJ não aparece nas páginas consultadas.",
+    "fonte_url": "https://www.nomus.com.br/privacidade/",
+    "data_consulta": "2026-10-09"
+  },
+  "descricao_curta": "ERP para indústria (engenharia, PCP, MRP II, chão de fábrica, estoque, compras, vendas, fiscal e financeiro), em duas versões: Nomus ERP Industrial (médias e grandes, multiempresa, nuvem ou servidor dedicado) e Nomus Start Industrial (pequenas no Simples, só nuvem). Expõe uma API REST + JSON por cliente, em https://<empresa>.nomus.com.br/<empresa>/rest, documentada numa coleção Postman pública, com chave fixa no cabeçalho Authorization: Basic, páginas de 50 registros, filtro próprio no parâmetro query e limite publicado de 1 requisição a cada 20 segundos.",
+  "porte_alvo": [
+    "pequena",
+    "media",
+    "grande"
+  ],
+  "verticais": [
+    "industria"
+  ],
+  "status": "documentado",
+  "api": {
+    "estilo": "REST",
+    "base_urls": {
+      "producao": null,
+      "sandbox": null
+    },
+    "base_url_modelo": "https://<empresa>.nomus.com.br/<empresa>/rest",
+    "base_url_observacao": "Não há host único: cada cliente tem o seu. A regra publicada é endereço_do_erp/nome_do_contexto/rest/nome_do_servico; a coleção usa https://empresa.nomus.com.br/empresa/rest e o artigo de etiquetas http://cliente.nomus.com.br/cliente/rest. Instalações locais ou em servidor dedicado (permitidas no ERP Industrial) têm endereço próprio.",
+    "versao_atual": null,
+    "versao_observacao": "A API não tem número de versão. A coleção Postman foi publicada em 2023-03-14 e vem sendo atualizada (há exemplos datados de 2026).",
+    "politica_versionamento": "Não publicada. Sem versão no caminho, sem changelog. Comportamentos podem variar com a versão do sistema instalado no cliente.",
+    "formatos": [
+      "json"
+    ],
+    "spec_oficial_url": "https://documenter.getpostman.com/view/22813773/2s93JutNgM",
+    "spec_formato": "Coleção Postman v2 (não OpenAPI). JSON obtido em https://documenter.gw.postman.com/api/collections/22813773/2s93JutNgM?segregateAuth=true&versionTag=latest",
+    "openapi_disponivel": false,
+    "total_requisicoes_colecao": 191,
+    "total_pastas_recursos_colecao": 73,
+    "pagina_api_oficial": "https://api.nomus.com.br/",
+    "pagina_api_observacao": "api.nomus.com.br, linkado no site como 'API do Nomus ERP Industrial', redireciona para a coleção Postman.",
+    "fonte_url": "https://documenter.getpostman.com/view/22813773/2s93JutNgM",
+    "data_consulta": "2026-10-09"
+  },
+  "autenticacao": {
+    "tipos": [
+      "api_key"
+    ],
+    "fluxo_resumido": "Cada requisição leva o cabeçalho Authorization com a palavra Basic seguida da chave de integração e o Content-Type application/json. A chave fica na tela Configuração Geral do ERP, campo 'Chave de acesso para integração com o erp via REST'. Não há login, token temporário nem OAuth.",
+    "escopos_permissoes": [],
+    "escopos_observacao": "Não há escopos. A chave é única por ERP e não há documentação de chave somente leitura.",
+    "expiracao_token": null,
+    "expiracao_observacao": "Chave fixa; a documentação não fala em expiração nem em como gerar outra.",
+    "renovacao": "Não documentada.",
+    "ip_allowlist_obrigatorio": false,
+    "ip_allowlist_observacao": "Nada publicado sobre allowlist de IP.",
+    "observacao_formato": "Apesar do 'Basic', não é o Basic usuário:senha do HTTP. A documentação descreve o valor como a chave 'em Base64', e a coleção envia 'Basic ' + a chave diretamente. Ver lacunas.",
+    "fonte_url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195281009819-Introdu%C3%A7%C3%A3o-%C3%A0-integra%C3%A7%C3%A3o-com-API-REST",
+    "data_consulta": "2026-10-09"
+  },
+  "execucao_auth": {
+    "tipo": "header_api_key",
+    "header": "Authorization",
+    "prefixo": "Basic ",
+    "usuario_basic_e_a_credencial": false,
+    "headers_fixos": {
+      "Content-Type": "application/json"
+    },
+    "token_url": null,
+    "credenciais_necessarias": [
+      {
+        "nome": "api_key",
+        "rotulo": "Chave de acesso para integração via REST",
+        "segredo": true,
+        "onde_obter": "No Nomus ERP, tela Configuração Geral, campo 'Chave de acesso para integração com o erp via REST'. Cole o valor exatamente como aparece. A documentação descreve o cabeçalho como 'Basic' + chave em Base64; se a API recusar a chave, confirme com o suporte Nomus se ela precisa ser convertida para Base64 antes.",
+        "obrigatoria": true
+      },
+      {
+        "nome": "base_url",
+        "rotulo": "Endereço da API do seu ERP",
+        "segredo": false,
+        "onde_obter": "É o endereço do seu Nomus seguido de /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (o mesmo endereço que você usa para entrar no ERP, trocando o final por /rest). Se o ERP roda em servidor próprio, use o endereço desse servidor.",
+        "obrigatoria": true
+      }
+    ],
+    "base_url_por_ambiente": {
+      "sandbox": null,
+      "producao": null
+    },
+    "observacao": "Chave fixa no header Authorization com prefixo 'Basic ' (não é Basic usuário:senha). A URL base é do cliente e vem da credencial base_url. Paginação: parâmetro pagina, 50 registros fixos por página, sem parâmetro de tamanho. Limite publicado: 1 requisição a cada 20 s; o 429 traz {\"tempoAteLiberar\": <segundos>} no corpo, sem cabeçalho Retry-After documentado. Filtros vão no parâmetro query (ex.: dataVencimento>=2026-08-01T00:00:00;dataVencimento<=2026-08-31T23:59:59). Somente leitura: a mesma chave permite escrita, então o executor nunca deve usá-la em POST/PUT/DELETE.",
+    "confianca": "verificado",
+    "fonte_url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195281009819-Introdu%C3%A7%C3%A3o-%C3%A0-integra%C3%A7%C3%A3o-com-API-REST",
+    "data_consulta": "2026-10-09"
+  },
+  "ambiente_testes": {
+    "sandbox": false,
+    "como_obter": "Não há sandbox público. O comparativo oficial entre Nomus Start e Nomus ERP Industrial lista 'instalação de base de testes' como permitida só no ERP Industrial, sem dizer como pedir nem quanto custa. Na prática: pedir uma base de testes à Nomus ou testar só leituras na base real.",
+    "custo": null,
+    "dados_ficticios": false,
+    "fonte_url": "https://atendimento.nomus.com.br/hc/pt-br/articles/43940587834651-Qual-solu%C3%A7%C3%A3o-escolher-Diferen%C3%A7as-entre-Nomus-Start-e-Nomus-ERP-Industrial",
+    "data_consulta": "2026-10-09"
+  },
+  "limites": {
+    "rate_limit": "1 requisição a cada 20 segundos",
+    "janela": "20 segundos",
+    "burst": null,
+    "rate_limit_observacao": "O comparativo oficial de produtos traz 'API Nomus: máximo de 1 requisição a cada 20 segundos' para o Start e para o ERP Industrial. A coleção descreve um throttling que bloqueia após uma quantidade de requisições e responde 429 com {\"tempoAteLiberar\": <segundos>}; o integrador deve esperar esse tempo e repetir.",
+    "paginacao": {
+      "estilo": "page",
+      "tamanho_max": 50,
+      "observacao": "Parâmetro pagina (padrão 1), 50 registros fixos por página, sem parâmetro de tamanho; sem pagina vêm os 50 registros mais recentes. Exceções documentadas: etiquetas (inicio a partir de 0 e limite até 100) e o exemplo de usuários (inicio e limite)."
+    },
+    "filtro": "Parâmetro query: campo==valor; operadores == != < <= > >=; ';' = E, ',' = OU; qualquer campo devolvido pelo endpoint; datas em yyyy-MM-ddTHH:mm:ss. Na resposta as datas voltam como dd/mm/aaaa.",
+    "tamanho_max_payload": null,
+    "timeout_recomendado": "60 s por requisição (recomendação própria: há respostas com PDF e XML embutidos).",
+    "politica_retry": "Documentada só para o 429: ler tempoAteLiberar, aguardar e repetir. Para os demais erros, recomendação própria: não repetir escrita; repetir leitura no máximo 2 vezes.",
+    "idempotencia": {
+      "suportada": false,
+      "header": null
+    },
+    "volatil": true,
+    "fonte_url": "https://atendimento.nomus.com.br/hc/pt-br/articles/43940587834651-Qual-solu%C3%A7%C3%A3o-escolher-Diferen%C3%A7as-entre-Nomus-Start-e-Nomus-ERP-Industrial",
+    "data_consulta": "2026-10-09"
+  },
+  "webhooks": {
+    "suportados": false,
+    "eventos": [],
+    "verificacao_assinatura": null,
+    "politica_reentrega": null,
+    "requer_endpoint_publico": false,
+    "observacao": "A API REST não publica webhooks. A Central de Ajuda fala em webhook só em conectores específicos (RD Station, Exact Sales), em que o Nomus recebe eventos de outro sistema. Sincronização é por consulta periódica; o ERP tem as configurações 'Data para buscar registros em sistemas integrados' e 'Intervalo para buscar registros', expostas em GET /Processo/data_pesquisa e /Processo/intervalo_pesquisa.",
+    "fonte_url": "https://atendimento.nomus.com.br/hc/pt-br/sections/35195290469403",
+    "data_consulta": "2026-10-09"
+  },
+  "erros": {
+    "formato": "Não uniforme. 429: {\"tempoAteLiberar\": <segundos>}. 406 (regra de negócio ou id inválido): {\"descricao\", \"erros\": [{\"codigo\", \"mensagem\"}], \"status\": 406}. 400 na CC-e inexistente: {\"status\": 400}. Algumas exclusões devolvem texto puro ou true. Respostas para chave inválida, id inexistente e filtro inválido não são documentadas.",
+    "codigos_principais": [
+      {
+        "status": 200,
+        "quando": "Sucesso, inclusive na maioria das criações (que devolvem o id criado, às vezes com 'Mensagem')."
+      },
+      {
+        "status": 201,
+        "quando": "Criação de apontamento (único exemplo com 201)."
+      },
+      {
+        "status": 204,
+        "quando": "Mover apontamento para a lixeira."
+      },
+      {
+        "status": 400,
+        "quando": "Obter CC-e de NF-e que não tem carta de correção."
+      },
+      {
+        "status": 406,
+        "quando": "Id inválido (permissões de grupo de usuários) ou operação recusada (processar ou excluir inventário fora da situação permitida)."
+      },
+      {
+        "status": 429,
+        "quando": "Throttling: limite de requisições atingido; aguardar tempoAteLiberar segundos."
+      },
+      {
+        "status": 500,
+        "quando": "Aparece em exemplos de DANFE e de roteiro de produto com corpo válido; provavelmente erro de documentação."
+      }
+    ],
+    "fonte_url": "https://documenter.getpostman.com/view/22813773/2s93JutNgM",
+    "data_consulta": "2026-10-09"
+  },
+  "sdks_oficiais": [],
+  "sdks_observacao": "Nenhum SDK oficial. A coleção Postman pública pode ser importada no Postman e funciona como cliente de teste.",
+  "comercial": {
+    "modelo_acesso": "sob_contrato",
+    "custo_api": null,
+    "custo_api_observacao": "O comparativo oficial lista a 'API Nomus' como disponível no Nomus Start Industrial e no Nomus ERP Industrial, com o mesmo limite, sem preço separado. O acesso depende de ser cliente do ERP; preços de licença não foram consultados.",
+    "exige_homologacao": false,
+    "tempo_medio_aprovacao": null,
+    "volatil": true,
+    "fonte_url": "https://atendimento.nomus.com.br/hc/pt-br/articles/43940587834651-Qual-solu%C3%A7%C3%A3o-escolher-Diferen%C3%A7as-entre-Nomus-Start-e-Nomus-ERP-Industrial",
+    "data_consulta": "2026-10-09"
+  },
+  "conformidade": {
+    "trafega_dado_pessoal": true,
+    "dado_sensivel": false,
+    "base_legal_tipica": "Execução de contrato e cumprimento de obrigação legal (LGPD art. 7º, V e II). A API trafega nome, CPF/CNPJ, endereço, telefone e e-mail de clientes, fornecedores, contatos e representantes, além de funcionários (matrícula, nome) e usuários do ERP (login, e-mail).",
+    "exige_certificado_digital": false,
+    "certificado_observacao": "A API não exige certificado. O ERP usa certificado A1 para emitir NF-e, mas isso fica dentro do ERP.",
+    "regulador": null,
+    "residencia_dados": null,
+    "termos_uso_url": "https://www.nomus.com.br/privacidade/",
+    "termos_uso_observacao": "Não há termos de uso específicos da API; a URL é a política de privacidade do site da Nomus.",
+    "permite_uso_em_produto_terceiro": "indefinido",
+    "permite_uso_em_produto_terceiro_observacao": "Nada publicado. Pedir confirmação escrita da Nomus antes de usar a chave do cliente num produto de terceiro.",
+    "fonte_url": "https://www.nomus.com.br/privacidade/",
+    "data_consulta": "2026-10-09"
+  },
+  "esforco_integracao": {
+    "complexidade": "media",
+    "horas_estimadas_mvp": 32,
+    "premissa_estimativa": "MVP de leitura com 8 a 10 consultas (contas a receber e a pagar, recebimentos, pagamentos, pedidos, itens faturados, produtos, saldo, ordens): montador do parâmetro query para período e empresa, paginação de 50 com espera de 20 s e tratamento do 429, conversão de números e datas campo a campo, cruzamento de ids com cadastros. Sem escrita.",
+    "principais_armadilhas": [
+      "Limite de 1 requisição a cada 20 segundos: 1.000 registros (20 páginas) levam cerca de 7 minutos. Sempre recorte por período e empresa.",
+      "Página fixa de 50 registros, sem parâmetro de tamanho; sem o parâmetro pagina vêm só os 50 mais recentes.",
+      "Filtro numa linguagem própria dentro do parâmetro query (campo>=valor;campo<=valor); datas em yyyy-MM-ddTHH:mm:ss, mas a resposta devolve dd/mm/aaaa.",
+      "Valores financeiros em texto pt-BR ('11.245,57'), quantidades com ponto e até 30 casas, alguns campos em número JSON: converter coluna a coluna.",
+      "A chave vai como 'Authorization: Basic <chave>', sem usuário:senha; a doc fala em chave 'em Base64' e a coleção envia a chave crua.",
+      "URL base por cliente (https://<empresa>.nomus.com.br/<empresa>/rest), e não há host único.",
+      "Listagens trazem ids, não nomes (pedidos, movimentações, apontamentos): é preciso cruzar com cadastros, cada um custando mais páginas de 20 s.",
+      "Contas a pagar usam os nomes de campo das contas a receber (valorReceber, saldoReceber) e valores negativos.",
+      "Respostas pesadas: PDF de boleto em Base64 em contas a receber e XML completo em NF-e e NFS-e.",
+      "Campos sem valor podem não vir no JSON; montar a planilha pela união dos campos.",
+      "A mesma chave permite escrita e não tem escopo; guardar com cuidado e nunca usar fora do executor de leitura.",
+      "Sem webhooks: tudo por consulta periódica."
+    ]
+  },
+  "casos_uso_negocio": [
+    {
+      "titulo": "Fluxo de caixa previsto e realizado",
+      "dor_resolvida": "O financeiro da indústria monta o fluxo de caixa exportando relatórios separados de contas a receber, a pagar e baixas, e cola tudo numa planilha.",
+      "endpoints_envolvidos": [
+        "nomus.conta_receber.listar",
+        "nomus.conta_pagar.listar",
+        "nomus.pagamento.listar.recebimentos",
+        "nomus.pagamento.listar"
+      ],
+      "valor_percebido": "Previsto (títulos por vencimento) e realizado (recebimentos e pagamentos por data) num só lugar, por empresa e por conta bancária."
+    },
+    {
+      "titulo": "Inadimplência e carteira de cobrança",
+      "dor_resolvida": "Ninguém sabe de pronto quanto está vencido, com quem e há quanto tempo, nem quais boletos foram rejeitados.",
+      "endpoints_envolvidos": [
+        "nomus.conta_receber.listar",
+        "nomus.cobranca.listar",
+        "nomus.cliente.listar"
+      ],
+      "valor_percebido": "Aging por cliente com títulos confirmados em aberto, situação do boleto e contato do cliente para cobrança."
+    },
+    {
+      "titulo": "Faturamento por produto, cliente e região",
+      "dor_resolvida": "A diretoria quer curva ABC e vendas por UF e CFOP, e o relatório nativo não cruza do jeito que ela precisa.",
+      "endpoints_envolvidos": [
+        "nomus.nota_fiscal.listar.itens_saida",
+        "nomus.nota_fiscal.listar",
+        "nomus.produto.listar"
+      ],
+      "valor_percebido": "Itens faturados com quantidade, valor, impostos, CFOP, cliente e município, prontos para tabela dinâmica ou Power BI."
+    },
+    {
+      "titulo": "Carteira de pedidos e funil comercial",
+      "dor_resolvida": "Comercial e PCP não enxergam juntos o que foi orçado, o que virou pedido e o que ainda está para atender.",
+      "endpoints_envolvidos": [
+        "nomus.orcamento.listar",
+        "nomus.pedido.listar.venda",
+        "nomus.cliente.listar"
+      ],
+      "valor_percebido": "Propostas por período, pedidos com situação de cada item e entrega prevista, por cliente e representante."
+    },
+    {
+      "titulo": "Estoque valorizado e giro",
+      "dor_resolvida": "Fechamento de mês exige saldo e custo por produto numa data, e o giro de estoque é calculado à mão.",
+      "endpoints_envolvidos": [
+        "nomus.estoque.listar.saldo_produto",
+        "nomus.estoque.listar.movimentacoes",
+        "nomus.produto.obter"
+      ],
+      "valor_percebido": "Saldo e custo médio por empresa e setor numa data, mais o kardex do período. Viável para dezenas de produtos; para a base inteira, o limite de 20 s pesa."
+    },
+    {
+      "titulo": "Acompanhamento de produção (PCP)",
+      "dor_resolvida": "O gestor de fábrica quer ver ordens atrasadas, falta de material e produtividade por recurso sem abrir tela por tela.",
+      "endpoints_envolvidos": [
+        "nomus.ordem_producao.listar",
+        "nomus.ordem_producao.listar.apontamentos",
+        "nomus.ordem_producao.listar.empenhos"
+      ],
+      "valor_percebido": "Ordens com entrega e situação, apontamentos por recurso e funcionário, e saldo de material empenhado a requisitar."
+    },
+    {
+      "titulo": "Compras e notas de fornecedores",
+      "dor_resolvida": "Compras não sabe quais pedidos já têm nota emitida pelo fornecedor nem se a manifestação foi feita.",
+      "endpoints_envolvidos": [
+        "nomus.pedido.listar.compra",
+        "nomus.nota_fiscal.listar.destinadas",
+        "nomus.pessoa.listar"
+      ],
+      "valor_percebido": "Pedidos de compra com entrega prevista ao lado das NF-e destinadas ao CNPJ, com manifestação e fornecedor."
+    }
+  ],
+  "indice_integrabilidade": {
+    "score": 29,
+    "componentes": {
+      "documentacao": {
+        "peso": 20,
+        "pontos": 10,
+        "justificativa": "Coleção Postman oficial pública com 191 requisições em 73 pastas de recursos, quase todas com exemplo de resposta, mais 17 artigos na Central de Ajuda com tabelas de campos e enumerações. Perde pontos por não ter schema tipado nem catálogo de erros (401/403/404 não aparecem), por exemplos com URL trocada, uma requisição sem URL, descrições copiadas de outro recurso e regras divergentes entre coleção e artigos (operador = versus ==, rotas antigas de Processo e Contatos)."
+      },
+      "sandbox": {
+        "peso": 15,
+        "pontos": 3,
+        "justificativa": "Não há sandbox público nem self-service. O comparativo oficial diz que a 'instalação de base de testes' é permitida no Nomus ERP Industrial (não no Start), sem procedimento, endereço ou custo publicados. O ambiente de homologação que aparece nos campos de NF-e é o da SEFAZ, não da API."
+      },
+      "autenticacao": {
+        "peso": 15,
+        "pontos": 4,
+        "justificativa": "Chave estática única por ERP, enviada em Authorization: Basic em toda requisição. Sem OAuth, sem escopos, sem expiração e sem rotação documentada; a mesma chave serve para leitura e escrita. A própria descrição do formato (chave 'em Base64') é ambígua."
+      },
+      "webhooks": {
+        "peso": 15,
+        "pontos": 0,
+        "justificativa": "A API REST não publica webhooks nem eventos. As menções a webhook na Central de Ajuda são de conectores específicos (RD Station, Exact Sales) em que o Nomus recebe eventos, não de assinatura de eventos do ERP."
+      },
+      "limites_paginacao": {
+        "peso": 10,
+        "pontos": 3,
+        "justificativa": "Paginação e limite estão documentados e o 429 traz o tempo de espera (tempoAteLiberar), o que é bom. Mas o tamanho de página é fixo em 50 e o limite publicado é de 1 requisição a cada 20 segundos: 1.000 registros levam cerca de 7 minutos e uma carga inicial de 50 mil registros, mais de 5 horas."
+      },
+      "sdks_comunidade": {
+        "peso": 10,
+        "pontos": 2,
+        "justificativa": "Nenhum SDK oficial nem pacote de comunidade localizado. A coleção Postman pode ser importada e serve de cliente de teste."
+      },
+      "acesso_sem_barreira": {
+        "peso": 10,
+        "pontos": 6,
+        "justificativa": "Documentação aberta sem login (Postman e Central de Ajuda). A chave é obtida pelo próprio cliente na tela Configuração Geral, sem aprovação de parceiro. A barreira é ser cliente do ERP, e a API está listada como disponível nos dois produtos (Start e ERP Industrial)."
+      },
+      "versionamento": {
+        "peso": 5,
+        "pontos": 1,
+        "justificativa": "Sem versão no caminho, sem changelog e sem política de depreciação. Há ao menos um comportamento que muda com a versão do sistema instalado (processar inventário usa GET nas versões 2884.197 a 2884.220)."
+      }
+    }
+  },
+  "qualidade_doc": {
+    "nota": 5,
+    "observacoes": "Abrangente em quantidade (191 requisições na coleção Postman, 17 artigos com tabelas de campos e enumerações) e aberta sem login, mas sem schema tipado, sem catálogo de erros e com muitos erros de cópia: URLs de exemplo trocadas, descrições de outro recurso, exemplo com lorem ipsum, status 500 em resposta válida, divergências entre coleção e artigos. O limite de requisições só aparece num artigo comparativo de produtos, não na documentação da API."
+  },
+  "monitoramento": {
+    "changelog_url": null,
+    "canal_breaking_changes": null,
+    "canal_breaking_changes_observacao": "Não há canal público. Acompanhar a coleção Postman (o JSON em https://documenter.gw.postman.com/api/collections/22813773/2s93JutNgM?segregateAuth=true&versionTag=latest pode ser baixado e comparado) e a seção API REST da Central de Ajuda (https://atendimento.nomus.com.br/hc/pt-br/sections/35195290469403), cujos artigos têm data de atualização.",
+    "frequencia_revisao_sugerida": "trimestral"
+  },
+  "lacunas": [
+    {
+      "campo": "execucao_auth.credenciais_necessarias.api_key",
+      "descricao": "A Central de Ajuda diz que o cabeçalho é 'Basic' seguido da chave 'em Base64', e o exemplo publicado é um texto Base64 truncado. A coleção Postman envia 'Basic ' + o valor da chave sem conversão. Não está claro se o valor exibido na Configuração Geral já está em Base64 ou se o integrador precisa codificá-lo. A receita do catálogo envia a chave como está; se o ERP recusar, codificar em Base64 é a primeira coisa a testar.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "api.base_urls.producao",
+      "descricao": "A URL base é por cliente (endereço do ERP + contexto + /rest). A coleção usa https://empresa.nomus.com.br/empresa/rest e o artigo de etiquetas usa http://cliente.nomus.com.br/cliente/rest, mas não há regra publicada de que subdomínio e contexto sejam sempre iguais, nem do endereço de instalações locais ou em servidor dedicado. O cliente precisa informar a URL exata.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "limites.rate_limit",
+      "descricao": "O comparativo oficial fixa 1 requisição a cada 20 segundos e a coleção descreve um bloqueio 'após uma certa quantidade total de requisições'. Não se sabe se o limite é por chave, por base ou por IP, se há rajada permitida nem se vale igual para todos os endpoints. É o maior gargalo para extração.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "erros.codigos_principais",
+      "descricao": "Os formatos de resposta para chave inválida (401/403), id inexistente (404) e filtro mal formado não são documentados. Só 429, 406 e um 400 específico (CC-e inexistente) têm exemplo.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "limites.paginacao",
+      "descricao": "Tamanho fixo de 50 sem parâmetro de tamanho. 'Sem página vêm os 50 mais recentes', mas o campo de ordenação não é declarado; se registros forem criados durante a extração, as páginas podem deslocar. Etiquetas e usuários usam outro esquema (inicio/limite), e não se sabe se a listagem de itens de tabela de preço é paginada.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "parametro query",
+      "descricao": "A regra geral (qualquer campo devolvido é filtrável; datas em yyyy-MM-ddTHH:mm:ss) está na descrição da coleção, mas não foi confirmada campo a campo. A coleção usa '=' em vários exemplos e os artigos usam '=='. A grafia de booleanos (status==false, ativo==true) e o suporte a campos aninhados (categorias.fornecedor) não estão documentados.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "formatos numéricos e de data",
+      "descricao": "Não há padrão: valores financeiros vêm em texto pt-BR ('11.245,57'), quantidades com ponto ('10.000000', '5.0000...0' com 30 casas), itens de documento de saída em número JSON, propostas em formato ambíguo ('1.000', '100,0000000000 por UNID'), boletos com ano de dois dígitos. Cada coluna precisa de conversão própria.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "contas a pagar — sinal e nomes",
+      "descricao": "GET /contasPagar devolve os campos valorReceber, saldoReceber e valorRecebido (nomes de contas a receber) com valores negativos no exemplo. A semântica do sinal não é explicada.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "respostas pesadas",
+      "descricao": "A listagem de contas a receber pode trazer o PDF do boleto em Base64 (boletoBancario) e a de NF-e o XML completo (xml); as NFS-e trazem dois XMLs. Não há parâmetro documentado para omitir esses campos.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "webhooks",
+      "descricao": "Não existem na API REST. Registrado para que ninguém prometa sincronização em tempo real: tudo é por consulta periódica, e com o limite de 20 s.",
+      "impacto": "medio"
+    },
+    {
+      "campo": "ambiente_testes",
+      "descricao": "A base de testes é citada como permitida no Nomus ERP Industrial, sem procedimento, URL ou custo. Sem ela, todo teste de leitura é feito na base de produção do cliente.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "autenticacao.escopos_permissoes",
+      "descricao": "A chave é única para o ERP e vale para escrita também. Não há escopo de somente leitura nem documentação sobre se a chave respeita algum perfil de usuário. Para o assistente, isso significa que a credencial guardada no cofre poderia gravar dados se usada fora do executor.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "conformidade.permite_uso_em_produto_terceiro",
+      "descricao": "Não há termos de uso de API publicados; só a política de privacidade do site. Antes de ler dados do cliente por um produto de terceiro, pedir posição escrita da Nomus.",
+      "impacto": "alto"
+    },
+    {
+      "campo": "versionamento",
+      "descricao": "Sem versão de API, changelog ou política de depreciação. O comportamento muda com a versão do sistema instalado (exemplo documentado: processar inventário).",
+      "impacto": "medio"
+    },
+    {
+      "campo": "documentação — erros de exemplo",
+      "descricao": "Exemplos com URL de outro recurso (atributos de pessoa, solicitações de compra, resultados de inspeção, vendedores, pedidos de compra), requisição de lotes/séries sem URL, exemplo de pedido de compra com texto lorem ipsum, DANFE e roteiro marcados com status 500 apesar do corpo válido, NFS-e e NF-e por id ora objeto, ora array.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "taxonomia — recebimento",
+      "descricao": "Recebimentos (baixas de contas a receber) foram mapeados em Pagamento com o qualificador recebimentos, e a criação de recebimento em ContaReceber/liquidar. Sugestão de extensão: entidade 'Recebimento' ou ampliar a descrição de Pagamento para entradas.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "taxonomia — documento de estoque e itens faturados",
+      "descricao": "Documentos de estoque e itens de documento de saída foram mapeados em Estoque e NotaFiscal. Sugestão: entidade 'DocumentoEstoque' (ou 'MovimentoEstoque'), também útil para o SyGeCom.",
+      "impacto": "baixo"
+    },
+    {
+      "campo": "taxonomia — chão de fábrica",
+      "descricao": "Apontamentos, empenhos, requisições, reportes e resultados de inspeção foram agrupados em OrdemProducao com qualificador. Sugestão: entidades 'Apontamento' e 'InspecaoQualidade' se outros ERPs industriais repetirem o padrão.",
+      "impacto": "baixo"
+    }
+  ],
+  "fontes": [
+    {
+      "url": "https://documenter.getpostman.com/view/22813773/2s93JutNgM",
+      "titulo": "Nomus ERP — coleção Postman oficial da API (documentação completa)",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://documenter.gw.postman.com/api/collections/22813773/2s93JutNgM?segregateAuth=true&versionTag=latest",
+      "titulo": "JSON da coleção Postman oficial (191 requisições), lido integralmente",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://api.nomus.com.br/",
+      "titulo": "api.nomus.com.br — 'API do Nomus ERP Industrial' no site, redireciona para a coleção",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195281009819-Introdu%C3%A7%C3%A3o-%C3%A0-integra%C3%A7%C3%A3o-com-API-REST",
+      "titulo": "Introdução à integração com API REST (Central de Ajuda Nomus, atualizado em 2026-05-12)",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/sections/35195290469403",
+      "titulo": "Seção API REST da Central de Ajuda (17 artigos)",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195264712219-Contas-a-receber",
+      "titulo": "Artigo: Contas a receber",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195303836571-Clientes",
+      "titulo": "Artigo: Clientes",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195264487707-Documentos-de-estoque",
+      "titulo": "Artigo: Documentos de estoque",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195276493211-Notas-fiscais-emitidas-e-recebidas",
+      "titulo": "Artigo: Notas fiscais emitidas e recebidas",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195264156187-Pedido",
+      "titulo": "Artigo: Pedido",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195297121563-Pedido-de-Compra",
+      "titulo": "Artigo: Pedido de Compra",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195290872219-Produtos",
+      "titulo": "Artigo: Produtos",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195296622747-Recebimentos",
+      "titulo": "Artigo: Recebimentos",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195290684315-Tabelas-de-pre%C3%A7o",
+      "titulo": "Artigo: Tabelas de preço",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195276709659-Etiqueta",
+      "titulo": "Artigo: Etiqueta (paginação inicio/limite)",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195264014747-Processo",
+      "titulo": "Artigo: Processo (rotas antigas e configurações de busca)",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/35195297733915-Contatos",
+      "titulo": "Artigo: Contatos",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://atendimento.nomus.com.br/hc/pt-br/articles/43940587834651-Qual-solu%C3%A7%C3%A3o-escolher-Diferen%C3%A7as-entre-Nomus-Start-e-Nomus-ERP-Industrial",
+      "titulo": "Qual solução escolher? Nomus Start x Nomus ERP Industrial (limite da API, base de testes)",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://www.nomus.com.br/privacidade/",
+      "titulo": "Política de privacidade da Nomus (razão social do controlador)",
+      "data_consulta": "2026-10-09"
+    },
+    {
+      "url": "https://www.nomus.com.br/",
+      "titulo": "Site da Nomus",
+      "data_consulta": "2026-10-09"
+    }
+  ]
+}

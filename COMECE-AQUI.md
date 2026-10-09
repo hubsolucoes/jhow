@@ -23,9 +23,9 @@ O valor está no **catálogo**: a documentação das APIs de cada sistema, conve
 
 | Item | Situação |
 |---|---|
-| Sistemas documentados | **10** — Asaas, Bling, Focus NFe, Mercado Pago, NFE.io, Pagar.me, Pix (Bacen), PlugNotas, SEFAZ, SyGeCom (Sagi) |
-| Endpoints | 512 detalhados, 858 catalogados, **271 executáveis** pelo assistente |
-| Site (chat) | No ar via Lovable, **restrito ao Sagi** para o piloto |
+| Sistemas documentados | **11** — Asaas, Bling, Focus NFe, Mercado Pago, NFE.io, Nomus, Pagar.me, Pix (Bacen), PlugNotas, SEFAZ, SyGeCom (Sagi) |
+| Endpoints | 547 detalhados, 1.017 catalogados, **302 executáveis** pelo assistente (Nomus: 35, 159 e 31) |
+| Site (chat) | No ar em stagium.lovable.app; o cliente escolhe **Sagi ou Nomus** |
 | Executor no servidor | Funciona. Testado contra servidor local no formato do Sagi; **ainda não rodou contra a API real** |
 | IA no site | Código pronto; **depende da variável `ANTHROPIC_API_KEY`** no Lovable |
 | Piloto | Cliente atual do proprietário, usa **Sagi (SyGeCom)** |
@@ -137,6 +137,7 @@ O trabalho é feito com **Claude Code**, um agente por sistema, em lotes de trê
 | 17/09 | Taxonomias v1.1 e v1.2 aprovadas; sistemas antigos reclassificados |
 | 17–18/09 | Novos tipos de autenticação: `login_credenciais` (ERPs com usuário e senha, 17/09) e `certificado_icp_brasil` (SEFAZ e afins, que o executor recusa, 18/09) |
 | 18/09 | Site restrito ao Sagi para o piloto |
+| 09/10 | **Nomus** documentado (31 consultas de leitura) e liberado no site ao lado do Sagi; chat passa a perguntar o sistema da empresa |
 | 18/09 | Repositório tornado **público** a pedido do proprietário |
 | 08/10 | Produto passa a se chamar **Stagium**; site em stagium.lovable.app (landing na raiz, chat em /chat) |
 | 08/10 | Credenciais podem ser salvas **no navegador, criptografadas com PIN**; consultas salvas com período relativo |

@@ -1,6 +1,6 @@
-# Stagium — assistente de dados (piloto: Sagi/SyGeCom)
+# Stagium — assistente de dados (Sagi/SyGeCom e Nomus)
 
-Chat em que o cliente pede, em português, a informação que precisa do **Sagi (SyGeCom)**.
+Chat em que o cliente escolhe o ERP da empresa (hoje **Sagi (SyGeCom)** ou **Nomus**) e pede, em português, a informação que precisa.
 O assistente encontra a consulta certa no catálogo, pede aprovação, solicita as credenciais
 do usuário de integração, consulta a API e devolve a planilha (.xlsx).
 
@@ -9,8 +9,10 @@ do usuário de integração, consulta a API e devolve a planilha (.xlsx).
 1. O cliente pergunta ("produtos cadastrados", "movimentos de estoque da matriz").
 2. A IA responde usando o catálogo e indica a consulta, com método, caminho e colunas.
 3. O cliente clica em **Executar esta consulta**.
-4. Aparece um **formulário de credenciais** (e-mail, senha e endereço da API).
-5. O servidor faz login no Sagi, pagina a consulta e devolve as linhas; a planilha é montada no navegador.
+4. Aparece um **formulário** com os filtros e as credenciais do sistema (Sagi: e-mail, senha e endereço; Nomus: chave de integração e endereço).
+5. O servidor autentica, pagina a consulta e devolve as linhas; a planilha é montada no navegador.
+   Sistemas com limite de requisições (Nomus: 1 a cada 20 s) são consultados uma página por chamada:
+   o navegador espera o intervalo, mostra o progresso e permite parar e gerar com o que já veio.
 
 ## Credenciais e segurança
 
@@ -57,13 +59,13 @@ Nunca coloque a chave em arquivo do repositório: ele sincroniza com o GitHub.
 | Consultas salvas e período relativo | `src/lib/consultas-salvas.ts` |
 | Catálogo completo das APIs | `catalogo/` |
 
-Para regerar o conhecimento (hoje limitado ao Sagi):
+Para regerar o conhecimento (hoje Sagi e Nomus):
 
 ```sh
-cd catalogo && .venv/Scripts/python scripts/gerar_conhecimento.py --sistemas sygecom
+cd catalogo && .venv/Scripts/python scripts/gerar_conhecimento.py --sistemas sygecom,nomus
 ```
 
-Sem `--sistemas`, entram os 10 sistemas documentados.
+Sem `--sistemas`, entram todos os 11 sistemas documentados (o chat só oferece os que têm receita de execução).
 
 ## Build with Lovable
 

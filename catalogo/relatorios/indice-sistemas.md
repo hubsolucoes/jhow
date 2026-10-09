@@ -1,8 +1,8 @@
 # Índice dos sistemas documentados
 
-Gerado em 2026-09-21 por `scripts/gerar_indice.py` a partir das fichas. Não edite à mão: rode o script de novo.
+Gerado em 2026-10-09 por `scripts/gerar_indice.py` a partir das fichas. Não edite à mão: rode o script de novo.
 
-**Totais:** 10 sistemas · 512 endpoints detalhados · 858 catalogados · 271 executáveis pelo assistente · 176 perguntas de FAQ.
+**Totais:** 11 sistemas · 547 endpoints detalhados · 1017 catalogados · 302 executáveis pelo assistente · 193 perguntas de FAQ.
 
 | Sistema | Categoria | Índice | Endpoints (det. + cat.) | Executáveis | Autenticação | Concluído |
 |---|---|---|---|---|---|---|
@@ -11,6 +11,7 @@ Gerado em 2026-09-21 por `scripts/gerar_indice.py` a partir das fichas. Não edi
 | [Focus NFe](../sistemas/focus-nfe/ficha.md) | Fiscal (emissor) | 67 | 62 + 66 | 32 | `basic` | 2026-09-17 |
 | [Mercado Pago](../sistemas/mercado-pago/ficha.md) | Pagamentos | 82 | 41 + 83 | 25 | `bearer` | 2026-09-17 |
 | [NFE.io](../sistemas/nfe-io/ficha.md) | Fiscal (emissor) | 69 | 43 + 142 | 30 | `header_api_key` | 2026-09-18 |
+| [Nomus ERP (Nomus ERP Industrial e Nomus Start Industrial)](../sistemas/nomus/ficha.md) | ERP | 29 | 35 + 159 | 31 | `header_api_key` | 2026-10-09 |
 | [Pagar.me](../sistemas/pagarme/ficha.md) | Pagamentos | 66 | 62 + 63 | 28 | `basic` | 2026-09-17 |
 | [API Pix (arranjo Bacen)](../sistemas/pix-bacen/ficha.md) | Pagamentos (padrão) | 64 | 49 + 3 | 22 | `mtls_oauth2` | 2026-09-17 |
 | [PlugNotas (Tecnospeed)](../sistemas/plugnotas/ficha.md) | Fiscal (emissor) | 62 | 90 + 94 | 56 | `header_api_key` | 2026-09-17 |
@@ -101,6 +102,24 @@ Gateway fiscal brasileiro que emite NFS-e, NF-e e NFC-e por API REST, captura do
   - 401 volta com corpo vazio: não há mensagem de erro para logar, só o status e o x-request-id.
 - **Lacunas principais:**
   - A página de planos cobre só NFS-e. Não há preço público de NF-e, NFC-e, captura fiscal (NFe/CTe Inbound e NFS-e Inbound), consultas de CNPJ/CPF/CEP n…
+
+### Nomus ERP (Nomus ERP Industrial e Nomus Start Industrial)
+
+ERP para indústria (engenharia, PCP, MRP II, chão de fábrica, estoque, compras, vendas, fiscal e financeiro), em duas versões: Nomus ERP Industrial (médias e grandes, multiempresa, nuvem ou servidor dedicado) e Nomus Start Industrial (pequenas no Simples, só nuvem). Expõe uma API REST + JSON por cl…
+
+- **Pasta:** `catalogo/sistemas/nomus/` — ficha humana em `ficha.md`
+- **API:** REST · produção `—` · sandbox `não há`
+- **Autenticação para o executor:** `header_api_key`
+- **Índice de integrabilidade:** 29
+- **Endpoints:** 35 detalhados, 159 catalogados, 31 executáveis, 17 perguntas de FAQ
+- **Armadilhas:**
+  - Limite de 1 requisição a cada 20 segundos: 1.000 registros (20 páginas) levam cerca de 7 minutos. Sempre recorte por período e empresa.
+  - Página fixa de 50 registros, sem parâmetro de tamanho; sem o parâmetro pagina vêm só os 50 mais recentes.
+  - Filtro numa linguagem própria dentro do parâmetro query (campo>=valor;campo<=valor); datas em yyyy-MM-ddTHH:mm:ss, mas a resposta devolve dd/mm/aaaa.
+- **Lacunas principais:**
+  - A Central de Ajuda diz que o cabeçalho é 'Basic' seguido da chave 'em Base64', e o exemplo publicado é um texto Base64 truncado. A coleção Postman en…
+  - A URL base é por cliente (endereço do ERP + contexto + /rest). A coleção usa https://empresa.nomus.com.br/empresa/rest e o artigo de etiquetas usa ht…
+  - O comparativo oficial fixa 1 requisição a cada 20 segundos e a coleção descreve um bloqueio 'após uma certa quantidade total de requisições'. Não se…
 
 ### Pagar.me
 

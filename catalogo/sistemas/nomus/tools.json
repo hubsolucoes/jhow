@@ -1,0 +1,1277 @@
+{
+  "sistema": "nomus",
+  "tools": [
+    {
+      "name": "nomus__conta_receber__listar",
+      "title": "Listar contas a receber",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /contasReceber. Lista os títulos a receber com valor, vencimento, saldo, situação de baixa, cliente, empresa, conta bancária, forma de pagamento e classificação financeira. Quando usar: Para aging de recebíveis, inadimplência, previsão de entradas e conferência com os recebimentos. Recorte por dataVencimento e, para títulos confirmados, por tipo==1. Quando NÃO usar: Não use para saber quanto entrou de fato num período: as baixas com data e valor recebido estão em GET /recebimentos (nomus.pagamento.listar.recebimentos). Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Valores chegam como texto no formato brasileiro ('11.245,57') e precisam de conversão. Alguns registros trazem o PDF do boleto inteiro em Base64 no campo boletoBancario, o que deixa a página pesada: não use esse campo como coluna. Campos sem valor podem simplesmente não vir no JSON. O campo status é a situação de baixa (true = baixada), não um código de etapa.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__conta_receber__obter",
+      "title": "Detalhar conta a receber",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /contasReceber/{id}. Devolve um título a receber pelo id, com os mesmos campos da listagem (valor, vencimento, saldo, baixa, cliente, conta bancária e classificação). Quando usar: Para conferir um título específico, por exemplo a partir do idContaReceber de um boleto ou de um recebimento. Quando NÃO usar: Não use em laço para montar relatório: com o limite de 1 requisição a cada 20 s, a listagem com filtro query é muito mais barata. Pré-requisitos: Id da conta a receber (campo id da listagem, ou idContaReceber de boleto/recebimento). Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: A API não documenta a resposta para id inexistente (status e corpo). O registro pode conter o PDF do boleto em Base64 no campo boletoBancario.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Id do registro no Nomus ERP."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__conta_pagar__listar",
+      "title": "Listar contas a pagar",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /contasPagar. Lista os títulos a pagar com vencimento, valor, saldo, situação de baixa, fornecedor, empresa e conta bancária. Quando usar: Para programação de pagamentos, fluxo de caixa previsto e conferência de títulos em aberto por fornecedor. Recorte por dataVencimento. Quando NÃO usar: Não use para saber o que já foi pago num período: as baixas efetivas estão em GET /pagamentos. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Os campos de valor das contas a pagar reaproveitam os nomes das contas a receber (valorReceber, saldoReceber, valorRecebido) e, no exemplo oficial, vêm negativos ('-5,00'). Ao somar com contas a receber, use o sinal como está; ao montar relatório de pagar, inverta o sinal se quiser valores positivos. Valores são texto pt-BR.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__conta_pagar__obter",
+      "title": "Detalhar conta a pagar",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /contasPagar/{id}. Devolve um título a pagar pelo id, com vencimento, valor, saldo, situação de baixa, fornecedor e conta bancária. Quando usar: Para conferir um título específico a partir do idContaPagar de um pagamento. Quando NÃO usar: Não use em laço para relatório: prefira a listagem com filtro query. Pré-requisitos: Id da conta a pagar. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Mesmos nomes de campo das contas a receber e valores negativos no exemplo oficial. Resposta para id inexistente não documentada.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Id do registro no Nomus ERP."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__pagamento__listar",
+      "title": "Listar pagamentos",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /pagamentos. Lista os pagamentos lançados (saídas de caixa), com data, valor pago, juros/multa, desconto, pessoa, conta bancária, forma de pagamento, classificação financeira e o título a pagar baixado. Quando usar: Para fluxo de caixa realizado (saídas), conferência de pagamentos por fornecedor ou por conta bancária e conciliação com o extrato. Quando NÃO usar: Não use para títulos ainda em aberto: esses estão em GET /contasPagar. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: idContaPagar = 0 indica pagamento avulso, sem título vinculado. As datas trazem hora ('04/08/2026 00:00:00'). Valores são texto pt-BR.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__pagamento__listar__recebimentos",
+      "title": "Listar recebimentos",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /recebimentos. Lista os recebimentos lançados (entradas de caixa), com data, valor recebido, juros/multa, desconto, pessoa, conta bancária, forma de pagamento, classificação financeira e o título a receber baixado. Quando usar: Para fluxo de caixa realizado (entradas), recebimentos por cliente ou por conta bancária e conciliação com o extrato. Quando NÃO usar: Não use para títulos em aberto ou vencidos: isso é GET /contasReceber. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: A taxonomia do catálogo não tem entidade própria de recebimento: este endpoint foi mapeado em Pagamento (registro de liquidação de título) com o qualificador recebimentos. As datas trazem hora. Valores são texto pt-BR.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__cobranca__listar",
+      "title": "Listar boletos bancários",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /boletos. Lista os boletos bancários emitidos pelo ERP, com nosso número, valor, emissão, vencimento, situação, cliente, convênio bancário e a conta a receber de origem. Quando usar: Para acompanhar a carteira de boletos (aguardando remessa, registrados, pagos, rejeitados) e cruzar com as contas a receber. Quando NÃO usar: Não use para medir inadimplência total: títulos sem boleto (Pix, depósito, cartão) não aparecem aqui; use GET /contasReceber. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Nos exemplos oficiais as datas de boleto vêm com ano de dois dígitos ('21/02/24'), diferente dos demais endpoints. status é numérico (1 aguardando remessa, 2 aguardando registro, 3 registrado, 4 pago, 5 rejeitado) e cancelado é um booleano à parte. A linha digitável não aparece neste endpoint; ela consta no exemplo de contas a receber (linhaDigitavelBoleto).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__pedido__listar__venda",
+      "title": "Listar pedidos de venda",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /pedidos. Lista os pedidos de venda com cabeçalho (código, emissão, cliente, representante, empresa, totais de frete/seguro/despesas, condição de pagamento), itens, NF-e vinculadas e totais de tributos. Quando usar: Para carteira de pedidos, vendas por período, por cliente ou por representante e acompanhamento de atendimento dos itens. Quando NÃO usar: Não use como fonte do faturamento fiscal: o que foi efetivamente faturado está em GET /itensDocumentoSaida e GET /nfes. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: A listagem traz só os ids de cliente e representante, sem nome: para a planilha, cruze com GET /clientes ou GET /pessoas. Os itens vêm aninhados em itensPedido (uma linha por item exige explodir o array). O status é por item, não por pedido: 1 aguardando liberação, 2 liberado, 3 atendido parcialmente, 4 atendido totalmente, 5 atendido com corte, 6 cancelado, 7 devolvido parcialmente, 8 devolvido totalmente; a coleção acrescenta 9 enviado e 10 entregue. Os números dos itens vêm sem formatação ('150') e os totais em pt-BR ('150,00').",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__pedido__obter__venda",
+      "title": "Detalhar pedido de venda",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /pedidos/{id}. Devolve um pedido de venda pelo id, com itens, parcelas, NF-e vinculadas e totais de tributos. Quando usar: Para abrir um pedido específico (por exemplo, para ver as NF-e que o atenderam ou a situação de cada item). Quando NÃO usar: Não use em laço para relatório de período: a listagem já traz itens e totais. Pré-requisitos: Id do pedido de venda. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Resposta para id inexistente não documentada. Itens e NF-e vêm como arrays aninhados.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Id do registro no Nomus ERP."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__pedido__listar__compra",
+      "title": "Listar pedidos de compra",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /pedidoscompra. Lista os pedidos de compra com fornecedor, empresa, emissão, entrega padrão, condição e forma de pagamento, itens, parcelas e totais de frete/seguro/despesas. Quando usar: Para carteira de compras, entregas previstas por fornecedor e previsão de desembolso pelas parcelas. Quando NÃO usar: Não use para o que já entrou fisicamente: as entradas estão em GET /documentosEstoque e as notas recebidas em GET /nfesDestinadas. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: A listagem não traz valor total do pedido: some quantidade × valorUnitario dos itens. Os itens vêm em itensPedidoCompra na listagem, mas em itensPedido no exemplo do detalhe. Os totais de frete/seguro vêm com ponto decimal ('0.00'), ao contrário do padrão pt-BR das contas. Só o id do fornecedor é devolvido; o nome sai de GET /pessoas.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__pedido__obter__compra",
+      "title": "Detalhar pedido de compra",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /pedidoscompra/{id}. Devolve um pedido de compra pelo id, com comprador, fornecedor, transportadora, itens, parcelas e totais. Quando usar: Para abrir um pedido de compra específico. Quando NÃO usar: Não use em laço para relatório de período: a listagem já traz itens e parcelas. Pré-requisitos: Id do pedido de compra. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: O exemplo de resposta da coleção oficial para este endpoint está preenchido com texto de teste (lorem ipsum) e aponta para /pedidos/:id; os nomes de campo coincidem com o artigo 'Pedido de Compra' da Central de Ajuda, mas os tipos não puderam ser conferidos.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Id do registro no Nomus ERP."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__orcamento__listar",
+      "title": "Listar propostas",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /propostas. Lista as propostas comerciais com cliente, contato, empresa, processo de CRM de origem, itens (produto, quantidade, prazo, situação) e totais. Quando usar: Para funil comercial: propostas abertas por período, taxa de conversão em pedido e motivos de rejeição por item. Quando NÃO usar: Não use para pedidos já fechados: esses estão em GET /pedidos. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Os valores das propostas vêm em formato ambíguo ('1.000' pode ser mil ou um; 'valorUnitario' chega como '100,0000000000 por UNID', com a unidade no texto). Trate como texto até confirmar com o cliente. A situação do item (status) vem como texto numérico e não tem tabela de valores publicada.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__cliente__listar",
+      "title": "Listar clientes",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /clientes. Lista os clientes com código, nome, CNPJ/CPF, endereço, contato, regime tributário, situação, representantes e vendedores vinculados e data do último pedido de venda. Quando usar: Para carteira de clientes, cruzamento de nomes com pedidos e contas a receber, clientes sem compra recente (dataEmissaoUltimoPedidoVenda) e base para CRM. Quando NÃO usar: Não use para fornecedores ou transportadoras: GET /pessoas traz todos os papéis com as categorias marcadas. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Pessoa física traz o documento em cpf, pessoa jurídica em cnpj (o artigo de ajuda lista os dois campos). tipoContribuinteICMS e crt são códigos numéricos. Representantes e vendedores vêm em arrays. Os formatos de data variam entre registros ('03/05/2023' e '16/04/2026 10:11:00').",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__cliente__obter",
+      "title": "Detalhar cliente",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /clientes/{id}. Devolve um cliente pelo id, com documento, endereço, contato, regime de ICMS, atributos personalizados e endereços adicionais. Quando usar: Para buscar o nome e o documento de um cliente a partir do idPessoaCliente de um pedido ou do idPessoa de uma conta a receber. Quando NÃO usar: Não use em laço para enriquecer uma planilha grande: com 1 requisição a cada 20 s, liste os clientes uma vez (GET /clientes) e cruze localmente. Pré-requisitos: Id do cliente (idPessoaCliente, idPessoa ou id da listagem). Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: O CNPJ aparece ora formatado ('00.000.000/0001-91'), ora só com dígitos, conforme o registro. Resposta para id inexistente não documentada.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Id do registro no Nomus ERP."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__pessoa__listar",
+      "title": "Listar pessoas",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /pessoas. Lista o cadastro único de pessoas do ERP (clientes, fornecedores, transportadoras, representantes, vendedores, funcionários e outros), com as categorias marcadas, documento, endereço e contato. Quando usar: Para obter fornecedores e transportadoras (não há listagem própria de fornecedores), ou para traduzir os idPessoa de pedidos, contas e pagamentos em nomes. Quando NÃO usar: Se só precisa de clientes, GET /clientes traz campos comerciais adicionais (último pedido, vendedores, representantes). Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: As categorias vêm num objeto aninhado (categorias.fornecedor, categorias.cliente...). A documentação não diz se o filtro query aceita campo aninhado, então filtrar só fornecedores pela API não está garantido: o caminho seguro é puxar a lista e filtrar na planilha. A resposta tem vários campos de assinatura e espaço de arquivos que valem 'Não Aplicável' para quem não é cliente da própria Nomus; ignore-os.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__nota_fiscal__listar",
+      "title": "Listar notas fiscais (NF-e)",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /nfes. Lista as NF-e emitidas pela empresa e as recebidas de fornecedores e importadas no ERP, com chave, número, série, situação, tipo de operação, finalidade, ambiente, protocolo e data/hora de processamento. Quando usar: Para relação de notas por período e situação (autorizadas, canceladas, rejeitadas), conferência de chaves e auditoria fiscal. Quando NÃO usar: Não use para valor faturado por produto ou cliente: o endpoint não traz valores. Use GET /itensDocumentoSaida ou GET /documentosEstoque. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Segundo o artigo de ajuda, a resposta inclui o XML completo de cada nota (campo xml), o que torna a página pesada; não o leve para a planilha. O ambiente 2 (homologação) é o da SEFAZ e convive com as notas de produção na mesma base: filtre ambiente==1 em relatórios. Não há valores monetários neste endpoint.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__nota_fiscal__obter",
+      "title": "Detalhar nota fiscal (NF-e)",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /nfes/{id}. Devolve uma NF-e pelo id, com chave, número, série, situação, protocolo e o XML autorizado. Quando usar: Para obter o XML de uma nota específica ou conferir sua situação. Quando NÃO usar: Não use para o PDF da DANFE: há rota própria (GET /nfes/danfe/{id}, catalogada) que devolve o PDF em Base64. Pré-requisitos: Id da NF-e no Nomus (campo id da listagem, ou nfes[].id de um pedido). Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: O exemplo da coleção Postman devolve um array com um elemento, enquanto o artigo de ajuda mostra um objeto: trate os dois formatos. Para cancelamento, o artigo cita os campos xmlCancelamento e justificativaCancelamento; para CC-e, textoCorrecao.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Id do registro no Nomus ERP."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__nota_fiscal__listar__nfse",
+      "title": "Listar notas fiscais de serviço (NFS-e)",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /nfses. Lista as NFS-e emitidas, com número, RPS, data de emissão, situação, tomador, empresa emitente, documento de serviço de origem e o XML. Quando usar: Para relação de notas de serviço por período e conferência com o faturamento de serviços. Quando NÃO usar: Não use para NF-e de produto: essas estão em GET /nfes. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Os códigos de status da NFS-e não têm tabela publicada. O exemplo oficial da listagem mostra um objeto único em vez de array; trate os dois formatos. A resposta carrega dois XMLs por nota (xml e xmlNFSeAbrasf), o que pesa a página. Não há valores monetários nos campos de cabeçalho.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__nota_fiscal__listar__destinadas",
+      "title": "Listar notas fiscais destinadas",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /nfesDestinadas. Lista as NF-e emitidas por terceiros contra o CNPJ da empresa (notas destinadas), com chave, número, série, fornecedor, emissão, autorização e a manifestação do destinatário registrada. Quando usar: Para controlar notas de fornecedores que chegaram pela SEFAZ, conferir manifestação (ciência, confirmação) e cruzar com pedidos de compra. Quando NÃO usar: Não use para notas emitidas pela própria empresa: GET /nfes. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Os códigos de status não têm tabela publicada. A manifestação vem como texto livre ('Ciência da operação'). A API lê o que o ERP já baixou da SEFAZ; não consulta a SEFAZ em tempo real.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__nota_fiscal__listar__itens_saida",
+      "title": "Listar itens de documento de saída",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /itensDocumentoSaida. Lista os itens dos documentos de saída (produtos e serviços faturados), com número e data do documento, cliente, município/UF, produto, CFOP, quantidade, valores unitário e total, impostos (ICMS, IPI, COFINS), pesos e setor de saída. Quando usar: É a melhor fonte de faturamento por produto, por cliente, por UF e por CFOP. Use para curva ABC, vendas por região e conferência de impostos. Quando NÃO usar: Não use para status fiscal da nota (autorizada, cancelada): isso está em GET /nfes. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Aqui os valores vêm como número JSON (2000.0), diferente de quase todo o resto da API, que usa texto pt-BR. O campo produto traz o código/nome e descricaoProduto pode vir vazio. Inclui devoluções e transferências: filtre naturezaTipoMovimentacao para não somar o que não é venda. Na coleção oficial a requisição de listagem aparece sem cabeçalhos, mas a autenticação é exigida em toda a API.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__estoque__listar__documentos",
+      "title": "Listar documentos de estoque",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /documentosEstoque. Lista os documentos de estoque (saídas, entradas, vendas de serviço e outros), com tipo de documento, tipo de movimentação, pessoa, empresas e setores de entrada/saída, valor total e itens com custo, quantidade e tributos. Quando usar: Para análise de entradas e saídas valorizadas por período, custo das saídas e conferência entre estoque e fiscal. Quando NÃO usar: Não use para saldo de estoque: use GET /saldosEstoqueProduto/{idProduto} ou GET /produtos/{id}. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Pessoa física aparece em pessoaCPF e jurídica em pessoaCNPJ. Os itens ficam em itensDocumentoEstoque e o campo nome do item é um número sequencial, não o nome do produto. Valores em texto pt-BR, mas valorUnitario dos itens vem sem formatação ('550').",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__estoque__listar__movimentacoes",
+      "title": "Listar movimentações de estoque",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /movimentacoesEstoque. Lista as movimentações de estoque (cada entrada ou saída de quantidade), com data, produto, quantidade, lote, setor, tipo de movimentação, empresa e o tipo de documento que originou o movimento. Quando usar: Para kardex por produto, giro de estoque e rastreio de lote ao longo do tempo. Quando NÃO usar: Não use para valor das saídas: a movimentação não traz custo; para valores use GET /documentosEstoque. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Só ids de produto e de tipo de movimentação são devolvidos: os nomes saem de GET /produtos e de GET /tiposMovimentacao. O exemplo oficial mostra só o setor de saída; o campo do setor de entrada não aparece no exemplo e pode não existir. A origem do movimento está em discriminador (ex.: ItemDocumentoSaida).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__estoque__listar__saldo_produto",
+      "title": "Listar estoque de produto",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /saldosEstoqueProduto/{idProduto}. Devolve o saldo de estoque de um produto em cada empresa onde ele está positivo, com saldo por setor de estoque, custo médio, custo de reposição e custo total. Com o parâmetro data, devolve o saldo do dia informado às 23:59. Quando usar: Para posição de estoque valorizada de um produto, hoje ou numa data passada (fechamento de mês). Quando NÃO usar: Não use em laço para o estoque inteiro de uma base grande: é uma chamada por produto e o limite é 1 requisição a cada 20 s. Para uma visão geral do saldo atual, GET /produtos/{id} traz saldoEstoqueAtualEmpresa por empresa. Pré-requisitos: Id do produto (GET /produtos). Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Só aparecem empresas e setores com saldo positivo, segundo a descrição oficial; mesmo assim o exemplo mostra saldoTotal negativo ('-6,00'), então não confie nisso como regra. O parâmetro data usa dd/mm/aaaa, ao contrário do filtro query (ISO). O saldo por setor vem num array aninhado (saldos).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idProduto": {
+            "type": "integer",
+            "description": "Id do produto no Nomus ERP."
+          },
+          "data": {
+            "type": "string",
+            "description": "Data de referência do saldo, considerada às 23:59:00 do dia. Sem ela, o saldo é o atual. Formato: dd/mm/aaaa."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idProduto"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__produto__listar",
+      "title": "Listar produtos",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /produtos. Lista os produtos com código, nome, descrição, unidade, tipo, grupo, família, NCM, GTIN, controle de lote/série, método de ressuprimento, pesos, situação de engenharia e empresas/setores habilitados. Quando usar: Para catálogo de produtos, cruzamento de nomes com movimentações, pedidos e itens faturados, e conferência fiscal (NCM, origem). Quando NÃO usar: Não use para preço de venda: os preços ficam nas tabelas de preço (GET /tabelasPreco/{id}/itens). Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: A listagem não traz saldo de estoque nem preço. Pesos vêm com ponto decimal ('20.00'), ao contrário dos valores financeiros. origemProdutoPadrao vem como texto ('0') e pode vir 'null' como texto. metodoRessuprimento: 1 comprado, 2 fabricado, 3 como padrão fabricado, 4 como padrão comprado.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__produto__obter",
+      "title": "Detalhar produto",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /produtos/{id}. Devolve um produto pelo id, com os dados cadastrais e, por empresa, os setores habilitados e o saldo de estoque atual. Quando usar: Para ver o cadastro completo de um produto e o saldo atual por empresa sem consultar setor a setor. Quando NÃO usar: Não use para saldo numa data passada: use GET /saldosEstoqueProduto/{idProduto}?data=dd/mm/aaaa. Pré-requisitos: Id do produto. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: O saldo atual por empresa fica em empresasSetoresEstoque[].saldoEstoqueAtualEmpresa, em texto pt-BR. Resposta para id inexistente não documentada.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Id do registro no Nomus ERP."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__produto__listar__precos_tabela",
+      "title": "Detalhar tabela de preço com itens",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /tabelasPreco/{id}/itens. Devolve uma tabela de preço com todos os produtos e seus preços, além do nome da tabela e dos percentuais de desconto padrão e máximo. Quando usar: Para lista de preços vigente por tabela, conferência de margem contra custo e envio de preços a força de vendas. Quando NÃO usar: Não use para descobrir as tabelas existentes: liste-as antes em GET /tabelasPreco (catalogado) para obter o id. Pré-requisitos: Id da tabela de preço (GET /tabelasPreco, catalogado). Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: O preço vem com dez casas decimais em texto pt-BR ('10,0000000000'). A documentação não diz se a lista de itens é paginada; o exemplo traz todos os itens no mesmo objeto.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Id da tabela de preço no Nomus ERP."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__ordem_producao__listar",
+      "title": "Listar ordens",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /ordens. Lista as ordens (de produção e demais tipos) com nome, produto, quantidade, unidade, situação, tipo, prioridade, datas de criação, liberação, início planejado e entrega, empresa e pedidos vinculados. Quando usar: Para carteira de produção (PCP), ordens atrasadas contra a data de entrega e volume liberado por período. Quando NÃO usar: Não use para o que foi produzido de fato: os apontamentos estão em GET /apontamentos. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: status e tipoOrdem vêm como texto ('Liberada', 'Padrão'), sem tabela de valores publicada. A quantidade produzida não está na ordem: some os apontamentos ou consulte as operações da ordem (GET /operacoesRoteiroOrdem, catalogado).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__ordem_producao__listar__apontamentos",
+      "title": "Listar apontamentos",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /apontamentos. Lista os apontamentos de produção (chão de fábrica): início e fim, operação da ordem, atividade, recurso, funcionário, quantidade apontada, unidade e percentual em andamento. Quando usar: Para produtividade por recurso e por funcionário, tempo efetivo por operação e comparação com o planejado. Quando NÃO usar: Não use para saber a situação da ordem: GET /ordens. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: A quantidade vem com ponto e seis casas ('10.000000'). Só ids de atividade, recurso e funcionário: os nomes saem de GET /atividades, /recursos e /funcionarios (catalogados). O exemplo oficial filtra por 'atividade=48', embora o campo devolvido se chame idAtividade; prefira o nome devolvido.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__ordem_producao__listar__empenhos",
+      "title": "Listar empenhos",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /empenhos. Lista os empenhos de material das ordens: produto empenhado, ordem, quantidade empenhada, quantidade requisitada, saldo a requisitar, data de necessidade e situação. Quando usar: Para falta de material: o que as ordens ainda precisam requisitar, por produto e por data de necessidade. Quando NÃO usar: Para os empenhos de uma única ordem há rota própria (GET /empenhos/{idOrdem}, catalogada). Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: As quantidades vêm com 30 casas decimais e ponto ('5.000000000000000000000000000000'), e quantidadeRequisitada vem como número JSON. O identificador é idEmpenho, não id. Os códigos de status não têm tabela publicada.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__empresa__listar",
+      "title": "Listar empresas",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /empresas. Lista as empresas (estabelecimentos) cadastradas no ERP, com código, razão social, nome fantasia, endereço, inscrições, regime tributário (CRT), CNAE e situação. Quando usar: Para descobrir os ids de empresa usados como recorte por filial (idEmpresa) em contas, pedidos, notas e estoque. Quando NÃO usar: Não use para clientes ou fornecedores: GET /clientes e GET /pessoas. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: O exemplo oficial não mostra o CNPJ da empresa. Aqui crt e tipoContribuinteICMS vêm como texto descritivo ('1 - Simples Nacional', 'Contribuinte'), enquanto em clientes vêm como número.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__centro_custo__listar",
+      "title": "Listar centros de custo",
+      "description": "Nomus ERP (ERP industrial brasileiro) — GET /centrosCusto. Lista os centros de custo com classificação, nome, natureza (produção, administração...), tipo (analítico/sintético), direcionador de custo e situação. Quando usar: Para montar a dimensão de centros de custo de um relatório gerencial ou de custeio. Quando NÃO usar: Não traz valores: é só o cadastro. Pré-requisitos: Chave de integração REST e URL base do ERP do cliente. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Centros de produção podem trazer custoPadraoHora com notação científica no exemplo oficial (0E-30).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.",
+            "default": 1,
+            "minimum": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, ';' para E e ',' para OU. Pode usar qualquer campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. Formato: campo<operador>valor[;campo<operador>valor]."
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__pedido__criar__venda",
+      "title": "Inserir pedido de venda",
+      "description": "Nomus ERP (ERP industrial brasileiro) — POST /pedidos. Cria um pedido de venda com cabeçalho, itens (produto, quantidade, preço, entrega, descontos/acréscimos) e, opcionalmente, parcelas. Quando usar: Para integrar pedidos vindos de e-commerce, força de vendas ou portal B2B ao ERP. Quando NÃO usar: Não use para orçamento ainda não aprovado (use propostas) e nunca peça ao assistente para executar: ele só entrega o código. Pré-requisitos: Ids de empresa, cliente e produtos já cadastrados. Chave de integração REST com permissão de escrita (a chave é única para o ERP). Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Não há chave de idempotência: repetir a chamada cria outro pedido. Use idExterno e consulte antes de reenviar. Percentual e valor de desconto (ou acréscimo) são mutuamente exclusivos no item. Esta é uma operação de ESCRITA: o assistente só entrega o código; não executa.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "codigoPedido": {
+            "type": "string",
+            "description": "Código do pedido. Fica opcional quando a configuração geral 'Força a codificação de pedidos integrados com as regras do Nomus ERP' está ligada."
+          },
+          "idExterno": {
+            "type": "string",
+            "description": "Identificador do pedido no sistema de origem."
+          },
+          "idEmpresa": {
+            "type": "integer",
+            "description": "Id da empresa emitente (GET /empresas)."
+          },
+          "idPessoaCliente": {
+            "type": "integer",
+            "description": "Id do cliente (GET /clientes)."
+          },
+          "dataEmissao": {
+            "type": "string",
+            "description": "Data de emissão. Formato: dd/mm/aaaa ou dd/mm/aaaa hh:mm."
+          },
+          "idTipoPedido": {
+            "type": "integer",
+            "description": "Tipo de pedido."
+          },
+          "idTipoMovimentacao": {
+            "type": "integer",
+            "description": "Tipo de movimentação do pedido (aparece no exemplo da coleção)."
+          },
+          "idPessoaRepresentante": {
+            "type": "integer",
+            "description": "Representante."
+          },
+          "idPessoaVendedor": {
+            "type": "integer",
+            "description": "Vendedor."
+          },
+          "idCondicaoPagamento": {
+            "type": "integer",
+            "description": "Condição de pagamento."
+          },
+          "idFormaPagamento": {
+            "type": "integer",
+            "description": "Forma de pagamento."
+          },
+          "idSetorSaida": {
+            "type": "integer",
+            "description": "Setor de estoque de saída."
+          },
+          "idTabelaPreco": {
+            "type": "integer",
+            "description": "Tabela de preço."
+          },
+          "observacoes": {
+            "type": "string",
+            "description": "Observações do pedido."
+          },
+          "itensPedido": {
+            "type": "array",
+            "description": "Itens: item, idProduto, quantidade, valorUnitario, dataEntrega (obrigatórios) e, opcionais, idUnidadeMedida, idSetorSaida, idTabelaPreco, idTipoMovimentacao, percentual/valor de desconto ou acréscimo (um ou outro), observacoes, status e atributos.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "parcelas": {
+            "type": "array",
+            "description": "Parcelas: dataVencimento e valorParcela, com idFormaPagamento, idContaBancaria e geraAdiantamento opcionais.",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idEmpresa",
+          "idPessoaCliente",
+          "dataEmissao",
+          "itensPedido"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__cliente__criar",
+      "title": "Inserir cliente",
+      "description": "Nomus ERP (ERP industrial brasileiro) — POST /clientes. Cadastra um cliente com dados de identificação, endereço, contato, representantes, vendedores, atributos personalizados e endereços adicionais. Quando usar: Para integrar clientes vindos de CRM, e-commerce ou portal ao ERP. Quando NÃO usar: Não use para fornecedores (GET/POST /pessoas com categorias) e nunca peça ao assistente para executar. Pré-requisitos: Chave de integração REST com permissão de escrita. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Na coleção Postman a requisição aparece apontando para /clientes/:id, mas o exemplo de resposta e o artigo de ajuda usam POST /clientes. Sem idempotência: consulte por CNPJ (query=cnpj==...) antes de criar. Esta é uma operação de ESCRITA: o assistente só entrega o código; não executa.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "nome": {
+            "type": "string",
+            "description": "Nome do cliente."
+          },
+          "tipoPessoa": {
+            "type": "integer",
+            "description": "1 pessoa jurídica, 2 pessoa física.",
+            "enum": [
+              1,
+              2
+            ]
+          },
+          "cnpj": {
+            "type": "string",
+            "description": "CNPJ (pessoa jurídica)."
+          },
+          "cpf": {
+            "type": "string",
+            "description": "CPF (pessoa física)."
+          },
+          "razaoSocial": {
+            "type": "string",
+            "description": "Razão social."
+          },
+          "cep": {
+            "type": "string",
+            "description": "CEP."
+          },
+          "tipoLogradouro": {
+            "type": "string",
+            "description": "Tipo de logradouro (RUA, AVENIDA...)."
+          },
+          "endereco": {
+            "type": "string",
+            "description": "Logradouro."
+          },
+          "numero": {
+            "type": "string",
+            "description": "Número."
+          },
+          "bairro": {
+            "type": "string",
+            "description": "Bairro."
+          },
+          "municipio": {
+            "type": "string",
+            "description": "Município."
+          },
+          "codigoIBGEMunicipio": {
+            "type": "string",
+            "description": "Código IBGE do município."
+          },
+          "uf": {
+            "type": "string",
+            "description": "UF."
+          },
+          "pais": {
+            "type": "string",
+            "description": "País (ex.: BRASIL)."
+          },
+          "telefone": {
+            "type": "string",
+            "description": "Telefone."
+          },
+          "email": {
+            "type": "string",
+            "description": "E-mail."
+          },
+          "inscricaoEstadual": {
+            "type": "string",
+            "description": "Inscrição estadual."
+          },
+          "tipoContribuinteICMS": {
+            "type": "integer",
+            "description": "1 contribuinte, 2 isento, 3 não contribuinte.",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
+          "representantes": {
+            "type": "array",
+            "description": "Lista de {id} de representantes.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "vendedores": {
+            "type": "array",
+            "description": "Lista de {id} de vendedores.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "atributos": {
+            "type": "array",
+            "description": "Lista de {nomeTecnicoAtributo, valorAtributo}.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "enderecos": {
+            "type": "array",
+            "description": "Endereços adicionais (tipoEndereco, cep, endereco, numero, municipio, uf...).",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "nome",
+          "tipoPessoa"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__produto__criar",
+      "title": "Inserir produto",
+      "description": "Nomus ERP (ERP industrial brasileiro) — POST /produtos. Cadastra um produto com identificação, unidade, tipo, grupo, família, dados fiscais (NCM, CEST, origem), pesos, empresas e setores habilitados e preços em tabelas. Quando usar: Para integrar o cadastro de produtos vindo de PLM, e-commerce ou planilha de engenharia. Quando NÃO usar: Não use para alterar produto existente (PUT /produtos/{id}, catalogado) e nunca peça ao assistente para executar. Pré-requisitos: Ids de unidade de medida e tipo de produto já cadastrados. Chave de integração REST com permissão de escrita. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: A obrigatoriedade dos campos não é declarada na coleção; os marcados como obrigatórios aqui seguem o mínimo dos exemplos e o artigo de ajuda. O preço na tabela vai em texto pt-BR ('150,50'), enquanto os pesos aceitam número. Esta é uma operação de ESCRITA: o assistente só entrega o código; não executa.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "nome": {
+            "type": "string",
+            "description": "Nome/código do produto. Segundo o exemplo oficial, quando nome é enviado o campo codigo é ignorado."
+          },
+          "codigo": {
+            "type": "string",
+            "description": "Código do produto."
+          },
+          "descricao": {
+            "type": "string",
+            "description": "Descrição."
+          },
+          "idUnidadeMedida": {
+            "type": "integer",
+            "description": "Unidade de medida (GET /unidadesMedida)."
+          },
+          "idTipoProduto": {
+            "type": "integer",
+            "description": "Tipo de produto (GET /tiposProduto)."
+          },
+          "metodoRessuprimento": {
+            "type": "integer",
+            "description": "1 comprado, 2 fabricado, 3 como padrão fabricado, 4 como padrão comprado.",
+            "enum": [
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          "idGrupoProduto": {
+            "type": "integer",
+            "description": "Grupo de produto."
+          },
+          "idFamiliaProduto": {
+            "type": "integer",
+            "description": "Família de produto."
+          },
+          "ncm": {
+            "type": "string",
+            "description": "NCM."
+          },
+          "cest": {
+            "type": "string",
+            "description": "CEST."
+          },
+          "codigoGTIN": {
+            "type": "string",
+            "description": "GTIN/EAN."
+          },
+          "origemProdutoPadrao": {
+            "type": "string",
+            "description": "Origem da mercadoria (0 a 8)."
+          },
+          "controlaLote": {
+            "type": "boolean",
+            "description": "Controla lote."
+          },
+          "controlaSerie": {
+            "type": "boolean",
+            "description": "Controla série."
+          },
+          "pesoLiquidoUnitario": {
+            "type": "number",
+            "description": "Peso líquido unitário."
+          },
+          "pesoBrutoUnitario": {
+            "type": "number",
+            "description": "Peso bruto unitário."
+          },
+          "idsEmpresa": {
+            "type": "array",
+            "description": "Ids das empresas em que o produto fica habilitado.",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "setoresEstoque": {
+            "type": "array",
+            "description": "Ids dos setores de estoque habilitados.",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "tabelasPreco": {
+            "type": "array",
+            "description": "Lista de {id, preco} de tabelas de preço.",
+            "items": {
+              "type": "object"
+            }
+          },
+          "statusEngenharia": {
+            "type": "string",
+            "description": "Situação de engenharia (ex.: 'Aguardando liberação', 'Liberado')."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "nome",
+          "idUnidadeMedida",
+          "idTipoProduto"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "nomus__conta_receber__liquidar",
+      "title": "Inserir recebimento",
+      "description": "Nomus ERP (ERP industrial brasileiro) — POST /recebimentos. Lança um recebimento e, com baixaContaReceber = true, dá baixa na conta a receber indicada, registrando valor, data, conta bancária, juros, desconto e taxa bancária. Quando usar: Para integrar baixas vindas de conciliação bancária, gateway de pagamento ou portal de boletos. Quando NÃO usar: Nunca peça ao assistente para executar: é escrita financeira. Para só consultar baixas, use GET /recebimentos. Pré-requisitos: Id da conta a receber e da conta bancária. Chave de integração REST com permissão de escrita. Autenticação: header Authorization: Basic <chave>, onde a chave é a 'Chave de acesso para integração com o erp via REST' da tela Configuração Geral do ERP; Content-Type: application/json; URL base por cliente: endereço do ERP + contexto + /rest, no formato https://<empresa>.nomus.com.br/<empresa>/rest (instalações locais ou em servidor dedicado têm endereço próprio). Limite: 1 requisição a cada 20 s (429 com tempoAteLiberar). Atenção: Sem idempotência: repetir a chamada pode duplicar o recebimento. O artigo de ajuda descreve baixaContaReceber como texto ('True'), a coleção como booleano (true). Esta é uma operação de ESCRITA: o assistente só entrega o código; não executa.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "idContaReceber": {
+            "type": "integer",
+            "description": "Conta a receber a baixar. Quando informado, idEmpresa, idClassificacaoFinanceira e idFormaPagamento passam a ser opcionais."
+          },
+          "baixaContaReceber": {
+            "type": "boolean",
+            "description": "true para baixar a conta a receber informada."
+          },
+          "idPessoa": {
+            "type": "integer",
+            "description": "Pessoa que pagou."
+          },
+          "idContaBancaria": {
+            "type": "integer",
+            "description": "Conta bancária de entrada."
+          },
+          "valorRecebido": {
+            "type": "string",
+            "description": "Valor recebido."
+          },
+          "dataRecebimento": {
+            "type": "string",
+            "description": "Data do recebimento. Formato: dd/mm/aaaa."
+          },
+          "idEmpresa": {
+            "type": "integer",
+            "description": "Empresa; obrigatória quando não há idContaReceber."
+          },
+          "idClassificacaoFinanceira": {
+            "type": "integer",
+            "description": "Classificação financeira; obrigatória quando não há idContaReceber."
+          },
+          "idFormaPagamento": {
+            "type": "integer",
+            "description": "Forma de pagamento; obrigatória quando não há idContaReceber."
+          },
+          "multaJuros": {
+            "type": "string",
+            "description": "Multa e juros."
+          },
+          "desconto": {
+            "type": "string",
+            "description": "Desconto."
+          },
+          "taxaBancaria": {
+            "type": "string",
+            "description": "Taxa bancária."
+          },
+          "dataCompetencia": {
+            "type": "string",
+            "description": "Competência. Formato: dd/mm/aaaa."
+          },
+          "descricaoLancamento": {
+            "type": "string",
+            "description": "Descrição do lançamento."
+          },
+          "comentarios": {
+            "type": "string",
+            "description": "Comentários."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "idPessoa",
+          "idContaBancaria",
+          "valorRecebido",
+          "dataRecebimento"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

@@ -98,8 +98,10 @@ function termos(texto: string): Set<string> {
   return new Set(limpo.split(/[^a-z0-9]+/).filter((p) => p.length > 2 && !PARADAS.has(p)));
 }
 
-/** Seleciona o recorte do catálogo que interessa à pergunta. */
-function selecionar(pergunta: string) {
+/** Seleciona o recorte do catálogo que interessa à pergunta, só do sistema do cliente. */
+function selecionar(pergunta: string, sistema?: string) {
+  const doSistema = <T extends { slug: string }>(lista: T[]) =>
+    sistema ? lista.filter((i) => i.slug === sistema) : lista;
   const palavras = termos(pergunta);
   const pontuar = (texto: string) => {
     const alvo = termos(texto);
@@ -110,7 +112,7 @@ function selecionar(pergunta: string) {
     return pontos;
   };
 
-  const consultas = BASE.consultas
+  const consultas = doSistema(BASE.consultas)
     .map((c) => ({
       item: c,
       pontos:
@@ -122,7 +124,7 @@ function selecionar(pergunta: string) {
     .slice(0, 14)
     .map((r) => r.item);
 
-  const escritas = BASE.escritas
+  const escritas = doSistema(BASE.escritas)
     .map((e) => ({
       item: e,
       pontos: pontuar(`${e.sistema} ${e.entidade} ${e.descricao} ${e.path}`),
@@ -133,15 +135,34 @@ function selecionar(pergunta: string) {
     .map((r) => r.item);
 
   const slugs = new Set([...consultas, ...escritas].map((i) => i.slug));
+  if (sistema) slugs.add(sistema);
   const sistemas = BASE.sistemas.filter((s) => slugs.has(s.slug));
 
   return { consultas, escritas, sistemas };
 }
 
-function instrucoes(pergunta: string) {
-  const { consultas, escritas, sistemas } = selecionar(pergunta);
+function instrucoes(pergunta: string, sistema?: string) {
+  const { consultas, escritas, sistemas } = selecionar(pergunta, sistema);
+  const doCliente = BASE.sistemas.find((s) => s.slug === sistema);
+  // Sem palavra em comum com a pergunta: manda o índice de consultas do sistema do cliente,
+  // para a IA poder sugerir mesmo assim (ex.: "o que dá para tirar?").
+  const indice = doCliente
+    ? BASE.consultas
+        .filter((c) => c.slug === doCliente.slug)
+        .slice(0, 40)
+        .map((c) => ({ id: c.id, entidade: c.entidade, descricao: c.descricao.slice(0, 110) }))
+    : [];
   const catalogo =
-    sistemas.length > 0 ? { sistemas, consultas, escritas } : { sistemas: BASE.sistemas };
+    consultas.length > 0 || escritas.length > 0
+      ? { sistemas, consultas, escritas }
+      : doCliente
+        ? { sistemas: [doCliente], indice_de_consultas: indice }
+        : { sistemas: BASE.sistemas };
+  const foco = doCliente
+    ? `
+O CLIENTE USA: ${doCliente.nome}. Responda sobre esse sistema e só indique consultas dele.
+`
+    : "";
 
   return `Você é o assistente de integrações de um produto brasileiro. Você conhece as APIs dos sistemas abaixo porque elas foram documentadas a partir da documentação oficial de cada fornecedor.
 
@@ -158,6 +179,7 @@ REGRAS
 - Se o assunto não tiver relação com os sistemas documentados, diga com franqueza quais sistemas você cobre.
 - Seja honesto sobre lacunas: se o catálogo registra que algo não é publicado pelo fornecedor (preço, limite de requisições), diga isso.
 
+${foco}
 CATÁLOGO (recorte relevante para esta pergunta)
 ${JSON.stringify(catalogo)}
 
@@ -165,7 +187,12 @@ SISTEMAS COBERTOS NO TOTAL: ${BASE.sistemas.map((s) => s.nome).join(", ")}.
 Catálogo gerado em ${BASE.gerado_em}.`;
 }
 
-type Entrada = { pergunta: string; historico: { autor: string; texto: string }[] };
+type Entrada = {
+  pergunta: string;
+  historico: { autor: string; texto: string }[];
+  /** Slug do sistema que o cliente usa (ex.: sygecom, nomus). */
+  sistema?: string;
+};
 
 async function chamarAnthropic(chave: string, sistema: string, entrada: Entrada) {
   const modelo = process.env["MODELO_IA"] || "claude-sonnet-5";
@@ -242,13 +269,13 @@ export const perguntarAoAssistente = createServerFn({ method: "POST" })
         origem: "sem_chave" as const,
         resposta:
           "A IA ainda não está ligada neste ambiente. Configure a variável ANTHROPIC_API_KEY (ou OPENAI_API_KEY) no servidor e recarregue a página.",
-        candidatos: selecionar(data.pergunta)
+        candidatos: selecionar(data.pergunta, data.sistema)
           .consultas.slice(0, 3)
           .map((c) => c.id),
       };
     }
 
-    const sistema = instrucoes(data.pergunta);
+    const sistema = instrucoes(data.pergunta, data.sistema);
     const texto = anthropic
       ? await chamarAnthropic(anthropic, sistema, data)
       : await chamarOpenAI(openai as string, sistema, data);
@@ -256,7 +283,7 @@ export const perguntarAoAssistente = createServerFn({ method: "POST" })
     return {
       origem: "ia" as const,
       resposta: texto,
-      candidatos: selecionar(data.pergunta)
+      candidatos: selecionar(data.pergunta, data.sistema)
         .consultas.slice(0, 3)
         .map((c) => c.id),
     };

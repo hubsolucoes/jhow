@@ -1,0 +1,4483 @@
+openapi: 3.1.0
+info:
+  title: Nomus ERP — API REST (recorte do catálogo)
+  version: coleção Postman publicada em 2023-03-14, consultada em 2026-10-09
+  summary: Reconstrução das leituras e de quatro escritas de referência da API REST do Nomus ERP Industrial.
+  description: Reconstruído a partir da coleção Postman oficial (https://documenter.getpostman.com/view/22813773/2s93JutNgM) e dos artigos da
+    seção API REST da Central de Ajuda (https://atendimento.nomus.com.br/hc/pt-br/articles/35195281009819-Introdu%C3%A7%C3%A3o-%C3%A0-integra%C3%A7%C3%A3o-com-API-REST),
+    consultados em 2026-10-09. As descrições são autorais; caminhos, parâmetros e campos são fatos técnicos e estão exatos. A Nomus não publica
+    spec OpenAPI nem número de versão da API. As demais operações estão em endpoints.json > endpoints_secundarios.
+  contact:
+    name: Suporte Nomus
+    url: https://atendimento.nomus.com.br/hc/pt-br
+  x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+  x-data-consulta: '2026-10-09'
+externalDocs:
+  description: Introdução à integração com API REST (Central de Ajuda Nomus)
+  url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195281009819-Introdu%C3%A7%C3%A3o-%C3%A0-integra%C3%A7%C3%A3o-com-API-REST
+servers:
+- url: https://{empresa}.nomus.com.br/{contexto}/rest
+  description: Produção, um endereço por cliente (endereço do ERP + contexto + /rest). Instalações locais ou em servidor dedicado têm host próprio.
+  variables:
+    empresa:
+      default: empresa
+      description: Subdomínio do ERP do cliente.
+    contexto:
+      default: empresa
+      description: Nome do contexto da aplicação; na coleção oficial é igual ao subdomínio.
+x-sandbox: Não há sandbox público. O comparativo oficial de produtos diz que a instalação de base de testes é permitida no Nomus ERP Industrial
+  (não no Start), sem publicar procedimento, endereço nem custo. Registrado em system.json > lacunas.
+x-limite-requisicoes: '1 requisição a cada 20 segundos (comparativo oficial Nomus Start x Nomus ERP Industrial); excesso responde 429 com {"tempoAteLiberar":
+  <segundos>}.'
+security:
+- ChaveIntegracaoREST: []
+components:
+  securitySchemes:
+    ChaveIntegracaoREST:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Valor 'Basic ' seguido da chave do campo 'Chave de acesso para integração com o erp via REST' (tela Configuração Geral). A
+        documentação descreve a chave 'em Base64'; não é o Basic usuário:senha.
+  responses:
+    Throttling:
+      description: Limite de requisições atingido. Aguardar tempoAteLiberar segundos e repetir.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              tempoAteLiberar:
+                type: integer
+          example:
+            tempoAteLiberar: 20
+paths:
+  /contasReceber:
+    get:
+      operationId: nomus__conta_receber__listar
+      summary: Listar contas a receber
+      description: 'Lista os títulos a receber com valor, vencimento, saldo, situação de baixa, cliente, empresa, conta bancária, forma de pagamento
+        e classificação financeira.
+
+
+        Quando usar: Para aging de recebíveis, inadimplência, previsão de entradas e conferência com os recebimentos. Recorte por dataVencimento
+        e, para títulos confirmados, por tipo==1. Quando não usar: Não use para saber quanto entrou de fato num período: as baixas com data e
+        valor recebido estão em GET /recebimentos (nomus.pagamento.listar.recebimentos).
+
+
+        Armadilhas: Valores chegam como texto no formato brasileiro (''11.245,57'') e precisam de conversão. Alguns registros trazem o PDF do
+        boleto inteiro em Base64 no campo boletoBancario, o que deixa a página pesada: não use esse campo como coluna. Campos sem valor podem
+        simplesmente não vir no JSON. O campo status é a situação de baixa (true = baixada), não um código de etapa.'
+      tags:
+      - ContaReceber
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.conta_receber.listar
+      x-entidade-canonica: ContaReceber
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195264712219-Contas-a-receber
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    classificacao:
+                      type: string
+                    cnpjPessoa:
+                      type: string
+                    dataAgendamento:
+                      type: string
+                      description: data dd/mm/aaaa
+                    dataCompetencia:
+                      type: string
+                      description: data dd/mm/aaaa
+                    dataHoraCriacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataModificacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataVencimento:
+                      type: string
+                      description: data dd/mm/aaaa
+                    descricaoLancamento:
+                      type: string
+                    id:
+                      type: integer
+                    idClassificacao:
+                      type: string
+                    idContaBancaria:
+                      type: integer
+                    idEmpresa:
+                      type: integer
+                    idFormaPagamento:
+                      type: integer
+                    idPessoa:
+                      type: integer
+                    nomeClassificacao:
+                      type: string
+                    nomeContaBancaria:
+                      type: string
+                    nomeEmpresa:
+                      type: string
+                    nomeFormaPagamento:
+                      type: string
+                    nomePessoa:
+                      type: string
+                    saldoReceber:
+                      type: string
+                      description: decimal pt-BR
+                    status:
+                      type: boolean
+                    tipo:
+                      type: integer
+                    valorReceber:
+                      type: string
+                      description: decimal pt-BR
+                    valorReceberAgendado:
+                      type: string
+                      description: decimal pt-BR
+                    valorRecebido:
+                      type: string
+                      description: decimal pt-BR
+                    suspenderCobranca:
+                      type: boolean
+                    telefonePessoa:
+                      type: string
+                    comentarios:
+                      type: string
+                    dataBaixa:
+                      type: string
+                    linhaDigitavelBoleto:
+                      type: string
+                    boletoBancario:
+                      type: string
+              example:
+              - classificacao: '10.01'
+                cnpjPessoa: 00.000.000/0001-91
+                dataAgendamento: 21/08/2026
+                dataCompetencia: 13/08/2026
+                dataHoraCriacao: 13/08/2026 16:17:43
+                dataModificacao: 13/08/2026 16:17:45
+                dataVencimento: 21/08/2026
+                descricaoLancamento: Documento 10070 - Parcela 1 de 1
+                id: 21514
+                idClassificacao: '2'
+                idContaBancaria: 10
+                idEmpresa: 1
+                idFormaPagamento: 10
+                idPessoa: 1002435
+                nomeClassificacao: Receita com produtos
+                nomeContaBancaria: Banco Exemplo
+                nomeEmpresa: Indústria Exemplo Ltda
+                nomeFormaPagamento: Boleto Bancário
+                nomePessoa: CLIENTE EXEMPLO LTDA
+                saldoReceber: 11.245,57
+                status: false
+                tipo: 1
+                valorReceber: 11.245,57
+                valorReceberAgendado: 11.245,57
+                valorRecebido: 0,00
+                suspenderCobranca: false
+                telefonePessoa: ''
+                comentarios: ''
+                dataBaixa: ''
+                linhaDigitavelBoleto: ''
+                boletoBancario: <PDF em Base64, quando houver>
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /contasReceber/{id}:
+    get:
+      operationId: nomus__conta_receber__obter
+      summary: Detalhar conta a receber
+      description: 'Devolve um título a receber pelo id, com os mesmos campos da listagem (valor, vencimento, saldo, baixa, cliente, conta bancária
+        e classificação).
+
+
+        Quando usar: Para conferir um título específico, por exemplo a partir do idContaReceber de um boleto ou de um recebimento. Quando não
+        usar: Não use em laço para montar relatório: com o limite de 1 requisição a cada 20 s, a listagem com filtro query é muito mais barata.
+
+
+        Armadilhas: A API não documenta a resposta para id inexistente (status e corpo). O registro pode conter o PDF do boleto em Base64 no campo
+        boletoBancario.'
+      tags:
+      - ContaReceber
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.conta_receber.obter
+      x-entidade-canonica: ContaReceber
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195264712219-Contas-a-receber
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id do registro no Nomus ERP.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  classificacao:
+                    type: string
+                  cnpjPessoa:
+                    type: string
+                  dataAgendamento:
+                    type: string
+                    description: data dd/mm/aaaa
+                  dataBaixa:
+                    type: string
+                    description: data dd/mm/aaaa
+                  dataCompetencia:
+                    type: string
+                    description: data dd/mm/aaaa
+                  dataHoraCriacao:
+                    type: string
+                    description: data e hora dd/mm/aaaa hh:mm:ss
+                  dataModificacao:
+                    type: string
+                    description: data e hora dd/mm/aaaa hh:mm:ss
+                  dataVencimento:
+                    type: string
+                    description: data dd/mm/aaaa
+                  descricaoLancamento:
+                    type: string
+                  id:
+                    type: integer
+                  idClassificacao:
+                    type: string
+                  idContaBancaria:
+                    type: integer
+                  idEmpresa:
+                    type: integer
+                  idFormaPagamento:
+                    type: integer
+                  idPessoa:
+                    type: integer
+                  nomeClassificacao:
+                    type: string
+                  nomeContaBancaria:
+                    type: string
+                  nomeEmpresa:
+                    type: string
+                  nomeFormaPagamento:
+                    type: string
+                  nomePessoa:
+                    type: string
+                  saldoReceber:
+                    type: string
+                    description: decimal pt-BR
+                  status:
+                    type: boolean
+                  tipo:
+                    type: integer
+                  valorReceber:
+                    type: string
+                    description: decimal pt-BR
+                  valorReceberAgendado:
+                    type: string
+                    description: decimal pt-BR
+                  valorRecebido:
+                    type: string
+                    description: decimal pt-BR
+              example:
+                classificacao: '10.01'
+                cnpjPessoa: 00.000.000/0001-91
+                dataAgendamento: 24/08/2026
+                dataBaixa: 13/08/2026
+                dataCompetencia: 24/08/2026
+                dataHoraCriacao: 13/08/2026 12:35:31
+                dataModificacao: 13/08/2026 13:00:04
+                dataVencimento: 24/08/2026
+                descricaoLancamento: ''
+                id: 21512
+                idClassificacao: '2'
+                idContaBancaria: 173
+                idEmpresa: 1
+                idFormaPagamento: 10
+                idPessoa: 5
+                nomeClassificacao: Receita com produtos
+                nomeContaBancaria: Banco Exemplo
+                nomeEmpresa: Indústria Exemplo Ltda
+                nomeFormaPagamento: Boleto Bancário
+                nomePessoa: CLIENTE EXEMPLO LTDA
+                saldoReceber: 0,00
+                status: true
+                tipo: 3
+                valorReceber: 1.500,00
+                valorReceberAgendado: 1.500,00
+                valorRecebido: 1.500,00
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /contasPagar:
+    get:
+      operationId: nomus__conta_pagar__listar
+      summary: Listar contas a pagar
+      description: 'Lista os títulos a pagar com vencimento, valor, saldo, situação de baixa, fornecedor, empresa e conta bancária.
+
+
+        Quando usar: Para programação de pagamentos, fluxo de caixa previsto e conferência de títulos em aberto por fornecedor. Recorte por dataVencimento.
+        Quando não usar: Não use para saber o que já foi pago num período: as baixas efetivas estão em GET /pagamentos.
+
+
+        Armadilhas: Os campos de valor das contas a pagar reaproveitam os nomes das contas a receber (valorReceber, saldoReceber, valorRecebido)
+        e, no exemplo oficial, vêm negativos (''-5,00''). Ao somar com contas a receber, use o sinal como está; ao montar relatório de pagar,
+        inverta o sinal se quiser valores positivos. Valores são texto pt-BR.'
+      tags:
+      - ContaPagar
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.conta_pagar.listar
+      x-entidade-canonica: ContaPagar
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    classificacao:
+                      type: string
+                    dataAgendamento:
+                      type: string
+                      description: data dd/mm/aaaa
+                    dataCompetencia:
+                      type: string
+                      description: data dd/mm/aaaa
+                    dataHoraCriacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataModificacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataVencimento:
+                      type: string
+                      description: data dd/mm/aaaa
+                    descricaoLancamento:
+                      type: string
+                    id:
+                      type: integer
+                    idContaBancaria:
+                      type: integer
+                    idEmpresa:
+                      type: integer
+                    idPessoa:
+                      type: integer
+                    nomeContaBancaria:
+                      type: string
+                    nomeEmpresa:
+                      type: string
+                    nomePessoa:
+                      type: string
+                    saldoReceber:
+                      type: string
+                      description: decimal pt-BR
+                    status:
+                      type: boolean
+                    tipo:
+                      type: integer
+                    valorReceber:
+                      type: string
+                      description: decimal pt-BR
+                    valorReceberAgendado:
+                      type: string
+                      description: decimal pt-BR
+                    valorRecebido:
+                      type: string
+                      description: decimal pt-BR
+                    valorBaixadoSemNumerario:
+                      type: string
+              example:
+              - classificacao: '41.02'
+                dataAgendamento: 20/08/2026
+                dataCompetencia: 14/08/2026
+                dataHoraCriacao: 14/08/2026 15:51:32
+                dataModificacao: 14/08/2026 15:51:32
+                dataVencimento: 20/08/2026
+                descricaoLancamento: Documento 4618 - Parcela 1 de 2
+                id: 12780
+                idContaBancaria: 10
+                idEmpresa: 1
+                idPessoa: 10
+                nomeContaBancaria: Banco Exemplo
+                nomeEmpresa: Indústria Exemplo Ltda
+                nomePessoa: FORNECEDOR EXEMPLO LTDA
+                saldoReceber: -5,00
+                status: false
+                tipo: 1
+                valorReceber: -5,00
+                valorReceberAgendado: -5,00
+                valorRecebido: 0,00
+                valorBaixadoSemNumerario: '0'
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /contasPagar/{id}:
+    get:
+      operationId: nomus__conta_pagar__obter
+      summary: Detalhar conta a pagar
+      description: 'Devolve um título a pagar pelo id, com vencimento, valor, saldo, situação de baixa, fornecedor e conta bancária.
+
+
+        Quando usar: Para conferir um título específico a partir do idContaPagar de um pagamento. Quando não usar: Não use em laço para relatório:
+        prefira a listagem com filtro query.
+
+
+        Armadilhas: Mesmos nomes de campo das contas a receber e valores negativos no exemplo oficial. Resposta para id inexistente não documentada.'
+      tags:
+      - ContaPagar
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.conta_pagar.obter
+      x-entidade-canonica: ContaPagar
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id do registro no Nomus ERP.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  classificacao:
+                    type: string
+                  dataAgendamento:
+                    type: string
+                    description: data dd/mm/aaaa
+                  dataCompetencia:
+                    type: string
+                    description: data dd/mm/aaaa
+                  dataHoraCriacao:
+                    type: string
+                    description: data e hora dd/mm/aaaa hh:mm:ss
+                  dataModificacao:
+                    type: string
+                    description: data e hora dd/mm/aaaa hh:mm:ss
+                  dataVencimento:
+                    type: string
+                    description: data dd/mm/aaaa
+                  descricaoLancamento:
+                    type: string
+                  id:
+                    type: integer
+                  idContaBancaria:
+                    type: integer
+                  idEmpresa:
+                    type: integer
+                  idPessoa:
+                    type: integer
+                  nomeContaBancaria:
+                    type: string
+                  nomeEmpresa:
+                    type: string
+                  nomePessoa:
+                    type: string
+                  saldoReceber:
+                    type: string
+                    description: decimal pt-BR
+                  status:
+                    type: boolean
+                  tipo:
+                    type: integer
+                  valorReceber:
+                    type: string
+                    description: decimal pt-BR
+                  valorReceberAgendado:
+                    type: string
+                    description: decimal pt-BR
+                  valorRecebido:
+                    type: string
+                    description: decimal pt-BR
+                  valorBaixadoSemNumerario:
+                    type: string
+              example:
+                classificacao: '41.02'
+                dataAgendamento: 20/08/2026
+                dataCompetencia: 14/08/2026
+                dataHoraCriacao: 14/08/2026 15:51:32
+                dataModificacao: 14/08/2026 15:51:32
+                dataVencimento: 20/08/2026
+                descricaoLancamento: Documento 4618 - Parcela 1 de 2
+                id: 12780
+                idContaBancaria: 10
+                idEmpresa: 1
+                idPessoa: 25
+                nomeContaBancaria: Banco Exemplo
+                nomeEmpresa: Indústria Exemplo Ltda
+                nomePessoa: FORNECEDOR EXEMPLO LTDA
+                saldoReceber: -5,00
+                status: false
+                tipo: 1
+                valorReceber: -5,00
+                valorReceberAgendado: -5,00
+                valorRecebido: 0,00
+                valorBaixadoSemNumerario: '0'
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /pagamentos:
+    get:
+      operationId: nomus__pagamento__listar
+      summary: Listar pagamentos
+      description: 'Lista os pagamentos lançados (saídas de caixa), com data, valor pago, juros/multa, desconto, pessoa, conta bancária, forma
+        de pagamento, classificação financeira e o título a pagar baixado.
+
+
+        Quando usar: Para fluxo de caixa realizado (saídas), conferência de pagamentos por fornecedor ou por conta bancária e conciliação com
+        o extrato. Quando não usar: Não use para títulos ainda em aberto: esses estão em GET /contasPagar.
+
+
+        Armadilhas: idContaPagar = 0 indica pagamento avulso, sem título vinculado. As datas trazem hora (''04/08/2026 00:00:00''). Valores são
+        texto pt-BR.'
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.pagamento.listar
+      x-entidade-canonica: Pagamento
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    baixaContaPagar:
+                      type: boolean
+                    codigo:
+                      type: integer
+                    comentarios:
+                      type: string
+                    dataCompetencia:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataHoraCriacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataModificacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataPagamento:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    descricaoLancamento:
+                      type: string
+                    id:
+                      type: integer
+                    idClassificacaoFinanceira:
+                      type: integer
+                    idContaBancaria:
+                      type: integer
+                    idContaPagar:
+                      type: integer
+                    idEmpresa:
+                      type: integer
+                    idFormaPagamento:
+                      type: integer
+                    idPessoa:
+                      type: integer
+                    idUsuarioCriador:
+                      type: integer
+                    nomeClassificacaoFinanceira:
+                      type: string
+                    nomeContaBancaria:
+                      type: string
+                    nomeEmpresa:
+                      type: string
+                    nomeFormaPagamento:
+                      type: string
+                    nomePessoa:
+                      type: string
+                    nomeUsuarioCriador:
+                      type: string
+                    valorPago:
+                      type: string
+                      description: decimal pt-BR
+                    desconto:
+                      type: string
+                      description: decimal pt-BR
+                    multaJuros:
+                      type: string
+                      description: decimal pt-BR
+              example:
+              - baixaContaPagar: false
+                codigo: 2981
+                comentarios: ''
+                dataCompetencia: 25/08/2026 00:00:00
+                dataHoraCriacao: 04/08/2026 11:00:15
+                dataModificacao: 04/08/2026 11:00:15
+                dataPagamento: 04/08/2026 00:00:00
+                descricaoLancamento: ''
+                id: 2981
+                idClassificacaoFinanceira: 210
+                idContaBancaria: 15
+                idContaPagar: 0
+                idEmpresa: 1
+                idFormaPagamento: 10
+                idPessoa: 1001467
+                idUsuarioCriador: 1
+                nomeClassificacaoFinanceira: Despesas gerais
+                nomeContaBancaria: Banco Exemplo
+                nomeEmpresa: Indústria Exemplo Ltda
+                nomeFormaPagamento: Boleto Bancário
+                nomePessoa: FORNECEDOR EXEMPLO LTDA
+                nomeUsuarioCriador: Usuário Exemplo
+                valorPago: 10,00
+                desconto: 0,00
+                multaJuros: 0,00
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /recebimentos:
+    get:
+      operationId: nomus__pagamento__listar__recebimentos
+      summary: Listar recebimentos
+      description: 'Lista os recebimentos lançados (entradas de caixa), com data, valor recebido, juros/multa, desconto, pessoa, conta bancária,
+        forma de pagamento, classificação financeira e o título a receber baixado.
+
+
+        Quando usar: Para fluxo de caixa realizado (entradas), recebimentos por cliente ou por conta bancária e conciliação com o extrato. Quando
+        não usar: Não use para títulos em aberto ou vencidos: isso é GET /contasReceber.
+
+
+        Armadilhas: A taxonomia do catálogo não tem entidade própria de recebimento: este endpoint foi mapeado em Pagamento (registro de liquidação
+        de título) com o qualificador recebimentos. As datas trazem hora. Valores são texto pt-BR.'
+      tags:
+      - Pagamento
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.pagamento.listar.recebimentos
+      x-entidade-canonica: Pagamento
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195296622747-Recebimentos
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    baixaContaReceber:
+                      type: boolean
+                    codigo:
+                      type: integer
+                    comentarios:
+                      type: string
+                    dataCompetencia:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataHoraCriacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataRecebimento:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    desconto:
+                      type: string
+                      description: decimal pt-BR
+                    descricaoLancamento:
+                      type: string
+                    id:
+                      type: integer
+                    idClassificacaoFinanceira:
+                      type: integer
+                    idContaBancaria:
+                      type: integer
+                    idContaReceber:
+                      type: integer
+                    idEmpresa:
+                      type: integer
+                    idFormaPagamento:
+                      type: integer
+                    idPessoa:
+                      type: integer
+                    idUsuarioCriador:
+                      type: integer
+                    multaJuros:
+                      type: string
+                      description: decimal pt-BR
+                    nomeClassificacaoFinanceira:
+                      type: string
+                    nomeContaBancaria:
+                      type: string
+                    nomeEmpresa:
+                      type: string
+                    nomeFormaPagamento:
+                      type: string
+                    nomePessoa:
+                      type: string
+                    nomeUsuarioCriador:
+                      type: string
+                    valorRecebido:
+                      type: string
+                      description: decimal pt-BR
+              example:
+              - baixaContaReceber: true
+                codigo: 2977
+                comentarios: ''
+                dataCompetencia: 22/08/2026 00:00:00
+                dataHoraCriacao: 22/08/2026 20:35:44
+                dataRecebimento: 22/08/2026 00:00:00
+                desconto: 0,00
+                descricaoLancamento: Pedido PD 001720 - Parcela 1 de 3
+                id: 2977
+                idClassificacaoFinanceira: 209
+                idContaBancaria: 10
+                idContaReceber: 13155
+                idEmpresa: 1
+                idFormaPagamento: 10
+                idPessoa: 999999
+                idUsuarioCriador: 1
+                multaJuros: 0,00
+                nomeClassificacaoFinanceira: Receita com produtos
+                nomeContaBancaria: Banco Exemplo
+                nomeEmpresa: Indústria Exemplo Ltda
+                nomeFormaPagamento: Boleto Bancário
+                nomePessoa: CLIENTE EXEMPLO LTDA
+                nomeUsuarioCriador: Usuário Exemplo
+                valorRecebido: 333,33
+        '429':
+          $ref: '#/components/responses/Throttling'
+    post:
+      operationId: nomus__conta_receber__liquidar
+      summary: Inserir recebimento
+      description: 'Lança um recebimento e, com baixaContaReceber = true, dá baixa na conta a receber indicada, registrando valor, data, conta
+        bancária, juros, desconto e taxa bancária.
+
+
+        Quando usar: Para integrar baixas vindas de conciliação bancária, gateway de pagamento ou portal de boletos. Quando não usar: Nunca peça
+        ao assistente para executar: é escrita financeira. Para só consultar baixas, use GET /recebimentos.
+
+
+        Armadilhas: Sem idempotência: repetir a chamada pode duplicar o recebimento. O artigo de ajuda descreve baixaContaReceber como texto (''True''),
+        a coleção como booleano (true).'
+      tags:
+      - ContaReceber
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.conta_receber.liquidar
+      x-entidade-canonica: ContaReceber
+      x-acao-canonica: liquidar
+      x-seguro-para-executar: false
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195296622747-Recebimentos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                idContaReceber:
+                  type: integer
+                  description: Conta a receber a baixar. Quando informado, idEmpresa, idClassificacaoFinanceira e idFormaPagamento passam a ser
+                    opcionais.
+                baixaContaReceber:
+                  type: boolean
+                  description: true para baixar a conta a receber informada.
+                idPessoa:
+                  type: integer
+                  description: Pessoa que pagou.
+                idContaBancaria:
+                  type: integer
+                  description: Conta bancária de entrada.
+                valorRecebido:
+                  type: string
+                  description: Valor recebido.
+                dataRecebimento:
+                  type: string
+                  description: Data do recebimento.
+                idEmpresa:
+                  type: integer
+                  description: Empresa; obrigatória quando não há idContaReceber.
+                idClassificacaoFinanceira:
+                  type: integer
+                  description: Classificação financeira; obrigatória quando não há idContaReceber.
+                idFormaPagamento:
+                  type: integer
+                  description: Forma de pagamento; obrigatória quando não há idContaReceber.
+                multaJuros:
+                  type: string
+                  description: Multa e juros.
+                desconto:
+                  type: string
+                  description: Desconto.
+                taxaBancaria:
+                  type: string
+                  description: Taxa bancária.
+                dataCompetencia:
+                  type: string
+                  description: Competência.
+                descricaoLancamento:
+                  type: string
+                  description: Descrição do lançamento.
+                comentarios:
+                  type: string
+                  description: Comentários.
+              required:
+              - idPessoa
+              - idContaBancaria
+              - valorRecebido
+              - dataRecebimento
+            example:
+              idContaReceber: 21619
+              baixaContaReceber: true
+              idPessoa: 1002435
+              idContaBancaria: 1
+              valorRecebido: 11.245,57
+              dataRecebimento: 20/09/2026
+              descricaoLancamento: Recebimento via integração
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+              example:
+                id: 885
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /boletos:
+    get:
+      operationId: nomus__cobranca__listar
+      summary: Listar boletos bancários
+      description: 'Lista os boletos bancários emitidos pelo ERP, com nosso número, valor, emissão, vencimento, situação, cliente, convênio bancário
+        e a conta a receber de origem.
+
+
+        Quando usar: Para acompanhar a carteira de boletos (aguardando remessa, registrados, pagos, rejeitados) e cruzar com as contas a receber.
+        Quando não usar: Não use para medir inadimplência total: títulos sem boleto (Pix, depósito, cartão) não aparecem aqui; use GET /contasReceber.
+
+
+        Armadilhas: Nos exemplos oficiais as datas de boleto vêm com ano de dois dígitos (''21/02/24''), diferente dos demais endpoints. status
+        é numérico (1 aguardando remessa, 2 aguardando registro, 3 registrado, 4 pago, 5 rejeitado) e cancelado é um booleano à parte. A linha
+        digitável não aparece neste endpoint; ela consta no exemplo de contas a receber (linhaDigitavelBoleto).'
+      tags:
+      - Cobranca
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.cobranca.listar
+      x-entidade-canonica: Cobranca
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    cancelado:
+                      type: boolean
+                    classificacaoContaReceber:
+                      type: string
+                    dataHoraEmissao:
+                      type: string
+                      description: data dd/mm/aa
+                    dataVencimento:
+                      type: string
+                      description: data dd/mm/aa
+                    descricaoLancamentoContaReceber:
+                      type: string
+                    id:
+                      type: integer
+                    idContaBancaria:
+                      type: integer
+                    idContaReceber:
+                      type: integer
+                    idConvenioBancario:
+                      type: integer
+                    idEmpresa:
+                      type: integer
+                    idNfeOrigem:
+                      type: integer
+                    idPessoa:
+                      type: integer
+                    nomeConvenioBancario:
+                      type: string
+                    nomeEmpresa:
+                      type: string
+                    nomePessoa:
+                      type: string
+                    nossoNumeroBoletoBancario:
+                      type: string
+                    numeroDocumento:
+                      type: string
+                    status:
+                      type: integer
+                    valor:
+                      type: string
+                      description: decimal pt-BR
+              example:
+              - cancelado: false
+                classificacaoContaReceber: 10.01 - Receita com produto
+                dataHoraEmissao: 06/08/26
+                dataVencimento: 14/10/26
+                descricaoLancamentoContaReceber: Documento 8423 - Parcela 1 de 3
+                id: 1481
+                idContaBancaria: 0
+                idContaReceber: 12718
+                idConvenioBancario: 70
+                idEmpresa: 1
+                idNfeOrigem: 1188
+                idPessoa: 1
+                nomeConvenioBancario: CNAB 400
+                nomeEmpresa: Indústria Exemplo Ltda
+                nomePessoa: CLIENTE EXEMPLO LTDA
+                nossoNumeroBoletoBancario: 01231312168-4
+                numeroDocumento: '1481'
+                status: 1
+                valor: 266,67
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /pedidos:
+    get:
+      operationId: nomus__pedido__listar__venda
+      summary: Listar pedidos de venda
+      description: 'Lista os pedidos de venda com cabeçalho (código, emissão, cliente, representante, empresa, totais de frete/seguro/despesas,
+        condição de pagamento), itens, NF-e vinculadas e totais de tributos.
+
+
+        Quando usar: Para carteira de pedidos, vendas por período, por cliente ou por representante e acompanhamento de atendimento dos itens.
+        Quando não usar: Não use como fonte do faturamento fiscal: o que foi efetivamente faturado está em GET /itensDocumentoSaida e GET /nfes.
+
+
+        Armadilhas: A listagem traz só os ids de cliente e representante, sem nome: para a planilha, cruze com GET /clientes ou GET /pessoas.
+        Os itens vêm aninhados em itensPedido (uma linha por item exige explodir o array). O status é por item, não por pedido: 1 aguardando liberação,
+        2 liberado, 3 atendido parcialmente, 4 atendido totalmente, 5 atendido com corte, 6 cancelado, 7 devolvido parcialmente, 8 devolvido totalmente;
+        a coleção acrescenta 9 enviado e 10 entregue. Os números dos itens vêm sem formatação (''150'') e os totais em pt-BR (''150,00'').'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.pedido.listar.venda
+      x-entidade-canonica: Pedido
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195264156187-Pedido
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    codigoPedido:
+                      type: string
+                    condicaoPagamentoTexto:
+                      type: string
+                    dataCriacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataEmissao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataModificacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    id:
+                      type: integer
+                    idEmpresa:
+                      type: integer
+                    idPessoaCliente:
+                      type: integer
+                    idPessoaRepresentante:
+                      type: integer
+                    idTabelaPreco:
+                      type: integer
+                    infAdFisco:
+                      type: string
+                    infCpl:
+                      type: string
+                    itensPedido:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          dataEntrega:
+                            type: string
+                            description: data e hora dd/mm/aaaa hh:mm:ss
+                          id:
+                            type: integer
+                          idProduto:
+                            type: integer
+                          idUnidadeMedida:
+                            type: integer
+                          item:
+                            type: string
+                          observacoes:
+                            type: string
+                          percentualAcrescimo:
+                            type: string
+                          percentualDesconto:
+                            type: string
+                          quantidade:
+                            type: string
+                          status:
+                            type: integer
+                          valorAcrescimo:
+                            type: string
+                          valorDesconto:
+                            type: string
+                          valorUnitario:
+                            type: string
+                    modalidadeTransporte:
+                      type: integer
+                    nfes:
+                      type: array
+                      items: {}
+                    observacoes:
+                      type: string
+                    observacoesInternas:
+                      type: string
+                    totalTributacao:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          valorCbs:
+                            type: string
+                            description: decimal pt-BR
+                          valorCofins:
+                            type: string
+                            description: decimal pt-BR
+                          valorIbs:
+                            type: string
+                            description: decimal pt-BR
+                          valorIcms:
+                            type: string
+                            description: decimal pt-BR
+                          valorIpi:
+                            type: string
+                            description: decimal pt-BR
+                          valorPis:
+                            type: string
+                            description: decimal pt-BR
+                    valorTotal:
+                      type: string
+                      description: decimal pt-BR
+                    valorTotalFrete:
+                      type: string
+                      description: decimal pt-BR
+                    valorTotalOutrasDespesasAcessorias:
+                      type: string
+                      description: decimal pt-BR
+                    valorTotalSeguro:
+                      type: string
+                      description: decimal pt-BR
+              example:
+              - codigoPedido: PD 002292
+                condicaoPagamentoTexto: ''
+                dataCriacao: 04/08/2026 18:50:54
+                dataEmissao: 04/08/2026 00:00:00
+                dataModificacao: 04/08/2026 18:50:58
+                id: 2931
+                idEmpresa: 2
+                idPessoaCliente: 1002419
+                idPessoaRepresentante: 1001226
+                idTabelaPreco: 113
+                infAdFisco: ''
+                infCpl: ''
+                itensPedido:
+                - dataEntrega: 04/08/2026 00:00:00
+                  id: 4593
+                  idProduto: 3669
+                  idUnidadeMedida: 88
+                  item: '1'
+                  observacoes: ''
+                  percentualAcrescimo: '0'
+                  percentualDesconto: '0'
+                  quantidade: '1'
+                  status: 1
+                  valorAcrescimo: '0'
+                  valorDesconto: '0'
+                  valorUnitario: '150'
+                modalidadeTransporte: 0
+                nfes: []
+                observacoes: ''
+                observacoesInternas: ''
+                totalTributacao:
+                - valorCbs: 0,00
+                  valorCofins: 0,00
+                  valorIbs: 0,00
+                  valorIcms: 0,00
+                  valorIpi: 0,00
+                  valorPis: 0,00
+                valorTotal: 150,00
+                valorTotalFrete: 0,00
+                valorTotalOutrasDespesasAcessorias: 0,00
+                valorTotalSeguro: 0,00
+        '429':
+          $ref: '#/components/responses/Throttling'
+    post:
+      operationId: nomus__pedido__criar__venda
+      summary: Inserir pedido de venda
+      description: 'Cria um pedido de venda com cabeçalho, itens (produto, quantidade, preço, entrega, descontos/acréscimos) e, opcionalmente,
+        parcelas.
+
+
+        Quando usar: Para integrar pedidos vindos de e-commerce, força de vendas ou portal B2B ao ERP. Quando não usar: Não use para orçamento
+        ainda não aprovado (use propostas) e nunca peça ao assistente para executar: ele só entrega o código.
+
+
+        Armadilhas: Não há chave de idempotência: repetir a chamada cria outro pedido. Use idExterno e consulte antes de reenviar. Percentual
+        e valor de desconto (ou acréscimo) são mutuamente exclusivos no item.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.pedido.criar.venda
+      x-entidade-canonica: Pedido
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195264156187-Pedido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                codigoPedido:
+                  type: string
+                  description: Código do pedido. Fica opcional quando a configuração geral 'Força a codificação de pedidos integrados com as regras
+                    do Nomus ERP' está ligada.
+                idExterno:
+                  type: string
+                  description: Identificador do pedido no sistema de origem.
+                idEmpresa:
+                  type: integer
+                  description: Id da empresa emitente (GET /empresas).
+                idPessoaCliente:
+                  type: integer
+                  description: Id do cliente (GET /clientes).
+                dataEmissao:
+                  type: string
+                  description: Data de emissão.
+                idTipoPedido:
+                  type: integer
+                  description: Tipo de pedido.
+                idTipoMovimentacao:
+                  type: integer
+                  description: Tipo de movimentação do pedido (aparece no exemplo da coleção).
+                idPessoaRepresentante:
+                  type: integer
+                  description: Representante.
+                idPessoaVendedor:
+                  type: integer
+                  description: Vendedor.
+                idCondicaoPagamento:
+                  type: integer
+                  description: Condição de pagamento.
+                idFormaPagamento:
+                  type: integer
+                  description: Forma de pagamento.
+                idSetorSaida:
+                  type: integer
+                  description: Setor de estoque de saída.
+                idTabelaPreco:
+                  type: integer
+                  description: Tabela de preço.
+                observacoes:
+                  type: string
+                  description: Observações do pedido.
+                itensPedido:
+                  type: array
+                  items: {}
+                  description: 'Itens: item, idProduto, quantidade, valorUnitario, dataEntrega (obrigatórios) e, opcionais, idUnidadeMedida, idSetorSaida,
+                    idTabelaPreco, idTipoMovimentacao, percentual/valor de desconto ou acréscimo (um ou outro), observacoes, status e atributos.'
+                parcelas:
+                  type: array
+                  items: {}
+                  description: 'Parcelas: dataVencimento e valorParcela, com idFormaPagamento, idContaBancaria e geraAdiantamento opcionais.'
+              required:
+              - idEmpresa
+              - idPessoaCliente
+              - dataEmissao
+              - itensPedido
+            example:
+              codigoPedido: PD 0010
+              dataEmissao: 01/09/2026
+              idEmpresa: 1
+              idPessoaCliente: 39
+              idCondicaoPagamento: 28
+              idFormaPagamento: 10
+              itensPedido:
+              - item: '1'
+                idProduto: 2937
+                quantidade: '10'
+                valorUnitario: '150'
+                dataEntrega: 20/09/2026
+                percentualDesconto: '0'
+              parcelas:
+              - dataVencimento: 01/10/2026
+                valorParcela: 1.500,00
+                geraAdiantamento: false
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  codigoPedido:
+                    type: string
+                  id:
+                    type: integer
+              example:
+                codigoPedido: PD 0010
+                id: 15
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /pedidos/{id}:
+    get:
+      operationId: nomus__pedido__obter__venda
+      summary: Detalhar pedido de venda
+      description: 'Devolve um pedido de venda pelo id, com itens, parcelas, NF-e vinculadas e totais de tributos.
+
+
+        Quando usar: Para abrir um pedido específico (por exemplo, para ver as NF-e que o atenderam ou a situação de cada item). Quando não usar:
+        Não use em laço para relatório de período: a listagem já traz itens e totais.
+
+
+        Armadilhas: Resposta para id inexistente não documentada. Itens e NF-e vêm como arrays aninhados.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.pedido.obter.venda
+      x-entidade-canonica: Pedido
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195264156187-Pedido
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id do registro no Nomus ERP.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  codigoPedido:
+                    type: string
+                  condicaoPagamentoTexto:
+                    type: string
+                  dataCriacao:
+                    type: string
+                    description: data e hora dd/mm/aaaa hh:mm:ss
+                  dataEmissao:
+                    type: string
+                    description: data e hora dd/mm/aaaa hh:mm:ss
+                  dataModificacao:
+                    type: string
+                    description: data e hora dd/mm/aaaa hh:mm:ss
+                  id:
+                    type: integer
+                  idEmpresa:
+                    type: integer
+                  idPessoaCliente:
+                    type: integer
+                  idPessoaRepresentante:
+                    type: integer
+                  idTabelaPreco:
+                    type: integer
+                  itensPedido:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        dataEntrega:
+                          type: string
+                          description: data e hora dd/mm/aaaa hh:mm:ss
+                        id:
+                          type: integer
+                        idProduto:
+                          type: integer
+                        item:
+                          type: string
+                        quantidade:
+                          type: string
+                        status:
+                          type: integer
+                        valorUnitario:
+                          type: string
+                  modalidadeTransporte:
+                    type: integer
+                  nfes:
+                    type: array
+                    items: {}
+                  observacoes:
+                    type: string
+                  valorTotal:
+                    type: string
+                    description: decimal pt-BR
+                  valorTotalFrete:
+                    type: string
+                    description: decimal pt-BR
+              example:
+                codigoPedido: PD 002292
+                condicaoPagamentoTexto: ''
+                dataCriacao: 04/08/2026 18:50:54
+                dataEmissao: 04/08/2026 00:00:00
+                dataModificacao: 04/08/2026 18:50:58
+                id: 2931
+                idEmpresa: 2
+                idPessoaCliente: 1002419
+                idPessoaRepresentante: 1001226
+                idTabelaPreco: 113
+                itensPedido:
+                - dataEntrega: 04/08/2026 00:00:00
+                  id: 4593
+                  idProduto: 3669
+                  item: '1'
+                  quantidade: '1'
+                  status: 1
+                  valorUnitario: '150'
+                modalidadeTransporte: 0
+                nfes: []
+                observacoes: ''
+                valorTotal: 150,00
+                valorTotalFrete: 0,00
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /pedidoscompra:
+    get:
+      operationId: nomus__pedido__listar__compra
+      summary: Listar pedidos de compra
+      description: 'Lista os pedidos de compra com fornecedor, empresa, emissão, entrega padrão, condição e forma de pagamento, itens, parcelas
+        e totais de frete/seguro/despesas.
+
+
+        Quando usar: Para carteira de compras, entregas previstas por fornecedor e previsão de desembolso pelas parcelas. Quando não usar: Não
+        use para o que já entrou fisicamente: as entradas estão em GET /documentosEstoque e as notas recebidas em GET /nfesDestinadas.
+
+
+        Armadilhas: A listagem não traz valor total do pedido: some quantidade × valorUnitario dos itens. Os itens vêm em itensPedidoCompra na
+        listagem, mas em itensPedido no exemplo do detalhe. Os totais de frete/seguro vêm com ponto decimal (''0.00''), ao contrário do padrão
+        pt-BR das contas. Só o id do fornecedor é devolvido; o nome sai de GET /pessoas.'
+      tags:
+      - Pedido
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.pedido.listar.compra
+      x-entidade-canonica: Pedido
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195297121563-Pedido-de-Compra
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    codigoPedido:
+                      type: string
+                    condicaoPagamentoTexto:
+                      type: string
+                    dataEmissao:
+                      type: string
+                      description: data dd/mm/aaaa
+                    dataEntregaPadrao:
+                      type: string
+                      description: data dd/mm/aaaa
+                    id:
+                      type: integer
+                    idCondicaoPagamento:
+                      type: integer
+                    idContato:
+                      type: integer
+                    idEmpresa:
+                      type: integer
+                    idFormaPagamento:
+                      type: integer
+                    idPessoaFornecedor:
+                      type: integer
+                    idTipoMovimentacao:
+                      type: integer
+                    idTipoPedidoCompra:
+                      type: integer
+                    infAdFisco:
+                      type: string
+                    infCpl:
+                      type: string
+                    itensPedidoCompra:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          idProduto:
+                            type: integer
+                          idTipoMovimentacao:
+                            type: integer
+                          idUnidadeMedida:
+                            type: integer
+                          item:
+                            type: string
+                          percentualDesconto:
+                            type: string
+                          quantidade:
+                            type: string
+                          status:
+                            type: integer
+                          valorDesconto:
+                            type: string
+                          valorUnitario:
+                            type: string
+                    modalidadeTransporte:
+                      type: integer
+                    observacoes:
+                      type: string
+                    parcelas:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          dataVencimento:
+                            type: string
+                            description: data dd/mm/aaaa
+                          geraAdiantamento:
+                            type: boolean
+                          valorParcela:
+                            type: string
+                    valorTotalFrete:
+                      type: string
+                    valorTotalOutrasDespesasAcessorias:
+                      type: string
+                    valorTotalSeguro:
+                      type: string
+                    idSetorEntrada:
+                      type: integer
+              example:
+              - codigoPedido: PC00541
+                condicaoPagamentoTexto: '10'
+                dataEmissao: 31/08/2026
+                dataEntregaPadrao: 01/09/2026
+                id: 571
+                idCondicaoPagamento: 1
+                idContato: 28
+                idEmpresa: 4
+                idFormaPagamento: 1
+                idPessoaFornecedor: 99
+                idTipoMovimentacao: 119
+                idTipoPedidoCompra: 3
+                infAdFisco: ''
+                infCpl: ''
+                itensPedidoCompra:
+                - idProduto: 1831
+                  idTipoMovimentacao: 119
+                  idUnidadeMedida: 12
+                  item: '00001'
+                  percentualDesconto: '0'
+                  quantidade: '50'
+                  status: 3
+                  valorDesconto: '0'
+                  valorUnitario: '1'
+                modalidadeTransporte: 0
+                observacoes: ''
+                parcelas:
+                - dataVencimento: 21/09/2026
+                  geraAdiantamento: false
+                  valorParcela: '50'
+                valorTotalFrete: '0.00'
+                valorTotalOutrasDespesasAcessorias: '0.00'
+                valorTotalSeguro: '0.00'
+                idSetorEntrada: 117
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /pedidoscompra/{id}:
+    get:
+      operationId: nomus__pedido__obter__compra
+      summary: Detalhar pedido de compra
+      description: 'Devolve um pedido de compra pelo id, com comprador, fornecedor, transportadora, itens, parcelas e totais.
+
+
+        Quando usar: Para abrir um pedido de compra específico. Quando não usar: Não use em laço para relatório de período: a listagem já traz
+        itens e parcelas.
+
+
+        Armadilhas: O exemplo de resposta da coleção oficial para este endpoint está preenchido com texto de teste (lorem ipsum) e aponta para
+        /pedidos/:id; os nomes de campo coincidem com o artigo ''Pedido de Compra'' da Central de Ajuda, mas os tipos não puderam ser conferidos.'
+      tags:
+      - Pedido
+      x-confianca: inferido
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.pedido.obter.compra
+      x-entidade-canonica: Pedido
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195297121563-Pedido-de-Compra
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id do registro no Nomus ERP.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  codigoPedido:
+                    type: string
+                  idTipoPedidoCompra:
+                    type: integer
+                  idEmpresa:
+                    type: integer
+                  idPessoaComprador:
+                    type: integer
+                  idPessoaFornecedor:
+                    type: integer
+                  idPessoaTransportadora:
+                    type: integer
+                  idTipoMovimentacao:
+                    type: integer
+                  idSetorEntrada:
+                    type: integer
+                  dataEmissao:
+                    type: string
+                    description: data dd/mm/aaaa
+                  dataEntregaPadrao:
+                    type: string
+                    description: data dd/mm/aaaa
+                  condicaoPagamentoTexto:
+                    type: string
+                  observacoes:
+                    type: string
+                  modalidadeTransporte:
+                    type: integer
+                  valorTotalFrete:
+                    type: string
+                  parcelas:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        dataVencimento:
+                          type: string
+                          description: data dd/mm/aaaa
+                        valorParcela:
+                          type: string
+                        geraAdiantamento:
+                          type: boolean
+                  itensPedido:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        item:
+                          type: string
+                        idProduto:
+                          type: integer
+                        quantidade:
+                          type: string
+                        valorUnitario:
+                          type: string
+                        idUnidadeMedida:
+                          type: integer
+                        status:
+                          type: integer
+              example:
+                id: 571
+                codigoPedido: PC00541
+                idTipoPedidoCompra: 3
+                idEmpresa: 4
+                idPessoaComprador: 92
+                idPessoaFornecedor: 99
+                idPessoaTransportadora: 3
+                idTipoMovimentacao: 119
+                idSetorEntrada: 117
+                dataEmissao: 31/08/2026
+                dataEntregaPadrao: 01/09/2026
+                condicaoPagamentoTexto: '10'
+                observacoes: ''
+                modalidadeTransporte: 0
+                valorTotalFrete: '0.00'
+                parcelas:
+                - dataVencimento: 21/09/2026
+                  valorParcela: '50'
+                  geraAdiantamento: false
+                itensPedido:
+                - item: '00001'
+                  idProduto: 1831
+                  quantidade: '50'
+                  valorUnitario: '1'
+                  idUnidadeMedida: 12
+                  status: 3
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /propostas:
+    get:
+      operationId: nomus__orcamento__listar
+      summary: Listar propostas
+      description: 'Lista as propostas comerciais com cliente, contato, empresa, processo de CRM de origem, itens (produto, quantidade, prazo,
+        situação) e totais.
+
+
+        Quando usar: Para funil comercial: propostas abertas por período, taxa de conversão em pedido e motivos de rejeição por item. Quando não
+        usar: Não use para pedidos já fechados: esses estão em GET /pedidos.
+
+
+        Armadilhas: Os valores das propostas vêm em formato ambíguo (''1.000'' pode ser mil ou um; ''valorUnitario'' chega como ''100,0000000000
+        por UNID'', com a unidade no texto). Trate como texto até confirmar com o cliente. A situação do item (status) vem como texto numérico
+        e não tem tabela de valores publicada.'
+      tags:
+      - Orcamento
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.orcamento.listar
+      x-entidade-canonica: Orcamento
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    dataHoraAbertura:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    id:
+                      type: integer
+                    idCliente:
+                      type: integer
+                    idContato:
+                      type: integer
+                    idEmpresa:
+                      type: integer
+                    idProcesso:
+                      type: integer
+                    idTipoMovimentacao:
+                      type: integer
+                    itensProposta:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          codigoProduto:
+                            type: string
+                          descricaoProduto:
+                            type: string
+                          id:
+                            type: integer
+                          idProduto:
+                            type: integer
+                          idUnidadeMedida:
+                            type: integer
+                          item:
+                            type: string
+                          motivosRejeicao:
+                            type: array
+                            items: {}
+                          nomeUnidadeMedida:
+                            type: string
+                          prazoEntregaDias:
+                            type: string
+                          qtde:
+                            type: string
+                          status:
+                            type: string
+                          valorTotal:
+                            type: string
+                          valorTotalNfeItem:
+                            type: string
+                          valorTotalProdutos:
+                            type: string
+                          valorUnitario:
+                            type: string
+                    nomeCliente:
+                      type: string
+                    nomeContato:
+                      type: string
+                    nomeEmpresa:
+                      type: string
+                    nomeTipoMovimentacao:
+                      type: string
+                    proposta:
+                      type: string
+                    totalTributacao:
+                      type: array
+                      items: {}
+                    valorTotal:
+                      type: string
+                    valorTotalNfe:
+                      type: string
+              example:
+              - dataHoraAbertura: 15/08/2026 14:30:00
+                id: 880
+                idCliente: 1002419
+                idContato: 3120
+                idEmpresa: 1
+                idProcesso: 3047
+                idTipoMovimentacao: 1
+                itensProposta:
+                - codigoProduto: PA-001
+                  descricaoProduto: Produto acabado exemplo
+                  id: 4637
+                  idProduto: 9281
+                  idUnidadeMedida: 88
+                  item: '10'
+                  motivosRejeicao: []
+                  nomeUnidadeMedida: UNID
+                  prazoEntregaDias: '10'
+                  qtde: '10'
+                  status: '3'
+                  valorTotal: '1.015'
+                  valorTotalNfeItem: '1.015'
+                  valorTotalProdutos: '1.015'
+                  valorUnitario: 100,0000000000 por UNID
+                nomeCliente: CLIENTE EXEMPLO LTDA
+                nomeContato: Contato Exemplo
+                nomeEmpresa: Indústria Exemplo Ltda
+                nomeTipoMovimentacao: Venda de produção
+                proposta: COD00003
+                totalTributacao: []
+                valorTotal: '1.000'
+                valorTotalNfe: '1.240'
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /clientes:
+    get:
+      operationId: nomus__cliente__listar
+      summary: Listar clientes
+      description: 'Lista os clientes com código, nome, CNPJ/CPF, endereço, contato, regime tributário, situação, representantes e vendedores
+        vinculados e data do último pedido de venda.
+
+
+        Quando usar: Para carteira de clientes, cruzamento de nomes com pedidos e contas a receber, clientes sem compra recente (dataEmissaoUltimoPedidoVenda)
+        e base para CRM. Quando não usar: Não use para fornecedores ou transportadoras: GET /pessoas traz todos os papéis com as categorias marcadas.
+
+
+        Armadilhas: Pessoa física traz o documento em cpf, pessoa jurídica em cnpj (o artigo de ajuda lista os dois campos). tipoContribuinteICMS
+        e crt são códigos numéricos. Representantes e vendedores vêm em arrays. Os formatos de data variam entre registros (''03/05/2023'' e ''16/04/2026
+        10:11:00'').'
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.cliente.listar
+      x-entidade-canonica: Cliente
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195303836571-Clientes
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ativo:
+                      type: boolean
+                    atributos:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          atributo:
+                            type: string
+                          valor:
+                            type: string
+                    bairro:
+                      type: string
+                    cep:
+                      type: string
+                    classificacao:
+                      type: string
+                    cnpj:
+                      type: string
+                    codigo:
+                      type: string
+                    codigoIBGEMunicipio:
+                      type: string
+                    codigoSistemaContabil:
+                      type: string
+                    crt:
+                      type: integer
+                    dataCriacao:
+                      type: string
+                      description: data dd/mm/aaaa
+                    dataEmissaoUltimoPedidoVenda:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataInicioRelacionamento:
+                      type: string
+                      description: data dd/mm/aaaa
+                    dataModificacao:
+                      type: string
+                      description: data dd/mm/aaaa
+                    email:
+                      type: string
+                    endereco:
+                      type: string
+                    enderecos:
+                      type: array
+                      items: {}
+                    id:
+                      type: integer
+                    inscricaoEstadual:
+                      type: string
+                    municipio:
+                      type: string
+                    nome:
+                      type: string
+                    numero:
+                      type: string
+                    observacoes:
+                      type: string
+                    pais:
+                      type: string
+                    representantes:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          cnpj:
+                            type: string
+                          id:
+                            type: integer
+                          nome:
+                            type: string
+                          tipoPessoa:
+                            type: integer
+                    site:
+                      type: string
+                    suspenderCobranca:
+                      type: boolean
+                    telefone:
+                      type: string
+                    tipoContribuinteICMS:
+                      type: integer
+                    tipoPessoa:
+                      type: integer
+                    uf:
+                      type: string
+                    vendedores:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          cnpjVendedor:
+                            type: string
+                          idVendedor:
+                            type: integer
+                          nomeVendedor:
+                            type: string
+                          tipoPessoaVendedor:
+                            type: integer
+              example:
+              - ativo: true
+                atributos:
+                - atributo: Assinatura
+                  valor: Cortesia
+                bairro: Centro
+                cep: 01000-000
+                classificacao: '01.04'
+                cnpj: 00.000.000/0001-91
+                codigo: 012395
+                codigoIBGEMunicipio: '3550308'
+                codigoSistemaContabil: ''
+                crt: 0
+                dataCriacao: 03/05/2023
+                dataEmissaoUltimoPedidoVenda: 08/08/2026 00:00:00
+                dataInicioRelacionamento: 03/05/2023
+                dataModificacao: 04/08/2026
+                email: compras@example.com
+                endereco: Rua Exemplo
+                enderecos: []
+                id: 1002386
+                inscricaoEstadual: ''
+                municipio: São Paulo
+                nome: CLIENTE EXEMPLO LTDA
+                numero: '1'
+                observacoes: ''
+                pais: BRASIL
+                representantes:
+                - cnpj: 00.000.000/0001-91
+                  id: 7
+                  nome: REPRESENTANTE EXEMPLO
+                  tipoPessoa: 1
+                site: ''
+                suspenderCobranca: false
+                telefone: (11) 0000-0000
+                tipoContribuinteICMS: 1
+                tipoPessoa: 1
+                uf: SP
+                vendedores:
+                - cnpjVendedor: 00.000.000/0001-91
+                  idVendedor: 13
+                  nomeVendedor: VENDEDOR EXEMPLO
+                  tipoPessoaVendedor: 1
+        '429':
+          $ref: '#/components/responses/Throttling'
+    post:
+      operationId: nomus__cliente__criar
+      summary: Inserir cliente
+      description: 'Cadastra um cliente com dados de identificação, endereço, contato, representantes, vendedores, atributos personalizados e
+        endereços adicionais.
+
+
+        Quando usar: Para integrar clientes vindos de CRM, e-commerce ou portal ao ERP. Quando não usar: Não use para fornecedores (GET/POST /pessoas
+        com categorias) e nunca peça ao assistente para executar.
+
+
+        Armadilhas: Na coleção Postman a requisição aparece apontando para /clientes/:id, mas o exemplo de resposta e o artigo de ajuda usam POST
+        /clientes. Sem idempotência: consulte por CNPJ (query=cnpj==...) antes de criar.'
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.cliente.criar
+      x-entidade-canonica: Cliente
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195303836571-Clientes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nome:
+                  type: string
+                  description: Nome do cliente.
+                tipoPessoa:
+                  type: integer
+                  enum:
+                  - 1
+                  - 2
+                  description: 1 pessoa jurídica, 2 pessoa física.
+                cnpj:
+                  type: string
+                  description: CNPJ (pessoa jurídica).
+                cpf:
+                  type: string
+                  description: CPF (pessoa física).
+                razaoSocial:
+                  type: string
+                  description: Razão social.
+                cep:
+                  type: string
+                  description: CEP.
+                tipoLogradouro:
+                  type: string
+                  description: Tipo de logradouro (RUA, AVENIDA...).
+                endereco:
+                  type: string
+                  description: Logradouro.
+                numero:
+                  type: string
+                  description: Número.
+                bairro:
+                  type: string
+                  description: Bairro.
+                municipio:
+                  type: string
+                  description: Município.
+                codigoIBGEMunicipio:
+                  type: string
+                  description: Código IBGE do município.
+                uf:
+                  type: string
+                  description: UF.
+                pais:
+                  type: string
+                  description: 'País (ex.: BRASIL).'
+                telefone:
+                  type: string
+                  description: Telefone.
+                email:
+                  type: string
+                  description: E-mail.
+                inscricaoEstadual:
+                  type: string
+                  description: Inscrição estadual.
+                tipoContribuinteICMS:
+                  type: integer
+                  enum:
+                  - 1
+                  - 2
+                  - 3
+                  description: 1 contribuinte, 2 isento, 3 não contribuinte.
+                representantes:
+                  type: array
+                  items: {}
+                  description: Lista de {id} de representantes.
+                vendedores:
+                  type: array
+                  items: {}
+                  description: Lista de {id} de vendedores.
+                atributos:
+                  type: array
+                  items: {}
+                  description: Lista de {nomeTecnicoAtributo, valorAtributo}.
+                enderecos:
+                  type: array
+                  items: {}
+                  description: Endereços adicionais (tipoEndereco, cep, endereco, numero, municipio, uf...).
+              required:
+              - nome
+              - tipoPessoa
+            example:
+              nome: CLIENTE EXEMPLO LTDA
+              tipoPessoa: 1
+              cnpj: 00.000.000/0001-91
+              cep: 01000-000
+              tipoLogradouro: RUA
+              endereco: Rua Exemplo
+              numero: '100'
+              municipio: São Paulo
+              codigoIBGEMunicipio: '3550308'
+              uf: SP
+              pais: BRASIL
+              email: compras@example.com
+              representantes:
+              - id: 2
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  nome:
+                    type: string
+              example:
+                id: 1002
+                nome: CLIENTE EXEMPLO LTDA
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /clientes/{id}:
+    get:
+      operationId: nomus__cliente__obter
+      summary: Detalhar cliente
+      description: 'Devolve um cliente pelo id, com documento, endereço, contato, regime de ICMS, atributos personalizados e endereços adicionais.
+
+
+        Quando usar: Para buscar o nome e o documento de um cliente a partir do idPessoaCliente de um pedido ou do idPessoa de uma conta a receber.
+        Quando não usar: Não use em laço para enriquecer uma planilha grande: com 1 requisição a cada 20 s, liste os clientes uma vez (GET /clientes)
+        e cruze localmente.
+
+
+        Armadilhas: O CNPJ aparece ora formatado (''00.000.000/0001-91''), ora só com dígitos, conforme o registro. Resposta para id inexistente
+        não documentada.'
+      tags:
+      - Cliente
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.cliente.obter
+      x-entidade-canonica: Cliente
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195303836571-Clientes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id do registro no Nomus ERP.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ativo:
+                    type: boolean
+                  atributos:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        atributo:
+                          type: string
+                        valor:
+                          type: string
+                  bairro:
+                    type: string
+                  cep:
+                    type: string
+                  cnpj:
+                    type: string
+                  codigo:
+                    type: string
+                  codigoIBGEMunicipio:
+                    type: string
+                  complemento:
+                    type: string
+                  dataCriacao:
+                    type: string
+                    description: data e hora dd/mm/aaaa hh:mm:ss
+                  email:
+                    type: string
+                  endereco:
+                    type: string
+                  enderecos:
+                    type: array
+                    items: {}
+                  id:
+                    type: integer
+                  inscricaoEstadual:
+                    type: string
+                  municipio:
+                    type: string
+                  nome:
+                    type: string
+                  numero:
+                    type: string
+                  observacoes:
+                    type: string
+                  pais:
+                    type: string
+                  site:
+                    type: string
+                  suspenderCobranca:
+                    type: boolean
+                  telefone:
+                    type: string
+                  tipoContribuinteICMS:
+                    type: integer
+                  tipoLogradouro:
+                    type: string
+                  tipoPessoa:
+                    type: integer
+                  uf:
+                    type: string
+              example:
+                ativo: true
+                atributos:
+                - atributo: Assinatura
+                  valor: Cortesia
+                bairro: Centro
+                cep: 13600-000
+                cnpj: 00000000000191
+                codigo: 012785
+                codigoIBGEMunicipio: '3503307'
+                complemento: Sala 1
+                dataCriacao: 16/04/2026 10:11:00
+                email: financeiro@example.com
+                endereco: Rua Exemplo
+                enderecos: []
+                id: 1002386
+                inscricaoEstadual: ''
+                municipio: Araras
+                nome: CLIENTE EXEMPLO LTDA
+                numero: '123'
+                observacoes: ''
+                pais: BRASIL
+                site: www.example.com
+                suspenderCobranca: false
+                telefone: (19) 0000-0000
+                tipoContribuinteICMS: 3
+                tipoLogradouro: Rua
+                tipoPessoa: 1
+                uf: SP
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /pessoas:
+    get:
+      operationId: nomus__pessoa__listar
+      summary: Listar pessoas
+      description: 'Lista o cadastro único de pessoas do ERP (clientes, fornecedores, transportadoras, representantes, vendedores, funcionários
+        e outros), com as categorias marcadas, documento, endereço e contato.
+
+
+        Quando usar: Para obter fornecedores e transportadoras (não há listagem própria de fornecedores), ou para traduzir os idPessoa de pedidos,
+        contas e pagamentos em nomes. Quando não usar: Se só precisa de clientes, GET /clientes traz campos comerciais adicionais (último pedido,
+        vendedores, representantes).
+
+
+        Armadilhas: As categorias vêm num objeto aninhado (categorias.fornecedor, categorias.cliente...). A documentação não diz se o filtro query
+        aceita campo aninhado, então filtrar só fornecedores pela API não está garantido: o caminho seguro é puxar a lista e filtrar na planilha.
+        A resposta tem vários campos de assinatura e espaço de arquivos que valem ''Não Aplicável'' para quem não é cliente da própria Nomus;
+        ignore-os.'
+      tags:
+      - Pessoa
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.pessoa.listar
+      x-entidade-canonica: Pessoa
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ativo:
+                      type: boolean
+                    atributos:
+                      type: array
+                      items: {}
+                    bairroDistrito:
+                      type: string
+                    categorias:
+                      type: object
+                      properties:
+                        cliente:
+                          type: boolean
+                        comprador:
+                          type: boolean
+                        concorrente:
+                          type: boolean
+                        fabricante:
+                          type: boolean
+                        fornecedor:
+                          type: boolean
+                        funcionario:
+                          type: boolean
+                        intermediador:
+                          type: boolean
+                        lead:
+                          type: boolean
+                        motorista:
+                          type: boolean
+                        parceiro:
+                          type: boolean
+                        representante:
+                          type: boolean
+                        responsavelContabil:
+                          type: boolean
+                        socio:
+                          type: boolean
+                        transportadora:
+                          type: boolean
+                        vendedor:
+                          type: boolean
+                    cep:
+                      type: string
+                    cnpj:
+                      type: string
+                    codigo:
+                      type: string
+                    complemento:
+                      type: string
+                    dataCriacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    email:
+                      type: string
+                    endereco:
+                      type: string
+                    enderecos:
+                      type: array
+                      items: {}
+                    faturamento:
+                      type: object
+                      properties: {}
+                    financeiro:
+                      type: object
+                      properties: {}
+                    id:
+                      type: integer
+                    inscricaoEstadual:
+                      type: string
+                    municipio:
+                      type: string
+                    nome:
+                      type: string
+                    numero:
+                      type: string
+                    observacoes:
+                      type: string
+                    pais:
+                      type: string
+                    site:
+                      type: string
+                    telefone:
+                      type: string
+                    tipoContribuinteICMS:
+                      type: integer
+                    tipoLogradouro:
+                      type: string
+                    tipoPessoa:
+                      type: integer
+                    uf:
+                      type: string
+              example:
+              - ativo: true
+                atributos: []
+                bairroDistrito: Centro
+                categorias:
+                  cliente: false
+                  comprador: false
+                  concorrente: false
+                  fabricante: false
+                  fornecedor: true
+                  funcionario: false
+                  intermediador: false
+                  lead: false
+                  motorista: false
+                  parceiro: false
+                  representante: false
+                  responsavelContabil: false
+                  socio: false
+                  transportadora: false
+                  vendedor: false
+                cep: 13600-000
+                cnpj: 00000000000191
+                codigo: 012779
+                complemento: ''
+                dataCriacao: 14/04/2026 11:21:14
+                email: vendas@example.com
+                endereco: Rua Exemplo
+                enderecos: []
+                faturamento: {}
+                financeiro: {}
+                id: 1002818
+                inscricaoEstadual: ''
+                municipio: Araras
+                nome: FORNECEDOR EXEMPLO LTDA
+                numero: '123'
+                observacoes: ''
+                pais: BRASIL
+                site: ''
+                telefone: (19) 0000-0000
+                tipoContribuinteICMS: 3
+                tipoLogradouro: Rua
+                tipoPessoa: 1
+                uf: SP
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /nfes:
+    get:
+      operationId: nomus__nota_fiscal__listar
+      summary: Listar notas fiscais (NF-e)
+      description: 'Lista as NF-e emitidas pela empresa e as recebidas de fornecedores e importadas no ERP, com chave, número, série, situação,
+        tipo de operação, finalidade, ambiente, protocolo e data/hora de processamento.
+
+
+        Quando usar: Para relação de notas por período e situação (autorizadas, canceladas, rejeitadas), conferência de chaves e auditoria fiscal.
+        Quando não usar: Não use para valor faturado por produto ou cliente: o endpoint não traz valores. Use GET /itensDocumentoSaida ou GET
+        /documentosEstoque.
+
+
+        Armadilhas: Segundo o artigo de ajuda, a resposta inclui o XML completo de cada nota (campo xml), o que torna a página pesada; não o leve
+        para a planilha. O ambiente 2 (homologação) é o da SEFAZ e convive com as notas de produção na mesma base: filtre ambiente==1 em relatórios.
+        Não há valores monetários neste endpoint.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.nota_fiscal.listar
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195276493211-Notas-fiscais-emitidas-e-recebidas
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ambiente:
+                      type: integer
+                    chave:
+                      type: string
+                    cnpjEmitente:
+                      type: string
+                    dataCriacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataModificacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataProcessamento:
+                      type: string
+                      description: data dd/mm/aaaa
+                    finalidade:
+                      type: integer
+                    horaProcessamento:
+                      type: string
+                    id:
+                      type: integer
+                    isFornecedor:
+                      type: integer
+                    numero:
+                      type: string
+                    protocolo:
+                      type: string
+                    recibo:
+                      type: string
+                    serie:
+                      type: string
+                    status:
+                      type: integer
+                    tipoEmissao:
+                      type: integer
+                    tipoOperacao:
+                      type: integer
+                    usuario:
+                      type: string
+              example:
+              - ambiente: 1
+                chave: '35260800000000000191550010000600881000000000'
+                cnpjEmitente: 00000000000191
+                dataCriacao: 03/08/2026 10:37:51
+                dataModificacao: 03/08/2026 10:37:54
+                dataProcessamento: 03/08/2026
+                finalidade: 1
+                horaProcessamento: '17:01:34'
+                id: 963
+                isFornecedor: 0
+                numero: '600088'
+                protocolo: '000000000000000'
+                recibo: '000000000000000'
+                serie: '12'
+                status: 4
+                tipoEmissao: 1
+                tipoOperacao: 1
+                usuario: Usuário Exemplo
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /nfes/{id}:
+    get:
+      operationId: nomus__nota_fiscal__obter
+      summary: Detalhar nota fiscal (NF-e)
+      description: 'Devolve uma NF-e pelo id, com chave, número, série, situação, protocolo e o XML autorizado.
+
+
+        Quando usar: Para obter o XML de uma nota específica ou conferir sua situação. Quando não usar: Não use para o PDF da DANFE: há rota própria
+        (GET /nfes/danfe/{id}, catalogada) que devolve o PDF em Base64.
+
+
+        Armadilhas: O exemplo da coleção Postman devolve um array com um elemento, enquanto o artigo de ajuda mostra um objeto: trate os dois
+        formatos. Para cancelamento, o artigo cita os campos xmlCancelamento e justificativaCancelamento; para CC-e, textoCorrecao.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.nota_fiscal.obter
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195276493211-Notas-fiscais-emitidas-e-recebidas
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id do registro no Nomus ERP.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ambiente:
+                    type: integer
+                  chave:
+                    type: string
+                  cnpjEmitente:
+                    type: string
+                  dataProcessamento:
+                    type: string
+                    description: data dd/mm/aaaa
+                  finalidade:
+                    type: integer
+                  horaProcessamento:
+                    type: string
+                  id:
+                    type: integer
+                  isFornecedor:
+                    type: integer
+                  numero:
+                    type: string
+                  protocolo:
+                    type: string
+                  recibo:
+                    type: string
+                  serie:
+                    type: string
+                  status:
+                    type: integer
+                  tipoEmissao:
+                    type: integer
+                  tipoOperacao:
+                    type: integer
+                  usuario:
+                    type: string
+                  xml:
+                    type: string
+              example:
+                ambiente: 1
+                chave: '35260800000000000191550010000600881000000000'
+                cnpjEmitente: 00000000000191
+                dataProcessamento: 03/08/2026
+                finalidade: 1
+                horaProcessamento: '17:01:34'
+                id: 963
+                isFornecedor: 0
+                numero: '600088'
+                protocolo: '000000000000000'
+                recibo: '000000000000000'
+                serie: '12'
+                status: 4
+                tipoEmissao: 1
+                tipoOperacao: 1
+                usuario: Usuário Exemplo
+                xml: <?xml version="1.0" encoding="UTF-8"?><nfeProc ...>
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /nfses:
+    get:
+      operationId: nomus__nota_fiscal__listar__nfse
+      summary: Listar notas fiscais de serviço (NFS-e)
+      description: 'Lista as NFS-e emitidas, com número, RPS, data de emissão, situação, tomador, empresa emitente, documento de serviço de origem
+        e o XML.
+
+
+        Quando usar: Para relação de notas de serviço por período e conferência com o faturamento de serviços. Quando não usar: Não use para NF-e
+        de produto: essas estão em GET /nfes.
+
+
+        Armadilhas: Os códigos de status da NFS-e não têm tabela publicada. O exemplo oficial da listagem mostra um objeto único em vez de array;
+        trate os dois formatos. A resposta carrega dois XMLs por nota (xml e xmlNFSeAbrasf), o que pesa a página. Não há valores monetários nos
+        campos de cabeçalho.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.nota_fiscal.listar.nfse
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    cnpjEmitente:
+                      type: string
+                    dataHoraEmissao:
+                      type: string
+                      description: data dd/mm/aaaa
+                    handle:
+                      type: string
+                    id:
+                      type: integer
+                    idDocumentoServico:
+                      type: integer
+                    idEmpresa:
+                      type: integer
+                    idPessoa:
+                      type: integer
+                    lote:
+                      type: string
+                    nomeEmpresa:
+                      type: string
+                    nomePessoa:
+                      type: string
+                    numero:
+                      type: string
+                    numeroRps:
+                      type: integer
+                    serieRps:
+                      type: string
+                    status:
+                      type: integer
+                    xml:
+                      type: string
+                    xmlNFSeAbrasf:
+                      type: string
+              example:
+              - cnpjEmitente: 00000000000191
+                dataHoraEmissao: 26/08/2026
+                handle: '99551636'
+                id: 100163
+                idDocumentoServico: 3242
+                idEmpresa: 8
+                idPessoa: 87
+                lote: '565465'
+                nomeEmpresa: Indústria Exemplo Ltda
+                nomePessoa: TOMADOR EXEMPLO LTDA
+                numero: '139'
+                numeroRps: 54
+                serieRps: '7'
+                status: 2
+                xml: <CompNfse ...>
+                xmlNFSeAbrasf: <?xml ...>
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /nfesDestinadas:
+    get:
+      operationId: nomus__nota_fiscal__listar__destinadas
+      summary: Listar notas fiscais destinadas
+      description: 'Lista as NF-e emitidas por terceiros contra o CNPJ da empresa (notas destinadas), com chave, número, série, fornecedor, emissão,
+        autorização e a manifestação do destinatário registrada.
+
+
+        Quando usar: Para controlar notas de fornecedores que chegaram pela SEFAZ, conferir manifestação (ciência, confirmação) e cruzar com pedidos
+        de compra. Quando não usar: Não use para notas emitidas pela própria empresa: GET /nfes.
+
+
+        Armadilhas: Os códigos de status não têm tabela publicada. A manifestação vem como texto livre (''Ciência da operação''). A API lê o que
+        o ERP já baixou da SEFAZ; não consulta a SEFAZ em tempo real.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.nota_fiscal.listar.destinadas
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    chave:
+                      type: string
+                    cnpjFornecedor:
+                      type: string
+                    dataHoraAutorizacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataHoraEmissao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    id:
+                      type: integer
+                    idEmpresa:
+                      type: integer
+                    manifestacao:
+                      type: string
+                    nomeFornecedor:
+                      type: string
+                    numero:
+                      type: string
+                    serie:
+                      type: string
+                    status:
+                      type: integer
+              example:
+              - chave: '35260800000000000191550240000003481000000000'
+                cnpjFornecedor: 00.000.000/0001-91
+                dataHoraAutorizacao: 11/08/2026 11:26:56
+                dataHoraEmissao: 11/08/2026 11:26:54
+                id: 689
+                idEmpresa: 68
+                manifestacao: Ciência da operação
+                nomeFornecedor: FORNECEDOR EXEMPLO LTDA
+                numero: '348'
+                serie: '824'
+                status: 1
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /itensDocumentoSaida:
+    get:
+      operationId: nomus__nota_fiscal__listar__itens_saida
+      summary: Listar itens de documento de saída
+      description: 'Lista os itens dos documentos de saída (produtos e serviços faturados), com número e data do documento, cliente, município/UF,
+        produto, CFOP, quantidade, valores unitário e total, impostos (ICMS, IPI, COFINS), pesos e setor de saída.
+
+
+        Quando usar: É a melhor fonte de faturamento por produto, por cliente, por UF e por CFOP. Use para curva ABC, vendas por região e conferência
+        de impostos. Quando não usar: Não use para status fiscal da nota (autorizada, cancelada): isso está em GET /nfes.
+
+
+        Armadilhas: Aqui os valores vêm como número JSON (2000.0), diferente de quase todo o resto da API, que usa texto pt-BR. O campo produto
+        traz o código/nome e descricaoProduto pode vir vazio. Inclui devoluções e transferências: filtre naturezaTipoMovimentacao para não somar
+        o que não é venda. Na coleção oficial a requisição de listagem aparece sem cabeçalhos, mas a autenticação é exigida em toda a API.'
+      tags:
+      - NotaFiscal
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.nota_fiscal.listar.itens_saida
+      x-entidade-canonica: NotaFiscal
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    cfop:
+                      type: string
+                    dataEmissaoDocumentoEstoqueServico:
+                      type: string
+                      description: data dd/mm/aaaa
+                    descricaoProduto:
+                      type: string
+                    id:
+                      type: integer
+                    idPessoaDocumentoEstoqueServico:
+                      type: integer
+                    municipioPessoaDocumentoEstoqueServico:
+                      type: string
+                    naturezaTipoMovimentacao:
+                      type: string
+                    numeroDocumentoEstoqueServico:
+                      type: string
+                    pesoBrutoTotalDocumentoEstoqueServico:
+                      type: number
+                    pesoLiquidoTotal:
+                      type: integer
+                    pesoLiquidoTotalDocumentoEstoqueServico:
+                      type: number
+                    pesoLiquidoUnitario:
+                      type: number
+                    pessoaDocumentoEstoqueServico:
+                      type: string
+                    produto:
+                      type: string
+                    quantidadeLiquida:
+                      type: integer
+                    setorSaida:
+                      type: string
+                    ufPessoaDocumentoEstoqueServico:
+                      type: string
+                    valorCofins:
+                      type: number
+                    valorIpi:
+                      type: number
+                    valorTotal:
+                      type: number
+                    valorTotalFinanceiroComDesconto:
+                      type: number
+                    valorTotalNfeNfse:
+                      type: number
+                    valorUnitario:
+                      type: number
+                    valorIcms:
+                      type: number
+              example:
+              - cfop: '6102'
+                dataEmissaoDocumentoEstoqueServico: 09/09/2026
+                descricaoProduto: ''
+                id: 28469
+                idPessoaDocumentoEstoqueServico: 1000916
+                municipioPessoaDocumentoEstoqueServico: Niterói
+                naturezaTipoMovimentacao: '1'
+                numeroDocumentoEstoqueServico: '11032'
+                pesoBrutoTotalDocumentoEstoqueServico: 0.0
+                pesoLiquidoTotal: 0
+                pesoLiquidoTotalDocumentoEstoqueServico: 0.0
+                pesoLiquidoUnitario: 0.0
+                pessoaDocumentoEstoqueServico: CLIENTE EXEMPLO LTDA
+                produto: Mercadoria exemplo
+                quantidadeLiquida: 1
+                setorSaida: Expedição
+                ufPessoaDocumentoEstoqueServico: RJ
+                valorCofins: 0.0
+                valorIpi: 0.0
+                valorTotal: 2000.0
+                valorTotalFinanceiroComDesconto: 2000.0
+                valorTotalNfeNfse: 2000.0
+                valorUnitario: 2000.0
+                valorIcms: 0.0
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /documentosEstoque:
+    get:
+      operationId: nomus__estoque__listar__documentos
+      summary: Listar documentos de estoque
+      description: 'Lista os documentos de estoque (saídas, entradas, vendas de serviço e outros), com tipo de documento, tipo de movimentação,
+        pessoa, empresas e setores de entrada/saída, valor total e itens com custo, quantidade e tributos.
+
+
+        Quando usar: Para análise de entradas e saídas valorizadas por período, custo das saídas e conferência entre estoque e fiscal. Quando
+        não usar: Não use para saldo de estoque: use GET /saldosEstoqueProduto/{idProduto} ou GET /produtos/{id}.
+
+
+        Armadilhas: Pessoa física aparece em pessoaCPF e jurídica em pessoaCNPJ. Os itens ficam em itensDocumentoEstoque e o campo nome do item
+        é um número sequencial, não o nome do produto. Valores em texto pt-BR, mas valorUnitario dos itens vem sem formatação (''550'').'
+      tags:
+      - Estoque
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.estoque.listar.documentos
+      x-entidade-canonica: Estoque
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195264487707-Documentos-de-estoque
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    dataEmissao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    id:
+                      type: integer
+                    idEmpresaSaida:
+                      type: integer
+                    idTipoMovimentacao:
+                      type: integer
+                    itensDocumentoEstoque:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          custo:
+                            type: string
+                            description: decimal pt-BR
+                          id:
+                            type: integer
+                          idProduto:
+                            type: integer
+                          nome:
+                            type: string
+                          qtde:
+                            type: string
+                          valorAcrescimos:
+                            type: string
+                            description: decimal pt-BR
+                          valorDesconto:
+                            type: string
+                            description: decimal pt-BR
+                          valorFrete:
+                            type: string
+                            description: decimal pt-BR
+                          valorIcmsSt:
+                            type: string
+                            description: decimal pt-BR
+                          valorIpi:
+                            type: string
+                            description: decimal pt-BR
+                          valorTotal:
+                            type: string
+                            description: decimal pt-BR
+                          valorUnitario:
+                            type: string
+                    pessoaCNPJ:
+                      type: string
+                    pessoaRazaoSocial:
+                      type: string
+                    tipoDocumentoEstoque:
+                      type: string
+                    tipoMovimentacao:
+                      type: string
+                    valorTotal:
+                      type: string
+                      description: decimal pt-BR
+                    idNfe:
+                      type: integer
+                    setorSaida:
+                      type: string
+              example:
+              - dataEmissao: 14/08/2026 19:05:00
+                id: 9232
+                idEmpresaSaida: 1
+                idTipoMovimentacao: 93
+                itensDocumentoEstoque:
+                - custo: 0,00
+                  id: 25183
+                  idProduto: 81
+                  nome: '1'
+                  qtde: '1'
+                  valorAcrescimos: 0,00
+                  valorDesconto: 0,00
+                  valorFrete: 0,00
+                  valorIcmsSt: 0,00
+                  valorIpi: 0,00
+                  valorTotal: 550,00
+                  valorUnitario: '550'
+                pessoaCNPJ: 00.000.000/0001-91
+                pessoaRazaoSocial: CLIENTE EXEMPLO LTDA
+                tipoDocumentoEstoque: DocumentoSaida
+                tipoMovimentacao: Venda de mercadorias
+                valorTotal: 550,00
+                idNfe: 20
+                setorSaida: E01 Expedição
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /movimentacoesEstoque:
+    get:
+      operationId: nomus__estoque__listar__movimentacoes
+      summary: Listar movimentações de estoque
+      description: 'Lista as movimentações de estoque (cada entrada ou saída de quantidade), com data, produto, quantidade, lote, setor, tipo
+        de movimentação, empresa e o tipo de documento que originou o movimento.
+
+
+        Quando usar: Para kardex por produto, giro de estoque e rastreio de lote ao longo do tempo. Quando não usar: Não use para valor das saídas:
+        a movimentação não traz custo; para valores use GET /documentosEstoque.
+
+
+        Armadilhas: Só ids de produto e de tipo de movimentação são devolvidos: os nomes saem de GET /produtos e de GET /tiposMovimentacao. O
+        exemplo oficial mostra só o setor de saída; o campo do setor de entrada não aparece no exemplo e pode não existir. A origem do movimento
+        está em discriminador (ex.: ItemDocumentoSaida).'
+      tags:
+      - Estoque
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.estoque.listar.movimentacoes
+      x-entidade-canonica: Estoque
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    codigo:
+                      type: integer
+                    data:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    discriminador:
+                      type: string
+                    idEmpresa:
+                      type: integer
+                    idProduto:
+                      type: integer
+                    idSetorEstoqueSaida:
+                      type: integer
+                    idTipoMovimentacao:
+                      type: integer
+                    lote:
+                      type: string
+                    qtde:
+                      type: string
+              example:
+              - codigo: 17040
+                data: 07/08/2026 15:35:56
+                discriminador: ItemDocumentoSaida
+                idEmpresa: 1
+                idProduto: 3000
+                idSetorEstoqueSaida: 4
+                idTipoMovimentacao: 11
+                lote: LOTE-0001
+                qtde: '250'
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /saldosEstoqueProduto/{idProduto}:
+    get:
+      operationId: nomus__estoque__listar__saldo_produto
+      summary: Listar estoque de produto
+      description: 'Devolve o saldo de estoque de um produto em cada empresa onde ele está positivo, com saldo por setor de estoque, custo médio,
+        custo de reposição e custo total. Com o parâmetro data, devolve o saldo do dia informado às 23:59.
+
+
+        Quando usar: Para posição de estoque valorizada de um produto, hoje ou numa data passada (fechamento de mês). Quando não usar: Não use
+        em laço para o estoque inteiro de uma base grande: é uma chamada por produto e o limite é 1 requisição a cada 20 s. Para uma visão geral
+        do saldo atual, GET /produtos/{id} traz saldoEstoqueAtualEmpresa por empresa.
+
+
+        Armadilhas: Só aparecem empresas e setores com saldo positivo, segundo a descrição oficial; mesmo assim o exemplo mostra saldoTotal negativo
+        (''-6,00''), então não confie nisso como regra. O parâmetro data usa dd/mm/aaaa, ao contrário do filtro query (ISO). O saldo por setor
+        vem num array aninhado (saldos).'
+      tags:
+      - Estoque
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.estoque.listar.saldo_produto
+      x-entidade-canonica: Estoque
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: idProduto
+        in: path
+        required: true
+        description: Id do produto no Nomus ERP.
+        schema:
+          type: integer
+      - name: data
+        in: query
+        required: false
+        description: 'Data de referência do saldo, considerada às 23:59:00 do dia. Sem ela, o saldo é o atual. Formato brasileiro (ex.: 31/08/2026),
+          diferente do filtro query, que usa ISO.'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    custoMedioUnitario:
+                      type: string
+                      description: decimal pt-BR
+                    custoReposicaoTotal:
+                      type: string
+                      description: decimal pt-BR
+                    custoReposicaoUnitario:
+                      type: string
+                      description: decimal pt-BR
+                    custoTotal:
+                      type: string
+                      description: decimal pt-BR
+                    dataConsultada:
+                      type: string
+                      description: data dd/mm/aaaa
+                    idEmpresa:
+                      type: integer
+                    saldoTotal:
+                      type: string
+                      description: decimal pt-BR
+                    saldos:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          codigoSetorEstoque:
+                            type: string
+                          idSetorEstoque:
+                            type: integer
+                          nomeSetorEstoque:
+                            type: string
+                          saldo:
+                            type: string
+              example:
+              - custoMedioUnitario: 14,65
+                custoReposicaoTotal: 255,08
+                custoReposicaoUnitario: 19,75
+                custoTotal: 393,00
+                dataConsultada: 31/08/2026
+                idEmpresa: 1
+                saldoTotal: 26,00
+                saldos:
+                - codigoSetorEstoque: '01.02'
+                  idSetorEstoque: 2
+                  nomeSetorEstoque: Estoque em processo
+                  saldo: '26'
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /produtos:
+    get:
+      operationId: nomus__produto__listar
+      summary: Listar produtos
+      description: 'Lista os produtos com código, nome, descrição, unidade, tipo, grupo, família, NCM, GTIN, controle de lote/série, método de
+        ressuprimento, pesos, situação de engenharia e empresas/setores habilitados.
+
+
+        Quando usar: Para catálogo de produtos, cruzamento de nomes com movimentações, pedidos e itens faturados, e conferência fiscal (NCM, origem).
+        Quando não usar: Não use para preço de venda: os preços ficam nas tabelas de preço (GET /tabelasPreco/{id}/itens).
+
+
+        Armadilhas: A listagem não traz saldo de estoque nem preço. Pesos vêm com ponto decimal (''20.00''), ao contrário dos valores financeiros.
+        origemProdutoPadrao vem como texto (''0'') e pode vir ''null'' como texto. metodoRessuprimento: 1 comprado, 2 fabricado, 3 como padrão
+        fabricado, 4 como padrão comprado.'
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.produto.listar
+      x-entidade-canonica: Produto
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195290872219-Produtos
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ativo:
+                      type: boolean
+                    bloquearNovasVendas:
+                      type: boolean
+                    codigo:
+                      type: string
+                    codigoGTIN:
+                      type: string
+                    controlaLote:
+                      type: boolean
+                    controlaSerie:
+                      type: boolean
+                    dataCriacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataHoraUltimaModificacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataModificacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    descricao:
+                      type: string
+                    excecaoNcm:
+                      type: string
+                    id:
+                      type: integer
+                    idFamiliaProduto:
+                      type: integer
+                    idGrupoProduto:
+                      type: integer
+                    idTipoProduto:
+                      type: integer
+                    idUnidadeMedida:
+                      type: integer
+                    metodoRessuprimento:
+                      type: integer
+                    ncm:
+                      type: string
+                    nomeFamiliaProduto:
+                      type: string
+                    nomeGrupoProduto:
+                      type: string
+                    nomeTipoProduto:
+                      type: string
+                    numeroControleFCI:
+                      type: string
+                    origemProdutoPadrao:
+                      type: string
+                    servicoIndustrializacaoTerceiros:
+                      type: boolean
+                    empresasSetoresEstoque:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          idEmpresa:
+                            type: integer
+                          idsSetoresEstoqueHabilitadosNaEmpresa:
+                            type: string
+                    siglaUnidadeMedida:
+                      type: string
+                    template:
+                      type: boolean
+                    pesoLiquidoUnitario:
+                      type: string
+                    pesoBrutoUnitario:
+                      type: string
+                    nome:
+                      type: string
+                    statusEngenharia:
+                      type: string
+              example:
+              - ativo: true
+                bloquearNovasVendas: false
+                codigo: PA-001
+                codigoGTIN: ''
+                controlaLote: false
+                controlaSerie: false
+                dataCriacao: 05/06/2023 14:02:59
+                dataHoraUltimaModificacao: 05/08/2026 14:12:53
+                dataModificacao: 05/08/2026 14:12:53
+                descricao: Produto acabado exemplo
+                excecaoNcm: ''
+                id: 3284
+                idFamiliaProduto: 30
+                idGrupoProduto: 25
+                idTipoProduto: 25
+                idUnidadeMedida: 67
+                metodoRessuprimento: 2
+                ncm: '01012100'
+                nomeFamiliaProduto: Linha A
+                nomeGrupoProduto: Produto Acabado
+                nomeTipoProduto: Acabado
+                numeroControleFCI: ''
+                origemProdutoPadrao: '0'
+                servicoIndustrializacaoTerceiros: false
+                empresasSetoresEstoque:
+                - idEmpresa: 1
+                  idsSetoresEstoqueHabilitadosNaEmpresa: 5,6,7
+                siglaUnidadeMedida: UN
+                template: false
+                pesoLiquidoUnitario: '20.00'
+                pesoBrutoUnitario: '21.00'
+                nome: PA-001
+                statusEngenharia: Liberado
+        '429':
+          $ref: '#/components/responses/Throttling'
+    post:
+      operationId: nomus__produto__criar
+      summary: Inserir produto
+      description: 'Cadastra um produto com identificação, unidade, tipo, grupo, família, dados fiscais (NCM, CEST, origem), pesos, empresas e
+        setores habilitados e preços em tabelas.
+
+
+        Quando usar: Para integrar o cadastro de produtos vindo de PLM, e-commerce ou planilha de engenharia. Quando não usar: Não use para alterar
+        produto existente (PUT /produtos/{id}, catalogado) e nunca peça ao assistente para executar.
+
+
+        Armadilhas: A obrigatoriedade dos campos não é declarada na coleção; os marcados como obrigatórios aqui seguem o mínimo dos exemplos e
+        o artigo de ajuda. O preço na tabela vai em texto pt-BR (''150,50''), enquanto os pesos aceitam número.'
+      tags:
+      - Produto
+      x-confianca: inferido
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.produto.criar
+      x-entidade-canonica: Produto
+      x-acao-canonica: criar
+      x-seguro-para-executar: false
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195290872219-Produtos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nome:
+                  type: string
+                  description: Nome/código do produto. Segundo o exemplo oficial, quando nome é enviado o campo codigo é ignorado.
+                codigo:
+                  type: string
+                  description: Código do produto.
+                descricao:
+                  type: string
+                  description: Descrição.
+                idUnidadeMedida:
+                  type: integer
+                  description: Unidade de medida (GET /unidadesMedida).
+                idTipoProduto:
+                  type: integer
+                  description: Tipo de produto (GET /tiposProduto).
+                metodoRessuprimento:
+                  type: integer
+                  enum:
+                  - 1
+                  - 2
+                  - 3
+                  - 4
+                  description: 1 comprado, 2 fabricado, 3 como padrão fabricado, 4 como padrão comprado.
+                idGrupoProduto:
+                  type: integer
+                  description: Grupo de produto.
+                idFamiliaProduto:
+                  type: integer
+                  description: Família de produto.
+                ncm:
+                  type: string
+                  description: NCM.
+                cest:
+                  type: string
+                  description: CEST.
+                codigoGTIN:
+                  type: string
+                  description: GTIN/EAN.
+                origemProdutoPadrao:
+                  type: string
+                  description: Origem da mercadoria (0 a 8).
+                controlaLote:
+                  type: boolean
+                  description: Controla lote.
+                controlaSerie:
+                  type: boolean
+                  description: Controla série.
+                pesoLiquidoUnitario:
+                  type: number
+                  description: Peso líquido unitário.
+                pesoBrutoUnitario:
+                  type: number
+                  description: Peso bruto unitário.
+                idsEmpresa:
+                  type: array
+                  items: {}
+                  description: Ids das empresas em que o produto fica habilitado.
+                setoresEstoque:
+                  type: array
+                  items: {}
+                  description: Ids dos setores de estoque habilitados.
+                tabelasPreco:
+                  type: array
+                  items: {}
+                  description: Lista de {id, preco} de tabelas de preço.
+                statusEngenharia:
+                  type: string
+                  description: 'Situação de engenharia (ex.: ''Aguardando liberação'', ''Liberado'').'
+              required:
+              - nome
+              - idUnidadeMedida
+              - idTipoProduto
+            example:
+              nome: PA-TESTE-001
+              descricao: Produto de teste via API
+              idUnidadeMedida: 1
+              idTipoProduto: 3
+              metodoRessuprimento: 2
+              ncm: '73066100'
+              origemProdutoPadrao: '0'
+              ativo: true
+              idsEmpresa:
+              - 1
+              tabelasPreco:
+              - id: 111
+                preco: 150,50
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  nome:
+                    type: string
+                  idTipoProduto:
+                    type: integer
+                  ncm:
+                    type: string
+                  statusEngenharia:
+                    type: string
+              example:
+                id: 12069
+                nome: PA-TESTE-001
+                idTipoProduto: 3
+                ncm: '73066100'
+                statusEngenharia: Aguardando liberação
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /produtos/{id}:
+    get:
+      operationId: nomus__produto__obter
+      summary: Detalhar produto
+      description: 'Devolve um produto pelo id, com os dados cadastrais e, por empresa, os setores habilitados e o saldo de estoque atual.
+
+
+        Quando usar: Para ver o cadastro completo de um produto e o saldo atual por empresa sem consultar setor a setor. Quando não usar: Não
+        use para saldo numa data passada: use GET /saldosEstoqueProduto/{idProduto}?data=dd/mm/aaaa.
+
+
+        Armadilhas: O saldo atual por empresa fica em empresasSetoresEstoque[].saldoEstoqueAtualEmpresa, em texto pt-BR. Resposta para id inexistente
+        não documentada.'
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.produto.obter
+      x-entidade-canonica: Produto
+      x-acao-canonica: obter
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195290872219-Produtos
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id do registro no Nomus ERP.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ativo:
+                    type: boolean
+                  bloquearNovasVendas:
+                    type: boolean
+                  codigo:
+                    type: string
+                  codigoGTIN:
+                    type: string
+                  controlaLote:
+                    type: boolean
+                  controlaSerie:
+                    type: boolean
+                  dataCriacao:
+                    type: string
+                    description: data e hora dd/mm/aaaa hh:mm:ss
+                  dataHoraUltimaModificacao:
+                    type: string
+                    description: data e hora dd/mm/aaaa hh:mm:ss
+                  dataModificacao:
+                    type: string
+                    description: data e hora dd/mm/aaaa hh:mm:ss
+                  empresasSetoresEstoque:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        idEmpresa:
+                          type: integer
+                        idsSetoresEstoqueHabilitadosNaEmpresa:
+                          type: string
+                        saldoEstoqueAtualEmpresa:
+                          type: string
+                          description: decimal pt-BR
+                  excecaoNcm:
+                    type: string
+                  id:
+                    type: integer
+                  idTipoProduto:
+                    type: integer
+                  idUnidadeMedida:
+                    type: integer
+                  metodoRessuprimento:
+                    type: integer
+                  nome:
+                    type: string
+                  nomeTipoProduto:
+                    type: string
+                  numeroControleFCI:
+                    type: string
+                  origemProdutoPadrao:
+                    type: string
+                  servicoIndustrializacaoTerceiros:
+                    type: boolean
+                  siglaUnidadeMedida:
+                    type: string
+                  statusEngenharia:
+                    type: string
+                  template:
+                    type: boolean
+              example:
+                ativo: true
+                bloquearNovasVendas: false
+                codigo: MR-001
+                codigoGTIN: ''
+                controlaLote: false
+                controlaSerie: false
+                dataCriacao: 12/03/2026 14:55:20
+                dataHoraUltimaModificacao: 12/03/2026 16:08:40
+                dataModificacao: 12/03/2026 16:08:40
+                empresasSetoresEstoque:
+                - idEmpresa: 1
+                  idsSetoresEstoqueHabilitadosNaEmpresa: '208'
+                  saldoEstoqueAtualEmpresa: 1.250,00
+                excecaoNcm: ''
+                id: 11632
+                idTipoProduto: 11
+                idUnidadeMedida: 5
+                metodoRessuprimento: 1
+                nome: MR-001
+                nomeTipoProduto: Mercadoria para revenda
+                numeroControleFCI: ''
+                origemProdutoPadrao: '0'
+                servicoIndustrializacaoTerceiros: false
+                siglaUnidadeMedida: L
+                statusEngenharia: Aguardando liberação
+                template: false
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /tabelasPreco/{id}/itens:
+    get:
+      operationId: nomus__produto__listar__precos_tabela
+      summary: Detalhar tabela de preço com itens
+      description: 'Devolve uma tabela de preço com todos os produtos e seus preços, além do nome da tabela e dos percentuais de desconto padrão
+        e máximo.
+
+
+        Quando usar: Para lista de preços vigente por tabela, conferência de margem contra custo e envio de preços a força de vendas. Quando não
+        usar: Não use para descobrir as tabelas existentes: liste-as antes em GET /tabelasPreco (catalogado) para obter o id.
+
+
+        Armadilhas: O preço vem com dez casas decimais em texto pt-BR (''10,0000000000''). A documentação não diz se a lista de itens é paginada;
+        o exemplo traz todos os itens no mesmo objeto.'
+      tags:
+      - Produto
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.produto.listar.precos_tabela
+      x-entidade-canonica: Produto
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      x-fonte-complementar-url: https://atendimento.nomus.com.br/hc/pt-br/articles/35195290684315-Tabelas-de-pre%C3%A7o
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Id da tabela de preço no Nomus ERP.
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ativo:
+                    type: boolean
+                  id:
+                    type: integer
+                  nome:
+                    type: string
+                  percentualDescontoMaximo:
+                    type: string
+                  percentualDescontoPadrao:
+                    type: string
+                  itensTabelaPreco:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        descricaoProduto:
+                          type: string
+                        idProduto:
+                          type: integer
+                        nomeProduto:
+                          type: string
+                        preco:
+                          type: string
+                          description: decimal pt-BR
+                        siglaUnidadeMedidaProduto:
+                          type: string
+              example:
+                ativo: true
+                id: 92
+                nome: Tabela padrão
+                percentualDescontoMaximo: '0'
+                percentualDescontoPadrao: '0'
+                itensTabelaPreco:
+                - descricaoProduto: Produto exemplo azul
+                  idProduto: 3129
+                  nomeProduto: PR.AZ.01
+                  preco: 10,0000000000
+                  siglaUnidadeMedidaProduto: UND
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /ordens:
+    get:
+      operationId: nomus__ordem_producao__listar
+      summary: Listar ordens
+      description: 'Lista as ordens (de produção e demais tipos) com nome, produto, quantidade, unidade, situação, tipo, prioridade, datas de
+        criação, liberação, início planejado e entrega, empresa e pedidos vinculados.
+
+
+        Quando usar: Para carteira de produção (PCP), ordens atrasadas contra a data de entrega e volume liberado por período. Quando não usar:
+        Não use para o que foi produzido de fato: os apontamentos estão em GET /apontamentos.
+
+
+        Armadilhas: status e tipoOrdem vêm como texto (''Liberada'', ''Padrão''), sem tabela de valores publicada. A quantidade produzida não
+        está na ordem: some os apontamentos ou consulte as operações da ordem (GET /operacoesRoteiroOrdem, catalogado).'
+      tags:
+      - OrdemProducao
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.ordem_producao.listar
+      x-entidade-canonica: OrdemProducao
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    codigoProduto:
+                      type: string
+                    dataHoraCriacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataHoraEdicao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataHoraEntrega:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataHoraInicialPlanejada:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataHoraLiberacao:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    descricaoProduto:
+                      type: string
+                    id:
+                      type: integer
+                    idEmpresa:
+                      type: integer
+                    idProduto:
+                      type: integer
+                    idRoteiroProduto:
+                      type: integer
+                    itensPedido:
+                      type: array
+                      items: {}
+                    nome:
+                      type: string
+                    nomeEmpresa:
+                      type: string
+                    prioridade:
+                      type: integer
+                    qtde:
+                      type: string
+                    status:
+                      type: string
+                    tipoOrdem:
+                      type: string
+                    unidadeMedida:
+                      type: string
+                    infAdProduto:
+                      type: string
+              example:
+              - codigoProduto: PA-001
+                dataHoraCriacao: 24/08/2026 09:34:28
+                dataHoraEdicao: 24/08/2026 00:00:00
+                dataHoraEntrega: 17/09/2026 17:00:00
+                dataHoraInicialPlanejada: 03/09/2026 17:00:00
+                dataHoraLiberacao: 24/08/2026 09:34:30
+                descricaoProduto: Produto acabado exemplo
+                id: 16902
+                idEmpresa: 1
+                idProduto: 9256
+                idRoteiroProduto: 7847
+                itensPedido: []
+                nome: OP 01142 - 1
+                nomeEmpresa: Indústria Exemplo Ltda
+                prioridade: 25
+                qtde: '10'
+                status: Liberada
+                tipoOrdem: Padrão
+                unidadeMedida: UNID
+                infAdProduto: ''
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /apontamentos:
+    get:
+      operationId: nomus__ordem_producao__listar__apontamentos
+      summary: Listar apontamentos
+      description: 'Lista os apontamentos de produção (chão de fábrica): início e fim, operação da ordem, atividade, recurso, funcionário, quantidade
+        apontada, unidade e percentual em andamento.
+
+
+        Quando usar: Para produtividade por recurso e por funcionário, tempo efetivo por operação e comparação com o planejado. Quando não usar:
+        Não use para saber a situação da ordem: GET /ordens.
+
+
+        Armadilhas: A quantidade vem com ponto e seis casas (''10.000000''). Só ids de atividade, recurso e funcionário: os nomes saem de GET
+        /atividades, /recursos e /funcionarios (catalogados). O exemplo oficial filtra por ''atividade=48'', embora o campo devolvido se chame
+        idAtividade; prefira o nome devolvido.'
+      tags:
+      - OrdemProducao
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.ordem_producao.listar.apontamentos
+      x-entidade-canonica: OrdemProducao
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    dataHoraFinal:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    dataHoraInicial:
+                      type: string
+                      description: data e hora dd/mm/aaaa hh:mm:ss
+                    id:
+                      type: integer
+                    idAtividade:
+                      type: integer
+                    idFuncionario:
+                      type: integer
+                    idOperacaoOrdem:
+                      type: integer
+                    idRecurso:
+                      type: integer
+                    percentualProdutoAndamento:
+                      type: string
+                    quantidade:
+                      type: string
+                    unidadeMedida:
+                      type: string
+                    unidadesMedidaSecundarias:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          nome:
+                            type: string
+                          quantidadeApontada:
+                            type: string
+              example:
+              - dataHoraFinal: 15/08/2026 15:00:00
+                dataHoraInicial: 15/08/2026 08:00:00
+                id: 961
+                idAtividade: 32
+                idFuncionario: 15
+                idOperacaoOrdem: 13125
+                idRecurso: 5
+                percentualProdutoAndamento: '0'
+                quantidade: '10.000000'
+                unidadeMedida: UNIDADES
+                unidadesMedidaSecundarias:
+                - id: '18'
+                  nome: AMPOLA
+                  quantidadeApontada: '5'
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /empenhos:
+    get:
+      operationId: nomus__ordem_producao__listar__empenhos
+      summary: Listar empenhos
+      description: 'Lista os empenhos de material das ordens: produto empenhado, ordem, quantidade empenhada, quantidade requisitada, saldo a
+        requisitar, data de necessidade e situação.
+
+
+        Quando usar: Para falta de material: o que as ordens ainda precisam requisitar, por produto e por data de necessidade. Quando não usar:
+        Para os empenhos de uma única ordem há rota própria (GET /empenhos/{idOrdem}, catalogada).
+
+
+        Armadilhas: As quantidades vêm com 30 casas decimais e ponto (''5.000000000000000000000000000000''), e quantidadeRequisitada vem como
+        número JSON. O identificador é idEmpenho, não id. Os códigos de status não têm tabela publicada.'
+      tags:
+      - OrdemProducao
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.ordem_producao.listar.empenhos
+      x-entidade-canonica: OrdemProducao
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    codigo:
+                      type: string
+                    codigoProduto:
+                      type: string
+                    dataEmissao:
+                      type: string
+                      description: data dd/mm/aaaa
+                    dataNecessidade:
+                      type: string
+                      description: data dd/mm/aaaa
+                    descricaoProduto:
+                      type: string
+                    idEmpenho:
+                      type: integer
+                    idProduto:
+                      type: integer
+                    ordem:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        nome:
+                          type: string
+                    quantidadeEmpenhada:
+                      type: string
+                    quantidadeRequisitada:
+                      type: number
+                    saldo:
+                      type: string
+                    status:
+                      type: string
+              example:
+              - codigo: EMP26943
+                codigoProduto: MP-0222
+                dataEmissao: 07/08/2026
+                dataNecessidade: 21/08/2026
+                descricaoProduto: Matéria-prima exemplo
+                idEmpenho: 27938
+                idProduto: 2811
+                ordem:
+                  id: 9695
+                  nome: OP 107918 - 1
+                quantidadeEmpenhada: '5.000000000000000000000000000000'
+                quantidadeRequisitada: 0.0
+                saldo: '5.000000000000000000000000000000'
+                status: '1'
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /empresas:
+    get:
+      operationId: nomus__empresa__listar
+      summary: Listar empresas
+      description: 'Lista as empresas (estabelecimentos) cadastradas no ERP, com código, razão social, nome fantasia, endereço, inscrições, regime
+        tributário (CRT), CNAE e situação.
+
+
+        Quando usar: Para descobrir os ids de empresa usados como recorte por filial (idEmpresa) em contas, pedidos, notas e estoque. Quando não
+        usar: Não use para clientes ou fornecedores: GET /clientes e GET /pessoas.
+
+
+        Armadilhas: O exemplo oficial não mostra o CNPJ da empresa. Aqui crt e tipoContribuinteICMS vêm como texto descritivo (''1 - Simples Nacional'',
+        ''Contribuinte''), enquanto em clientes vêm como número.'
+      tags:
+      - Empresa
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.empresa.listar
+      x-entidade-canonica: Empresa
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ativo:
+                      type: boolean
+                    bairro:
+                      type: string
+                    cep:
+                      type: string
+                    cnaePrincipal:
+                      type: string
+                    codigo:
+                      type: string
+                    complemento:
+                      type: string
+                    crt:
+                      type: string
+                    endereco:
+                      type: string
+                    id:
+                      type: integer
+                    ignorarEmpresa:
+                      type: boolean
+                    inscricaoEstadual:
+                      type: string
+                    inscricaoMunicipal:
+                      type: string
+                    municipio:
+                      type: string
+                    nome:
+                      type: string
+                    nomeFantasia:
+                      type: string
+                    numero:
+                      type: string
+                    telefone:
+                      type: string
+                    tipoContribuinteICMS:
+                      type: string
+                    tipoEmpresa:
+                      type: integer
+                    uf:
+                      type: string
+              example:
+              - ativo: true
+                bairro: Distrito Industrial
+                cep: 09370-000
+                cnaePrincipal: Fabricação de produtos de metal
+                codigo: '01'
+                complemento: ''
+                crt: 1 - Simples Nacional
+                endereco: Rua Exemplo
+                id: 1
+                ignorarEmpresa: false
+                inscricaoEstadual: ''
+                inscricaoMunicipal: ''
+                municipio: Mauá
+                nome: INDÚSTRIA EXEMPLO LTDA
+                nomeFantasia: Exemplo
+                numero: '100'
+                telefone: (11) 0000-0000
+                tipoContribuinteICMS: Contribuinte
+                tipoEmpresa: 1
+                uf: SP
+        '429':
+          $ref: '#/components/responses/Throttling'
+  /centrosCusto:
+    get:
+      operationId: nomus__centro_custo__listar
+      summary: Listar centros de custo
+      description: 'Lista os centros de custo com classificação, nome, natureza (produção, administração...), tipo (analítico/sintético), direcionador
+        de custo e situação.
+
+
+        Quando usar: Para montar a dimensão de centros de custo de um relatório gerencial ou de custeio. Quando não usar: Não traz valores: é
+        só o cadastro.
+
+
+        Armadilhas: Centros de produção podem trazer custoPadraoHora com notação científica no exemplo oficial (0E-30).'
+      tags:
+      - CentroCusto
+      x-confianca: verificado
+      x-fonte-url: https://documenter.getpostman.com/view/22813773/2s93JutNgM
+      x-data-consulta: '2026-10-09'
+      x-id-canonico: nomus.centro_custo.listar
+      x-entidade-canonica: CentroCusto
+      x-acao-canonica: listar
+      x-seguro-para-executar: true
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: 'Número da página. Cada página traz no máximo 50 registros; sem o parâmetro a API devolve os 50 registros mais recentes.
+          Não existe parâmetro de tamanho de página: o tamanho é fixo em 50.'
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: query
+        in: query
+        required: false
+        description: 'Filtro na sintaxe da Nomus: campo==valor, com os operadores == != < <= > >=, '';'' para E e '','' para OU. Pode usar qualquer
+          campo que o endpoint devolve. Datas vão no formato yyyy-MM-ddTHH:mm:ss. As datas são filtradas em formato ISO, mas voltam na resposta
+          como dd/mm/aaaa. Texto com espaço vai entre aspas, ex.: municipio=="São Paulo".'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ativo:
+                      type: boolean
+                    classificacao:
+                      type: string
+                    direcionadorCusto:
+                      type: string
+                    formula:
+                      type: string
+                    id:
+                      type: integer
+                    natureza:
+                      type: string
+                    nome:
+                      type: string
+                    tipo:
+                      type: string
+              example:
+              - ativo: true
+                classificacao: '04.02'
+                direcionadorCusto: Custo
+                formula: '2000'
+                id: 69
+                natureza: Administração
+                nome: Administrativo
+                tipo: Analítico
+        '429':
+          $ref: '#/components/responses/Throttling'

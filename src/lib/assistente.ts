@@ -45,16 +45,20 @@ export function mensagem(
   return { id: identificador(), autor, texto, ...extra };
 }
 
-export const BOAS_VINDAS = mensagem(
-  "assistente",
-  `Olá, eu sou o **Stagium**. Conheço a API do **Sagi (SyGeCom)** e trago os dados da sua operação em planilha.
+/** Lista em português: "A", "A e B", "A, B e C". */
+export const listaPt = (itens: string[]) =>
+  itens.length <= 1 ? (itens[0] ?? "") : `${itens.slice(0, -1).join(", ")} e ${itens.at(-1)}`;
 
-Me diga o que você precisa, em português. Por exemplo: "produtos cadastrados", "movimentos de estoque da matriz", "pedidos de compra" ou "notas recebidas".
+export function boasVindas(sistemas: string[]): Mensagem {
+  return mensagem(
+    "assistente",
+    `Olá, eu sou o **Stagium**. Leio a API do ERP da sua empresa e trago os dados da operação em planilha. Hoje conheço ${listaPt(sistemas.map((s) => `o **${s}**`))}.
 
-Quando você aprovar a consulta, eu peço as credenciais do seu usuário de integração. Elas nunca passam pela IA e, se você quiser, ficam salvas neste navegador, protegidas por um PIN.
+Me diga o que você precisa, em português. Quando você aprovar a consulta, eu peço as credenciais do seu usuário de integração. Elas nunca passam pela IA e, se você quiser, ficam salvas neste navegador, protegidas por um PIN.
 
 Gostou de uma consulta? Salve-a junto da planilha e rode de novo em **Minhas consultas**.`,
-);
+  );
+}
 
 /** Monta os dados da planilha a partir do que a API devolveu. */
 export function planilhaDaConsulta(

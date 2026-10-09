@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  BOAS_VINDAS,
+  boasVindas,
   mensagem,
   planilhaDaConsulta,
   type Consulta,
@@ -54,42 +54,67 @@ import {
 } from "@/lib/consultas-salvas";
 
 const CONSULTAS = conhecimento.consultas as Consulta[];
-const CREDENCIAIS = (
-  conhecimento as unknown as {
-    execucao: Record<
-      string,
-      {
-        auth: {
-          credenciais_necessarias: {
-            nome: string;
-            rotulo: string;
-            segredo: boolean;
-            onde_obter: string;
-            default?: string;
-          }[];
-        };
-      }
-    >;
-  }
-).execucao["sygecom"]!.auth.credenciais_necessarias;
+type CampoCredencial = {
+  nome: string;
+  rotulo: string;
+  segredo: boolean;
+  onde_obter: string;
+  default?: string;
+};
 
-const SUGESTOES = [
-  "Produtos cadastrados",
-  "Movimentos de estoque",
-  "Pedidos de compra",
-  "Clientes",
-];
+const EXECUCAO = (
+  conhecimento as unknown as {
+    execucao: Record<string, { auth: { credenciais_necessarias: CampoCredencial[] } }>;
+  }
+).execucao;
+
+/** Credenciais que o cliente informa para consultar um sistema. */
+const credenciaisDo = (slug: string) => EXECUCAO[slug]?.auth.credenciais_necessarias ?? [];
+
+const NOMES_CURTOS: Record<string, string> = { sygecom: "Sagi (SyGeCom)", nomus: "Nomus" };
+
+/** Sistemas que o site consulta de verdade (os que têm receita de execução). */
+const SISTEMAS = (conhecimento.sistemas as { slug: string; nome: string }[])
+  .filter((s) => EXECUCAO[s.slug])
+  .map((s) => ({ slug: s.slug, nome: NOMES_CURTOS[s.slug] ?? s.nome }));
+
+const nomeDo = (slug: string | null | undefined) =>
+  SISTEMAS.find((s) => s.slug === slug)?.nome ?? "seu sistema";
+
+const SUGESTOES_POR_SISTEMA: Record<string, string[]> = {
+  sygecom: ["Produtos cadastrados", "Movimentos de estoque", "Pedidos de compra", "Clientes"],
+  nomus: [
+    "Contas a receber em aberto",
+    "Pedidos de venda do mês passado",
+    "Movimentações de estoque",
+    "Ordens de produção",
+  ],
+};
+
+/** Atalhos da primeira tela: os definidos à mão ou as entidades das consultas do sistema. */
+function sugestoesDo(slug: string): string[] {
+  const definidas = SUGESTOES_POR_SISTEMA[slug];
+  if (definidas) return definidas;
+  const entidades = CONSULTAS.filter((c) => c.slug === slug).map((c) => c.entidade);
+  return Array.from(new Set(entidades)).slice(0, 4);
+}
+
+const CHAVE_SISTEMA = "stagium.sistema";
 
 export const Route = createFileRoute("/chat")({
-  validateSearch: (busca: Record<string, unknown>): { pergunta?: string } =>
-    typeof busca["pergunta"] === "string" ? { pergunta: busca["pergunta"].slice(0, 300) } : {},
+  validateSearch: (busca: Record<string, unknown>): { pergunta?: string; sistema?: string } => ({
+    ...(typeof busca["pergunta"] === "string" ? { pergunta: busca["pergunta"].slice(0, 300) } : {}),
+    ...(typeof busca["sistema"] === "string" && SISTEMAS.some((s) => s.slug === busca["sistema"])
+      ? { sistema: busca["sistema"] }
+      : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Conversa — Stagium" },
       {
         name: "description",
         content:
-          "Pergunte em português o que precisa do Sagi (SyGeCom). O assistente encontra a consulta certa, executa na API e devolve a planilha pronta.",
+          "Pergunte em português o que precisa do ERP da sua empresa. O Stagium encontra a consulta certa, executa na API e devolve a planilha pronta.",
       },
       { property: "og:title", content: "Stagium" },
       { property: "og:description", content: "Pergunte, aprove e receba os dados em planilha." },
@@ -116,10 +141,7 @@ function Texto({ conteudo }: { conteudo: string }) {
             }
             if (parte.startsWith("`") && parte.endsWith("`")) {
               return (
-                <code
-                  key={j}
-                  className="mono rounded-sm bg-muted px-1 py-0.5 text-[0.85em]"
-                >
+                <code key={j} className="mono rounded-sm bg-muted px-1 py-0.5 text-[0.85em]">
                   {parte.slice(1, -1)}
                 </code>
               );
@@ -156,6 +178,7 @@ function resumirFiltros(consulta: Consulta, filtros: Record<string, string>): st
     .filter((c) => filtros[c.nome])
     .map((c) => {
       const v = filtros[c.nome] ?? "";
+      if (c.tipo === "condicao") return c.rotulo;
       return `${c.rotulo}: ${c.tipo === "data" ? v.split("-").reverse().join("/") : v}`;
     })
     .join(" · ");
@@ -286,9 +309,13 @@ function FormularioConsulta({
   ocupado: boolean;
 }) {
   const camposFiltro = consulta.campos_filtro ?? [];
+  const CREDENCIAIS = credenciaisDo(consulta.slug);
   const [filtros, setFiltros] = useState<Record<string, string>>(() =>
     Object.fromEntries(
-      camposFiltro.map((c) => [c.nome, filtrosIniciais?.[c.nome] ?? padraoDoCampo(c, periodoSugerido)]),
+      camposFiltro.map((c) => [
+        c.nome,
+        filtrosIniciais?.[c.nome] ?? padraoDoCampo(c, periodoSugerido),
+      ]),
     ),
   );
   const [cred, setCred] = useState<Record<string, string>>(() =>
@@ -323,11 +350,11 @@ function FormularioConsulta({
     setAbrindo(true);
     try {
       if (modoPin) {
-        aoConfirmar(await abrirCredenciais(pin), filtros, consulta);
+        aoConfirmar(await abrirCredenciais(consulta.slug, pin), filtros, consulta);
         return;
       }
       if (lembrar) {
-        await salvarCredenciais(cred, pinNovo);
+        await salvarCredenciais(consulta.slug, cred, pinNovo);
         aoMudarCofre();
         toast.success("Credenciais salvas neste navegador", {
           description: "Da próxima vez, é só digitar o PIN.",
@@ -364,40 +391,61 @@ function FormularioConsulta({
               </p>
             )}
             <div className="grid gap-3 sm:grid-cols-2">
-              {camposFiltro.map((c) => (
-                <div key={c.nome} className="space-y-1">
-                  <Label htmlFor={`filtro-${c.nome}`} className="text-xs">
-                    {c.rotulo}
-                    {c.obrigatorio ? " *" : ""}
-                  </Label>
-                  {c.tipo === "opcao" ? (
-                    <select
-                      id={`filtro-${c.nome}`}
-                      className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
-                      value={filtros[c.nome] ?? ""}
-                      onChange={(e) => setFiltros((f) => ({ ...f, [c.nome]: e.target.value }))}
-                    >
-                      {!c.obrigatorio && <option value="">Todas</option>}
-                      {(c.opcoes ?? []).map((o) => (
-                        <option key={o} value={o}>
-                          {o}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <Input
-                      id={`filtro-${c.nome}`}
-                      type={c.tipo === "data" ? "date" : "text"}
-                      value={filtros[c.nome] ?? ""}
-                      onChange={(e) => setFiltros((f) => ({ ...f, [c.nome]: e.target.value }))}
-                      placeholder={c.papel === "filial" ? "TODAS ou o código da filial" : ""}
+              {camposFiltro.map((c) =>
+                c.tipo === "condicao" ? (
+                  <label key={c.nome} className="flex items-center gap-2 text-sm sm:col-span-2">
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-[var(--foreground)]"
+                      checked={filtros[c.nome] === "1"}
+                      onChange={(e) =>
+                        setFiltros((f) => ({ ...f, [c.nome]: e.target.checked ? "1" : "" }))
+                      }
                     />
-                  )}
-                  {c.dica && c.tipo !== "data" && (
-                    <p className="text-[11px] leading-snug text-muted-foreground">{c.dica}</p>
-                  )}
-                </div>
-              ))}
+                    {c.rotulo}
+                  </label>
+                ) : (
+                  <div
+                    key={c.nome}
+                    className={c.papel === "avancado" ? "space-y-1 sm:col-span-2" : "space-y-1"}
+                  >
+                    <Label htmlFor={`filtro-${c.nome}`} className="text-xs">
+                      {c.rotulo}
+                      {c.obrigatorio ? " *" : ""}
+                    </Label>
+                    {c.tipo === "opcao" ? (
+                      <select
+                        id={`filtro-${c.nome}`}
+                        className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+                        value={filtros[c.nome] ?? ""}
+                        onChange={(e) => setFiltros((f) => ({ ...f, [c.nome]: e.target.value }))}
+                      >
+                        {!c.obrigatorio && <option value="">Todas</option>}
+                        {(c.opcoes ?? []).map((o) => (
+                          <option key={o} value={o}>
+                            {o}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Input
+                        id={`filtro-${c.nome}`}
+                        type={c.tipo === "data" ? "date" : "text"}
+                        value={filtros[c.nome] ?? ""}
+                        onChange={(e) => setFiltros((f) => ({ ...f, [c.nome]: e.target.value }))}
+                        placeholder={
+                          c.papel === "filial" && consulta.slug === "sygecom"
+                            ? "TODAS ou o código da filial"
+                            : ""
+                        }
+                      />
+                    )}
+                    {c.dica && c.tipo !== "data" && (
+                      <p className="text-[11px] leading-snug text-muted-foreground">{c.dica}</p>
+                    )}
+                  </div>
+                ),
+              )}
             </div>
             {periodoInvertido && (
               <p className="text-xs text-destructive">A data inicial é posterior à data final.</p>
@@ -495,7 +543,7 @@ function FormularioConsulta({
           size="sm"
           disabled={faltaFiltro || faltaCredencial || periodoInvertido || ocupado || abrindo}
         >
-          Consultar o Sagi
+          Consultar o {nomeDo(consulta.slug)}
         </Button>
       </form>
     </div>
@@ -503,24 +551,69 @@ function FormularioConsulta({
 }
 
 function Index() {
-  const [mensagens, setMensagens] = useState<Mensagem[]>([BOAS_VINDAS]);
-  const { pergunta: perguntaInicial } = Route.useSearch();
+  const [mensagens, setMensagens] = useState<Mensagem[]>(() => [
+    boasVindas(SISTEMAS.map((s) => s.nome)),
+  ]);
+  const { pergunta: perguntaInicial, sistema: sistemaDaUrl } = Route.useSearch();
+  const [sistema, setSistema] = useState<string | null>(
+    sistemaDaUrl ?? (SISTEMAS.length === 1 ? SISTEMAS[0]!.slug : null),
+  );
   const [pergunta, setPergunta] = useState(perguntaInicial ?? "");
   const [ocupado, setOcupado] = useState(false);
   const [etapa, setEtapa] = useState("");
+  const [paginando, setPaginando] = useState(false);
+  const pararPaginas = useRef(false);
   const [iaLigada, setIaLigada] = useState(true);
-  const [credenciais, setCredenciais] = useState<Record<string, string>>({});
-  const [credenciaisSalvas, setCredenciaisSalvas] = useState(false);
+  // credenciais em memória e cofres salvos, por sistema
+  const [credPorSistema, setCredPorSistema] = useState<Record<string, Record<string, string>>>({});
+  const [cofres, setCofres] = useState<Record<string, boolean>>({});
   const [salvas, setSalvas] = useState<ConsultaSalva[]>([]);
   const [painelAberto, setPainelAberto] = useState(false);
   const fim = useRef<HTMLDivElement>(null);
 
-  const temCredenciais = CREDENCIAIS.every((c) => credenciais[c.nome]);
+  const credenciaisDe = (slug: string) => credPorSistema[slug] ?? {};
+  const temCredenciaisDe = (slug: string) =>
+    credenciaisDo(slug).length > 0 && credenciaisDo(slug).every((c) => credenciaisDe(slug)[c.nome]);
+  const temCredenciais = sistema ? temCredenciaisDe(sistema) : false;
+  const credenciaisSalvas = sistema ? Boolean(cofres[sistema]) : false;
+  const lerCofres = () =>
+    setCofres(Object.fromEntries(SISTEMAS.map((s) => [s.slug, temCredenciaisSalvas(s.slug)])));
+
+  function escolherSistema(slug: string, avisar = true) {
+    setSistema(slug);
+    try {
+      localStorage.setItem(CHAVE_SISTEMA, slug);
+    } catch {
+      // sem armazenamento: vale só nesta aba
+    }
+    if (avisar) {
+      const exemplos = sugestoesDo(slug)
+        .slice(0, 3)
+        .map((e) => `"${e.toLowerCase()}"`);
+      setMensagens((atual) => [
+        ...atual,
+        mensagem("cliente", `Uso o ${nomeDo(slug)}.`),
+        mensagem(
+          "assistente",
+          `Certo, vou consultar o **${nomeDo(slug)}**. O que você precisa?` +
+            (exemplos.length > 0 ? ` Por exemplo: ${exemplos.join(", ")}.` : ""),
+        ),
+      ]);
+    }
+  }
 
   // O navegador só existe no cliente: lê o que estiver salvo depois de montar.
   useEffect(() => {
-    setCredenciaisSalvas(temCredenciaisSalvas());
+    lerCofres();
     setSalvas(listarConsultasSalvas());
+    if (!sistemaDaUrl && SISTEMAS.length > 1) {
+      try {
+        const lembrado = localStorage.getItem(CHAVE_SISTEMA);
+        if (lembrado && SISTEMAS.some((s) => s.slug === lembrado)) setSistema(lembrado);
+      } catch {
+        // sem armazenamento: o cliente escolhe na conversa
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -530,10 +623,14 @@ function Index() {
   async function enviar(texto: string) {
     const limpo = texto.trim();
     if (!limpo || ocupado) return;
+    if (!sistema) {
+      toast.message("Escolha primeiro o sistema que a sua empresa usa.");
+      return;
+    }
 
     setMensagens((atual) => [...atual, mensagem("cliente", limpo)]);
     setPergunta("");
-    setEtapa("Procurando a consulta certa no catálogo do Sagi…");
+    setEtapa(`Procurando a consulta certa no catálogo do ${nomeDo(sistema)}…`);
     setOcupado(true);
 
     try {
@@ -541,11 +638,14 @@ function Index() {
         data: {
           pergunta: limpo,
           historico: mensagens.map(({ autor, texto: t }) => ({ autor, texto: t })),
+          sistema,
         },
       });
 
       setIaLigada(resposta.origem === "ia");
-      const propostas = CONSULTAS.filter((c) => resposta.resposta.includes(c.id));
+      const propostas = CONSULTAS.filter(
+        (c) => c.slug === sistema && resposta.resposta.includes(c.id),
+      );
       const periodo = interpretarPeriodo(limpo);
       setMensagens((atual) => [
         ...atual,
@@ -573,15 +673,16 @@ function Index() {
       mensagem("cliente", `Pode executar: ${consulta.descricao.slice(0, 60)}`),
     ]);
     const temFiltros = (consulta.campos_filtro ?? []).length > 0;
-    if (temCredenciais && !temFiltros) {
-      void executar(credenciais, {}, consulta);
+    const prontas = temCredenciaisDe(consulta.slug);
+    if (prontas && !temFiltros) {
+      void executar(credenciaisDe(consulta.slug), {}, consulta);
       return;
     }
     const partes = [
       temFiltros ? "escolha os filtros" : "",
-      temCredenciais
+      prontas
         ? ""
-        : credenciaisSalvas
+        : cofres[consulta.slug]
           ? "digite o PIN das credenciais salvas"
           : "informe as credenciais do usuário de integração",
     ].filter(Boolean);
@@ -600,14 +701,76 @@ function Index() {
     filtros: Record<string, string>,
     consulta: Consulta,
   ) {
-    setCredenciais(cred);
-    setEtapa("Consultando o Sagi e montando a planilha…");
+    setCredPorSistema((atual) => ({ ...atual, [consulta.slug]: cred }));
+    setEtapa(`Consultando o ${nomeDo(consulta.slug)} e montando a planilha…`);
     setOcupado(true);
     const resumo = resumirFiltros(consulta, filtros);
+    const nome = nomeDo(consulta.slug);
+    const maximo = 1000;
+    pararPaginas.current = false;
     try {
-      const resultado = await executarConsultaReal({
-        data: { endpointId: consulta.id, credenciais: cred, filtros, maximo: 1000 },
-      });
+      // Sistemas com limite de requisições devolvem uma página por chamada (continuar=true):
+      // o navegador espera o intervalo pedido e busca a próxima, mostrando o progresso.
+      let pagina = 0;
+      let chaveEmBase64 = false;
+      let interrompida = false;
+      const linhas: Record<string, string | number>[] = [];
+      const colunas: { titulo: string; chave: string }[] = [];
+      let parcial: Awaited<ReturnType<typeof executarConsultaReal>> | null = null;
+      for (;;) {
+        parcial = await executarConsultaReal({
+          data: {
+            endpointId: consulta.id,
+            credenciais: cred,
+            filtros,
+            maximo,
+            pagina,
+            chaveEmBase64,
+          },
+        });
+        chaveEmBase64 = parcial.chaveEmBase64;
+        linhas.push(...parcial.linhas);
+        for (const c of parcial.colunas) {
+          if (!colunas.some((x) => x.chave === c.chave)) colunas.push(c);
+        }
+        if (!parcial.continuar || linhas.length >= maximo) break;
+        if (pararPaginas.current) {
+          interrompida = true;
+          break;
+        }
+        setPaginando(true);
+        pagina = parcial.proximaPagina;
+        for (let falta = Math.ceil(parcial.esperarSegundos); falta > 0; falta -= 1) {
+          if (pararPaginas.current) break;
+          setEtapa(
+            `${linhas.length.toLocaleString("pt-BR")} registros até agora. ` +
+              `O ${nome} libera uma consulta a cada poucos segundos: próxima página em ${falta} s.`,
+          );
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+        if (pararPaginas.current) {
+          interrompida = true;
+          break;
+        }
+        setEtapa(`Buscando a página ${pagina + 1} no ${nome}…`);
+      }
+      const resultado = {
+        ...parcial!,
+        colunas,
+        linhas: linhas.slice(0, maximo),
+        aviso:
+          [
+            parcial!.aviso,
+            interrompida
+              ? `Consulta interrompida a seu pedido com ${linhas.length} registros; pode haver mais no ${nome}.`
+              : "",
+            linhas.length >= maximo
+              ? `Parei em ${maximo} registros. Para trazer o restante, divida o período.`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" ") || null,
+      };
       const planilha = planilhaDaConsulta(consulta, resultado, resumo);
       setMensagens((atual) => [
         ...atual,
@@ -621,7 +784,7 @@ function Index() {
 
 Observação: ${resultado.aviso}`
                   : "")
-            : `A consulta funcionou, mas o Sagi não devolveu nenhum registro para **${resultado.titulo}**` +
+            : `A consulta funcionou, mas o ${nomeDo(consulta.slug)} não devolveu nenhum registro para **${resultado.titulo}**` +
                 (resumo ? ` com os filtros ${resumo}` : "") +
                 ". Tente ampliar o período ou trocar a filial — ou o usuário de integração não tem acesso a esses dados.",
           resultado.linhas.length > 0
@@ -631,10 +794,11 @@ Observação: ${resultado.aviso}`
       ]);
     } catch (erro) {
       const motivo = erro instanceof Error ? erro.message : "falha desconhecida";
-      toast.error("Não consegui consultar o Sagi", { description: motivo });
+      toast.error(`Não consegui consultar o ${nomeDo(consulta.slug)}`, { description: motivo });
       setMensagens((atual) => [...atual, mensagem("assistente", `Não deu certo: ${motivo}`)]);
     } finally {
       setOcupado(false);
+      setPaginando(false);
     }
   }
 
@@ -666,17 +830,21 @@ Observação: ${resultado.aviso}`
       return;
     }
     setPainelAberto(false);
+    if (consulta.slug !== sistema) escolherSistema(consulta.slug, false);
     const filtros = filtrosParaExecutar(consulta.campos_filtro ?? [], salva);
-    setMensagens((atual) => [...atual, mensagem("cliente", `Rodar consulta salva: **${salva.nome}**`)]);
-    if (temCredenciais) {
-      void executar(credenciais, filtros, consulta);
+    setMensagens((atual) => [
+      ...atual,
+      mensagem("cliente", `Rodar consulta salva: **${salva.nome}**`),
+    ]);
+    if (temCredenciaisDe(consulta.slug)) {
+      void executar(credenciaisDe(consulta.slug), filtros, consulta);
       return;
     }
     setMensagens((atual) => [
       ...atual,
       mensagem(
         "assistente",
-        credenciaisSalvas
+        cofres[consulta.slug]
           ? "Digite o PIN das credenciais salvas para rodar."
           : "Informe as credenciais do usuário de integração para rodar.",
         { formulario: consulta, filtrosIniciais: filtros },
@@ -723,16 +891,27 @@ Observação: ${resultado.aviso}`
               <Bookmark className="mr-1 size-3.5" />
               Minhas consultas{salvas.length > 0 ? ` (${salvas.length})` : ""}
             </Button>
-            {(temCredenciais || credenciaisSalvas) && (
+            {sistema && SISTEMAS.length > 1 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                title="Trocar o sistema consultado"
+                onClick={() => setSistema(null)}
+              >
+                Sistema: {nomeDo(sistema)}
+              </Button>
+            )}
+            {sistema && (temCredenciais || credenciaisSalvas) && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-7 px-2 text-xs"
                 onClick={() => {
-                  setCredenciais({});
-                  apagarCredenciaisSalvas();
-                  setCredenciaisSalvas(false);
-                  toast.success("Credenciais apagadas deste navegador");
+                  setCredPorSistema((atual) => ({ ...atual, [sistema]: {} }));
+                  apagarCredenciaisSalvas(sistema);
+                  lerCofres();
+                  toast.success(`Credenciais do ${nomeDo(sistema)} apagadas deste navegador`);
                 }}
               >
                 Esquecer credenciais
@@ -798,10 +977,10 @@ Observação: ${resultado.aviso}`
                 {m.formulario && (
                   <FormularioConsulta
                     consulta={m.formulario}
-                    credenciais={credenciais}
-                    pedirCredenciais={!temCredenciais}
-                    credenciaisSalvas={credenciaisSalvas}
-                    aoMudarCofre={() => setCredenciaisSalvas(temCredenciaisSalvas())}
+                    credenciais={credenciaisDe(m.formulario.slug)}
+                    pedirCredenciais={!temCredenciaisDe(m.formulario.slug)}
+                    credenciaisSalvas={Boolean(cofres[m.formulario.slug])}
+                    aoMudarCofre={lerCofres}
                     {...(m.periodo ? { periodoSugerido: m.periodo } : {})}
                     {...(m.filtrosIniciais ? { filtrosIniciais: m.filtrosIniciais } : {})}
                     ocupado={ocupado}
@@ -816,7 +995,10 @@ Observação: ${resultado.aviso}`
                     planilha={m.planilha}
                     aoBaixar={() => void baixar(m)}
                     {...(m.execucao
-                      ? { nomeSugerido: nomeSugerido(m), aoSalvar: (nome: string) => salvarDaMensagem(m, nome) }
+                      ? {
+                          nomeSugerido: nomeSugerido(m),
+                          aoSalvar: (nome: string) => salvarDaMensagem(m, nome),
+                        }
                       : {})}
                   />
                 )}
@@ -825,10 +1007,24 @@ Observação: ${resultado.aviso}`
           )}
 
           {ocupado && (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-              <Loader2 className="size-4 animate-spin" />
-              {etapa}
-            </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+                <Loader2 className="size-4 animate-spin" />
+                {etapa}
+              </p>
+              {paginando && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    pararPaginas.current = true;
+                    setEtapa("Parando e montando a planilha com o que já veio…");
+                  }}
+                >
+                  Parar e gerar com o que veio
+                </Button>
+              )}
+            </div>
           )}
           <div ref={fim} />
         </div>
@@ -836,33 +1032,49 @@ Observação: ${resultado.aviso}`
 
       <div className="sticky bottom-0 border-t bg-background/95 backdrop-blur">
         <div className="mx-auto w-full max-w-3xl px-4 pt-3 pb-4">
-          {mensagens.length <= 1 && (
-            <div className="mb-3 flex flex-wrap gap-2">
-              {salvas.slice(0, 4).map((salva) => (
-                <Button
-                  key={salva.id}
-                  size="sm"
-                  className="max-w-full"
-                  onClick={() => rodarSalva(salva)}
-                  disabled={ocupado}
-                >
-                  <Bookmark className="mr-1.5 size-3.5" />
-                  <span className="truncate">{salva.nome}</span>
-                </Button>
-              ))}
-              {SUGESTOES.map((s) => (
-                <Button
-                  key={s}
-                  variant="outline"
-                  size="sm"
-                  className="bg-card"
-                  onClick={() => void enviar(s)}
-                  disabled={ocupado}
-                >
-                  {s}
-                </Button>
-              ))}
+          {!sistema ? (
+            <div className="mb-3">
+              <p className="mb-2 text-sm font-medium">Qual sistema a sua empresa usa?</p>
+              <div className="flex flex-wrap gap-2">
+                {SISTEMAS.map((sis) => (
+                  <Button key={sis.slug} size="sm" onClick={() => escolherSistema(sis.slug)}>
+                    {sis.nome}
+                  </Button>
+                ))}
+              </div>
             </div>
+          ) : (
+            mensagens.length <= 3 && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {salvas
+                  .filter((salva) => salva.consultaId.startsWith(sistema + "."))
+                  .slice(0, 4)
+                  .map((salva) => (
+                    <Button
+                      key={salva.id}
+                      size="sm"
+                      className="max-w-full"
+                      onClick={() => rodarSalva(salva)}
+                      disabled={ocupado}
+                    >
+                      <Bookmark className="mr-1.5 size-3.5" />
+                      <span className="truncate">{salva.nome}</span>
+                    </Button>
+                  ))}
+                {sugestoesDo(sistema).map((sug) => (
+                  <Button
+                    key={sug}
+                    variant="outline"
+                    size="sm"
+                    className="bg-card"
+                    onClick={() => void enviar(sug)}
+                    disabled={ocupado}
+                  >
+                    {sug}
+                  </Button>
+                ))}
+              </div>
+            )
           )}
           <form
             className="flex items-end gap-2 rounded-md border border-input bg-card p-1.5 focus-within:border-foreground"
@@ -880,7 +1092,9 @@ Observação: ${resultado.aviso}`
                   void enviar(pergunta);
                 }
               }}
-              placeholder="O que você precisa do Sagi?"
+              placeholder={
+                sistema ? `O que você precisa do ${nomeDo(sistema)}?` : "Escolha o sistema acima"
+              }
               aria-label="Sua pergunta"
               rows={1}
               className="max-h-40 min-h-10 resize-none border-0 bg-transparent px-2.5 py-2 text-[0.9375rem] shadow-none focus-visible:ring-0 focus-visible:shadow-none focus-visible:outline-none"
@@ -889,7 +1103,7 @@ Observação: ${resultado.aviso}`
               type="submit"
               size="icon"
               className="size-10 shrink-0"
-              disabled={ocupado || !pergunta.trim()}
+              disabled={ocupado || !pergunta.trim() || !sistema}
             >
               <ArrowUp className="size-4" />
               <span className="sr-only">Enviar pergunta</span>
@@ -911,8 +1125,8 @@ Observação: ${resultado.aviso}`
           </SheetHeader>
           {salvas.length === 0 ? (
             <p className="mt-6 text-sm text-muted-foreground">
-              Nenhuma consulta salva ainda. Depois de gerar uma planilha, use “Salvar esta
-              consulta” para rodar de novo com um clique.
+              Nenhuma consulta salva ainda. Depois de gerar uma planilha, use “Salvar esta consulta”
+              para rodar de novo com um clique.
             </p>
           ) : (
             <ul className="mt-6 divide-y border-y">
@@ -935,6 +1149,11 @@ Observação: ${resultado.aviso}`
                 return (
                   <li key={salva.id} className="py-4">
                     <p className="font-medium">{salva.nome}</p>
+                    {SISTEMAS.length > 1 && consulta && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {nomeDo(consulta.slug)}
+                      </p>
+                    )}
                     {periodo && <p className="mt-1 text-xs text-muted-foreground">{periodo}</p>}
                     {outros && <p className="mt-0.5 text-xs text-muted-foreground">{outros}</p>}
                     <div className="mt-3 flex gap-2">

@@ -12,7 +12,7 @@ import conhecimento from "./conhecimento.json";
  * vêm de conhecimento.json, gerado do catálogo real.
  */
 
-type Coluna = { titulo: string; caminho: string; tipo?: string };
+type Coluna = { titulo: string; caminho: string; tipo?: string; formato_origem?: string };
 
 type ReceitaEndpoint = {
   metodo: string;
@@ -29,6 +29,8 @@ type ReceitaEndpoint = {
     fim?: string | null;
     /** 1 quando o deslocamento começa em 1 (ex.: movimentos do Sagi). */
     offset_base?: number;
+    /** Primeira página quando a paginação é por número de página (padrão 1). */
+    pagina_inicial?: number;
   };
   filtros: { parametro: string; descricao: string }[];
   campos_filtro?: CampoFiltro[];
@@ -36,13 +38,32 @@ type ReceitaEndpoint = {
   padroes_fixos?: Record<string, string | number | boolean>;
   colunas: Coluna[];
   titulo: string;
+  /** Filtros enviados num único parâmetro (ex.: Nomus: query=campo>=valor;campo<=valor). */
+  query_composta?: {
+    parametro: string;
+    periodos: Record<string, string>;
+    filial: string | null;
+    condicoes: Record<string, string>;
+  };
+  /** Intervalo mínimo entre requisições exigido pelo sistema (ex.: Nomus: 20 s). */
+  intervalo_minimo_s?: number;
 };
 
 export type CampoFiltro = {
   nome: string;
   rotulo: string;
-  tipo: "data" | "texto" | "opcao";
-  papel: "periodo_inicio" | "periodo_fim" | "data" | "filial" | "opcao" | "caminho";
+  tipo: "data" | "texto" | "opcao" | "condicao";
+  papel:
+    | "periodo_inicio"
+    | "periodo_fim"
+    | "data"
+    | "filial"
+    | "opcao"
+    | "caminho"
+    | "condicao"
+    | "avancado";
+  /** Formato em que a API espera a data (o formulário sempre usa AAAA-MM-DD). */
+  formato?: "dd/mm/aaaa";
   obrigatorio: boolean;
   padrao?: string;
   opcoes?: string[];
@@ -232,8 +253,26 @@ function camposDe(corpo: unknown): string {
   return typeof corpo;
 }
 
-/** Troca usuário e senha pelo token, conforme a receita do catálogo. */
-async function autenticar(auth: ReceitaAuth, credenciais: Record<string, string>, base: string) {
+/** Dica extra quando o sistema recusa a credencial (o que costuma dar errado em cada um). */
+const DICAS_CREDENCIAL: Record<string, string> = {
+  sygecom:
+    " Confira se a opção 'Bloquear Acesso ao SAGI Mobile' está desmarcada no cadastro do usuário de integração.",
+};
+
+const credencialRecusada = (slug: string) =>
+  new Error(
+    "Credenciais recusadas pelo sistema. Confira os dados do usuário de integração." +
+      (DICAS_CREDENCIAL[slug] ?? ""),
+  );
+
+/** Monta os cabeçalhos de autenticação conforme a receita do catálogo. */
+async function autenticar(
+  slug: string,
+  auth: ReceitaAuth,
+  credenciais: Record<string, string>,
+  base: string,
+  chaveEmBase64 = false,
+) {
   const cabecalhos: Record<string, string> = {
     Accept: "application/json",
     ...(auth.headers_fixos ?? {}),
@@ -252,11 +291,7 @@ async function autenticar(auth: ReceitaAuth, credenciais: Record<string, string>
       headers: { ...cabecalhos, "Content-Type": "application/json" },
       body: JSON.stringify(corpo),
     });
-    if (resposta.status === 401 || resposta.status === 403) {
-      throw new Error(
-        "Credenciais recusadas pelo sistema. Confira e-mail e senha do usuário de integração e se a opção 'Bloquear Acesso ao SAGI Mobile' está desmarcada no cadastro dele.",
-      );
-    }
+    if (resposta.status === 401 || resposta.status === 403) throw credencialRecusada(slug);
     if (!resposta.ok) {
       throw new Error(`O login respondeu HTTP ${resposta.status}.`);
     }
@@ -289,7 +324,8 @@ async function autenticar(auth: ReceitaAuth, credenciais: Record<string, string>
 
   if (auth.tipo === "header_api_key" && auth.header) {
     const nome = auth.credenciais_necessarias[0]?.nome ?? "api_key";
-    cabecalhos[auth.header] = (auth.prefixo ?? "") + (credenciais[nome] ?? "");
+    const chave = (credenciais[nome] ?? "").trim();
+    cabecalhos[auth.header] = (auth.prefixo ?? "") + (chaveEmBase64 ? btoa(chave) : chave);
     return cabecalhos;
   }
 
@@ -301,7 +337,33 @@ type Entrada = {
   credenciais: Record<string, string>;
   filtros?: Record<string, string>;
   maximo?: number;
+  /**
+   * Sistemas com limite de requisições (intervalo_minimo_s): o navegador pede uma página por
+   * chamada, espera o intervalo e pede a próxima. Começa em 0.
+   */
+  pagina?: number;
+  /** Devolvido pela primeira chamada quando o sistema só aceitou a chave em Base64. */
+  chaveEmBase64?: boolean;
 };
+
+/**
+ * Converte número que veio como texto. Só usa a leitura brasileira ("1.234,56") quando o
+ * catálogo diz que a coluna vem assim; senão, ponto é separador decimal.
+ */
+function numeroDeTexto(v: unknown, formato: string): unknown {
+  if (typeof v !== "string") return v;
+  const t = v.trim();
+  if (formato.includes("pt-BR")) {
+    if (/^-?\d{1,3}(\.\d{3})*(,\d+)?$/.test(t) || /^-?\d+(,\d+)?$/.test(t)) {
+      return Number(t.replace(/\./g, "").replace(",", "."));
+    }
+    return v;
+  }
+  return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : v;
+}
+
+const TIPOS_NUMERICOS = new Set(["decimal", "integer", "number", "money", "numero"]);
+const isoParaBr = (iso: string) => iso.split("-").reverse().join("/");
 
 /** Núcleo da execução, isolado da camada de servidor para poder ser testado. */
 export async function consultarSistema(data: Entrada) {
@@ -346,27 +408,75 @@ export async function consultarSistema(data: Entrada) {
       caminho = caminho.replace(`{${c.nome}}`, encodeURIComponent(String(informados[c.nome])));
       delete informados[c.nome];
     }
+    for (const c of campos) {
+      if (c.formato === "dd/mm/aaaa" && informados[c.nome]) {
+        informados[c.nome] = isoParaBr(String(informados[c.nome]));
+      }
+    }
+
+    // filtros que vão juntos num parâmetro só (período, empresa, condições e filtro livre)
+    const qc = receita.query_composta;
+    if (qc) {
+      const partes: string[] = [];
+      const ini = informados["data_inicial"];
+      const fimP = informados["data_final"];
+      if (ini && fimP) {
+        const porRotulo = informados["periodo_por"];
+        const modelo =
+          (porRotulo && qc.periodos[String(porRotulo)]) || Object.values(qc.periodos)[0];
+        if (modelo) {
+          partes.push(
+            modelo.replace("{data_inicial}", String(ini)).replace("{data_final}", String(fimP)),
+          );
+        }
+      }
+      if (qc.filial && informados["id_empresa"]) {
+        partes.push(qc.filial.replace("{id_empresa}", String(informados["id_empresa"]).trim()));
+      }
+      for (const [nome, expressao] of Object.entries(qc.condicoes)) {
+        if (informados[nome]) partes.push(expressao);
+      }
+      if (informados["filtro_adicional"])
+        partes.push(String(informados["filtro_adicional"]).trim());
+      for (const c of campos.filter((c) => c.nome in informados && c.papel !== "caminho")) {
+        if (
+          ["periodo_inicio", "periodo_fim", "filial", "condicao", "avancado"].includes(c.papel) ||
+          c.nome === "periodo_por"
+        ) {
+          delete informados[c.nome];
+        }
+      }
+      if (partes.length > 0) informados[qc.parametro] = partes.join(";");
+    }
+
     const consultaBase: Record<string, string> = {};
     for (const [k, v] of Object.entries(receita.padroes_fixos ?? {})) consultaBase[k] = String(v);
     for (const [k, v] of Object.entries(informados)) consultaBase[k] = String(v);
 
-    const cabecalhos = await autenticar(sistema.auth, data.credenciais, base);
+    let chaveEmBase64 = Boolean(data.chaveEmBase64);
+    let cabecalhos = await autenticar(slug!, sistema.auth, data.credenciais, base, chaveEmBase64);
+    const podeTentarBase64 =
+      sistema.auth.tipo === "header_api_key" && sistema.auth.prefixo === "Basic ";
+    const porPagina = Boolean(receita.intervalo_minimo_s);
 
     const maximo = Math.min(data.maximo ?? 1000, 5000);
     const pag = receita.paginacao ?? { tipo: "nenhuma" };
     const tamanho = Math.min(pag.tamanho_max ?? 100, maximo);
     const linhas: Record<string, unknown>[] = [];
-    let pagina = 0;
+    let pagina = porPagina ? Math.max(0, data.pagina ?? 0) : 0;
     let cursor: string | number | null = null;
+    let continuar = false;
+    let esperarSegundos = 0;
 
     while (pagina < MAXIMO_PAGINAS) {
       const parametros = new URLSearchParams(consultaBase);
       if (pag.tipo === "offset" && pag.param_pagina && pag.param_tamanho) {
         parametros.set(pag.param_pagina, String(linhas.length + (pag.offset_base ?? 0)));
         parametros.set(pag.param_tamanho, String(tamanho));
-      } else if (pag.tipo === "page" && pag.param_pagina && pag.param_tamanho) {
-        parametros.set(pag.param_pagina, String(pagina + 1));
-        parametros.set(pag.param_tamanho, String(tamanho));
+      } else if (pag.tipo === "page" && pag.param_pagina) {
+        // alguns sistemas têm tamanho fixo e nenhum parâmetro de tamanho (ex.: Nomus, 50)
+        parametros.set(pag.param_pagina, String(pagina + (pag.pagina_inicial ?? 1)));
+        if (pag.param_tamanho) parametros.set(pag.param_tamanho, String(tamanho));
       } else if (
         (pag.tipo === "cursor" || pag.tipo === "versao") &&
         cursor !== null &&
@@ -376,16 +486,38 @@ export async function consultarSistema(data: Entrada) {
       }
 
       const consulta = parametros.toString();
-      const resposta = await comLimite(base + caminho + (consulta ? `?${consulta}` : ""), {
-        method: receita.metodo,
-        headers: cabecalhos,
-      });
+      const endereco = base + caminho + (consulta ? `?${consulta}` : "");
+      let resposta = await comLimite(endereco, { method: receita.metodo, headers: cabecalhos });
 
-      if (resposta.status === 401 || resposta.status === 403) {
-        throw new Error("O sistema recusou a credencial nesta consulta (401/403).");
+      // a documentação do Nomus fala em chave "em Base64", mas a coleção oficial envia crua:
+      // tenta crua; se recusar na primeira chamada, tenta uma única vez em Base64
+      if (
+        (resposta.status === 401 || resposta.status === 403) &&
+        podeTentarBase64 &&
+        !chaveEmBase64 &&
+        linhas.length === 0
+      ) {
+        chaveEmBase64 = true;
+        cabecalhos = await autenticar(slug!, sistema.auth, data.credenciais, base, true);
+        resposta = await comLimite(endereco, { method: receita.metodo, headers: cabecalhos });
       }
+
+      if (resposta.status === 401 || resposta.status === 403) throw credencialRecusada(slug!);
       if (resposta.status === 429) {
-        throw new Error("O sistema pediu para aguardar (limite de requisições atingido).");
+        let espera = receita.intervalo_minimo_s ?? 0;
+        try {
+          const corpo429 = (await resposta.json()) as { tempoAteLiberar?: number };
+          if (typeof corpo429.tempoAteLiberar === "number") espera = corpo429.tempoAteLiberar;
+        } catch {
+          // sem corpo: usa o intervalo documentado
+        }
+        if (!porPagina) {
+          throw new Error("O sistema pediu para aguardar (limite de requisições atingido).");
+        }
+        // devolve sem linhas: o navegador espera e pede a mesma página de novo
+        continuar = true;
+        esperarSegundos = Math.max(espera, 1);
+        break;
       }
       if (!resposta.ok) {
         throw new Error(`A API respondeu HTTP ${resposta.status}.`);
@@ -396,40 +528,64 @@ export async function consultarSistema(data: Entrada) {
       const itens = extrairLista(corpo, receita.lista_em);
       linhas.push(...itens);
 
-      if (pag.tipo === "nenhuma" || itens.length === 0 || linhas.length >= maximo) break;
-      if (pag.fim === "pagina_incompleta" && itens.length < tamanho) break;
-      if (pag.fim === "hasMore_false" && !valor(corpo, "hasMore")) break;
-      if (pag.tipo === "versao" || pag.tipo === "cursor") {
+      let acabou = pag.tipo === "nenhuma" || itens.length === 0 || linhas.length >= maximo;
+      if (!acabou && pag.fim === "pagina_incompleta" && itens.length < tamanho) acabou = true;
+      if (!acabou && pag.fim === "hasMore_false" && !valor(corpo, "hasMore")) acabou = true;
+      if (!acabou && (pag.tipo === "versao" || pag.tipo === "cursor")) {
         const campo = pag.campo_proximo ?? "versao";
         const valores = itens
           .map((i) => valor(i, campo))
           .filter((v): v is number | string => v !== undefined && v !== null);
-        if (valores.length === 0) break;
-        cursor = valores.reduce((a, b) => (Number(a) > Number(b) ? a : b));
+        if (valores.length === 0) acabou = true;
+        else cursor = valores.reduce((a, b) => (Number(a) > Number(b) ? a : b));
       }
+      if (acabou) break;
       pagina += 1;
+      if (porPagina) {
+        // uma página por chamada: o navegador espera o intervalo e pede a próxima
+        continuar = true;
+        esperarSegundos = receita.intervalo_minimo_s ?? 0;
+        break;
+      }
       await new Promise((r) => setTimeout(r, 350));
     }
 
     const registros = linhas.slice(0, maximo);
     const { colunas, aviso } = resolverColunas(receita.colunas, registros);
 
+    const numericas = new Map(
+      receita.colunas
+        .filter((c) => TIPOS_NUMERICOS.has(String(c.tipo)))
+        .map((c) => [c.caminho, c.formato_origem ?? ""] as const),
+    );
+
     return {
       titulo: receita.titulo,
       metodo: receita.metodo,
       path: receita.path,
       aviso,
+      /** Há mais páginas: chame de novo com `pagina` depois de `esperarSegundos`. */
+      continuar,
+      proximaPagina: pagina,
+      esperarSegundos,
+      chaveEmBase64,
       colunas: colunas.map((c) => ({ titulo: c.titulo, chave: c.caminho })),
       linhas: registros.map((linha) => {
         const saida: Record<string, string | number> = {};
         for (const c of colunas) {
-          const v = valorFlexivel(linha, c.caminho);
+          const bruto = valorFlexivel(linha, c.caminho);
+          const formato = numericas.get(c.caminho);
+          const v = formato === undefined ? bruto : numeroDeTexto(bruto, formato);
           saida[c.caminho] =
             v === null || v === undefined
               ? ""
-              : typeof v === "object"
-                ? JSON.stringify(v)
-                : (v as string | number);
+              : typeof v === "boolean"
+                ? v
+                  ? "Sim"
+                  : "Não"
+                : typeof v === "object"
+                  ? JSON.stringify(v)
+                  : (v as string | number);
         }
         return saida;
       }),

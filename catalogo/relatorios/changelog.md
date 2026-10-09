@@ -1,5 +1,11 @@
 # Changelog do catálogo
 
+## 2026-10-09 — Nomus ERP documentado (lote P2)
+
+- **nomus documentado** (índice 29), adiantado da cauda longa a pedido do usuário: 35 endpoints detalhados (31 leituras executáveis e 4 escritas de referência) e 159 catalogados, 17 perguntas de FAQ. Fontes: coleção Postman oficial (191 requisições) e seção API REST da Central de Ajuda. Relatório em `relatorios/nomus.md`.
+- Chave fixa em `Authorization: Basic <chave>` (receita `header_api_key` com prefixo), URL base por cliente, páginas fixas de 50 e limite publicado de 1 requisição a cada 20 s. O executor do site precisa de ajuste para paginar sem parâmetro de tamanho, esperar 20 s e montar filtros dentro do parâmetro `query`.
+- Manifest: lote P2 criado e concluído; nomus sai do lote 43 e da cauda longa.
+
 ## 2026-09-21 — Passagem do projeto
 
 - O proprietário assume a captação de clientes; a parte técnica passa para outro funcionário.

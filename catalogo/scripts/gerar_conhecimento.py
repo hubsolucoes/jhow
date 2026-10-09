@@ -24,6 +24,64 @@ def curto(texto, limite=LIMITE_DESCRICAO):
 ENUMS_VISIVEIS = {"tipo", "status", "status_pedido"}
 
 
+def rotulo_condicao(descricao):
+    """'Só títulos ainda não baixados. O campo...' -> 'Só títulos ainda não baixados'."""
+    import re
+    primeira = re.split(r"[.:;]", str(descricao or ""), maxsplit=1)[0]
+    return curto(re.sub(r"\s*\([^)]*\)", "", primeira).strip(), 70)
+
+
+def planejar_query_composta(endpoint):
+    """Filtros que a API recebe dentro de um único parâmetro (ex.: Nomus: query=campo>=valor;...).
+
+    O catálogo descreve cada filtro em execucao.filtros_recomendados com uma `expressao` e os
+    marcadores {data_inicial}, {data_final} e {id_empresa}. O formulário pergunta o período
+    (obrigatório: sem recorte a extração varre a base inteira), por qual data filtrar, a empresa,
+    as condições fixas que começam com "Só" e um filtro adicional livre.
+    """
+    filtros = [f for f in ((endpoint.get("execucao") or {}).get("filtros_recomendados") or [])
+               if f.get("expressao")]
+    if not filtros:
+        return [], None
+    parametro = filtros[0].get("parametro") or "query"
+    periodos = {}
+    for f in filtros:
+        if f.get("papel") == "periodo" and "{data_inicial}" in f["expressao"]:
+            campo = f.get("campo") or f["expressao"].split(">=")[0]
+            rotulo = curto(str(f.get("descricao") or campo).split(":")[0].replace("Recorte por ", ""), 40)
+            periodos[rotulo[:1].upper() + rotulo[1:]] = f["expressao"]
+    filial = next((f["expressao"] for f in filtros
+                   if f.get("papel") == "filial" and "{id_empresa}" in f["expressao"]), None)
+    condicoes = {}
+    for i, f in enumerate(filtros):
+        if f.get("papel") == "opcao" and "<" not in f["expressao"].replace("<=", "")                 and str(f.get("descricao") or "").startswith("Só "):
+            condicoes[f"condicao_{i}"] = {"rotulo": rotulo_condicao(f.get("descricao")), "expressao": f["expressao"]}
+
+    campos = []
+    if periodos:
+        campos.append({"nome": "data_inicial", "rotulo": "Data inicial", "tipo": "data",
+                       "papel": "periodo_inicio", "obrigatorio": True})
+        campos.append({"nome": "data_final", "rotulo": "Data final", "tipo": "data",
+                       "papel": "periodo_fim", "obrigatorio": True})
+        if len(periodos) > 1:
+            campos.append({"nome": "periodo_por", "rotulo": "Filtrar o período por", "tipo": "opcao",
+                           "papel": "opcao", "obrigatorio": True, "opcoes": list(periodos),
+                           "padrao": next(iter(periodos))})
+    if filial:
+        campos.append({"nome": "id_empresa", "rotulo": "Empresa (id)", "tipo": "texto", "papel": "filial",
+                       "obrigatorio": False, "padrao": "",
+                       "dica": "Id da empresa no ERP (consulta Empresas). Vazio traz todas."})
+    for nome, cond in condicoes.items():
+        campos.append({"nome": nome, "rotulo": cond["rotulo"], "tipo": "condicao", "papel": "condicao",
+                       "obrigatorio": False})
+    campos.append({"nome": "filtro_adicional", "rotulo": "Filtro adicional (opcional)", "tipo": "texto",
+                   "papel": "avancado", "obrigatorio": False, "padrao": "",
+                   "dica": "Na sintaxe do sistema, ex.: idPessoa==123. Junta-se aos filtros acima."})
+    receita = {"parametro": parametro, "periodos": periodos, "filial": filial,
+               "condicoes": {n: c["expressao"] for n, c in condicoes.items()}}
+    return campos, receita
+
+
 def planejar_filtros(endpoint, paginacao):
     """Decide, a partir dos parâmetros documentados, o que o site pergunta e o que envia sozinho.
 
@@ -47,6 +105,9 @@ def planejar_filtros(endpoint, paginacao):
             continue
         if local != "query":
             continue
+        if any(f.get("expressao") and f.get("parametro") == nome
+               for f in ((endpoint.get("execucao") or {}).get("filtros_recomendados") or [])):
+            continue  # tratado por planejar_query_composta
         if nome in params_pag:
             if paginacao.get("tipo") == "offset" and nome == paginacao.get("param_pagina") and "base 1" in descricao:
                 offset_base = 1
@@ -62,8 +123,11 @@ def planejar_filtros(endpoint, paginacao):
             campos.append({"nome": nome, "rotulo": "Data final", "tipo": "data", "papel": "periodo_fim",
                            "obrigatorio": obrigatorio})
         elif p.get("tipo") == "date":
-            campos.append({"nome": nome, "rotulo": "Data de referência", "tipo": "data", "papel": "data",
-                           "obrigatorio": obrigatorio})
+            campo = {"nome": nome, "rotulo": "Data de referência", "tipo": "data", "papel": "data",
+                     "obrigatorio": obrigatorio}
+            if "dd/mm" in str(p.get("formato") or ""):
+                campo["formato"] = "dd/mm/aaaa"
+            campos.append(campo)
         elif baixo == "filial":
             campos.append({"nome": nome, "rotulo": "Filial", "tipo": "texto", "papel": "filial",
                            "obrigatorio": obrigatorio, "padrao": padrao if padrao not in (None, "") else "",
@@ -136,7 +200,10 @@ def main():
                 campos_filtro, padroes_fixos, offset_base = planejar_filtros(e, paginacao)
                 if offset_base:
                     paginacao = {**paginacao, "offset_base": offset_base}
+                campos_query, query_composta = planejar_query_composta(e)
+                campos_filtro = campos_filtro + campos_query
                 base["campos_filtro"] = campos_filtro
+                limite = ex.get("limite_requisicoes") or {}
                 execucao[s["slug"]]["endpoints"][e["id"]] = {
                     "metodo": e["metodo"], "path": e["path"],
                     "lista_em": ex.get("lista_em"), "campo_total": ex.get("campo_total"),
@@ -146,6 +213,9 @@ def main():
                     "padroes_fixos": padroes_fixos,
                     "colunas": ex.get("colunas_sugeridas") or [],
                     "titulo": curto(e.get("nome_fornecedor") or e.get("descricao"), 80),
+                    **({"query_composta": query_composta} if query_composta else {}),
+                    **({"intervalo_minimo_s": limite["intervalo_minimo_s"]}
+                       if limite.get("intervalo_minimo_s") else {}),
                 }
             else:
                 base["motivo_nao_executa"] = curto(ex.get("motivo_inseguro"), 160)

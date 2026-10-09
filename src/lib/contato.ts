@@ -4,7 +4,8 @@
  */
 export const WHATSAPP = "";
 
-const MENSAGEM_WHATSAPP = "Olá! Conheci o Stagium e quero conversar sobre receber os dados do Sagi em planilha.";
+const MENSAGEM_WHATSAPP =
+  "Olá! Conheci o Stagium e quero conversar sobre receber os dados do meu ERP em planilha.";
 
 export const linkWhatsApp = () =>
   WHATSAPP ? `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(MENSAGEM_WHATSAPP)}` : "";
