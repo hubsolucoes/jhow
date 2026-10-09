@@ -6,26 +6,27 @@ import { useEffect, useRef } from "react";
  * Roda sempre, por decisão do cliente (sem botão de pausa).
  */
 
+// Perguntas comuns a qualquer ERP; cada uma tem a planilha correspondente na mesma posição.
 const PERGUNTAS = [
   "vendas de setembro",
-  "estoque da matriz",
-  "clientes cadastrados",
+  "contas a receber em aberto",
+  "estoque por produto",
   "pedidos de compra deste mês",
-  "cargas dos fornecedores em setembro",
+  "notas fiscais emitidas",
   "pagamentos a fornecedores",
-  "ordens de coleta da semana",
-  "MTRs emitidos em agosto",
+  "ordens de produção da semana",
+  "clientes cadastrados",
 ];
 
 const PLANILHAS = [
   "pedidos_venda_setembro.xlsx",
-  "estoque_matriz.xlsx",
-  "clientes.xlsx",
+  "contas_receber_em_aberto.xlsx",
+  "estoque_por_produto.xlsx",
   "pedidos_compra_outubro.xlsx",
-  "cargas_fornecedores_setembro.xlsx",
+  "notas_emitidas_setembro.xlsx",
   "pagamentos_fornecedores.xlsx",
-  "ordens_coleta_semana.xlsx",
-  "mtr_agosto.xlsx",
+  "ordens_producao_semana.xlsx",
+  "clientes.xlsx",
 ];
 
 // Espaço entre os itens (preservado com white-space: pre).
@@ -69,7 +70,9 @@ export function FluxoPlanilhas() {
     return () => cancelAnimationFrame(quadro);
   }, []);
 
-  const textoEntrada = Array(REPETICOES).fill(PERGUNTAS.join(VAO) + VAO).join("");
+  const textoEntrada = Array(REPETICOES)
+    .fill(PERGUNTAS.join(VAO) + VAO)
+    .join("");
 
   return (
     <div className="fluxo" aria-hidden>

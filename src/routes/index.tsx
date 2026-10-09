@@ -36,7 +36,7 @@ const ETAPAS: { voce: string; stagium: string }[] = [
     stagium: "Mostra a consulta e já preenche o período citado na pergunta.",
   },
   {
-    voce: "Aprova e informa o usuário de integração, num formulário à parte.",
+    voce: "Aprova e informa o acesso de integração do seu ERP, num formulário à parte.",
     stagium: "Consulta a API do seu ERP, só para leitura, e percorre todas as páginas.",
   },
   {
@@ -138,7 +138,7 @@ const GARANTIAS: { titulo: string; texto: string }[] = [
   {
     titulo: "A senha não passa pela IA",
     texto:
-      "As credenciais vão num formulário separado, não ficam gravadas e valem só enquanto a conversa está aberta.",
+      "As credenciais vão num formulário separado e nunca chegam à IA. Se você quiser, ficam salvas só no seu navegador, protegidas por um PIN.",
   },
   {
     titulo: "Toda planilha diz de onde veio",
@@ -267,7 +267,7 @@ function Landing() {
             <h2 className="titulo-secao">O que você pode pedir</h2>
             <p className="mt-3 max-w-[60ch] text-muted-foreground">
               Escolha um exemplo do sistema da sua empresa para abrir a conversa com a pergunta já
-              escrita. Mude o período ou a filial como quiser.
+              escrita. Mude o período ou a empresa como quiser.
             </p>
             {EXEMPLOS.map((sis) => (
               <div key={sis.sistema} className="mt-12">
